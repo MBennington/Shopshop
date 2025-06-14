@@ -54,6 +54,7 @@ export default function Navbar() {
           <Link className="text-[#0d141c] text-sm font-medium leading-normal hover:text-blue-600 transition-colors" href="/categories">Categories</Link>
           <Link className="text-[#0d141c] text-sm font-medium leading-normal hover:text-blue-600 transition-colors" href="/deals">Deals</Link>
           <Link className="text-[#0d141c] text-sm font-medium leading-normal hover:text-blue-600 transition-colors" href="/new-arrivals">New Arrivals</Link>
+          <Link className="text-[#0d141c] text-sm font-medium leading-normal hover:text-blue-600 transition-colors" href="/shops">Shops</Link>
         </nav>
       </div>
       <div className="flex flex-1 justify-end gap-8">
