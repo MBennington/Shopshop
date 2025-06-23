@@ -21,12 +21,37 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
     'https://lh3.googleusercontent.com/aida-public/AB6AXuC8SuqeR7oyEJz1UF7tK6XR9fuMBqY0GTdzToptoShu2RDI2ODNlUYKLk-mKM7J-QoVPiTS6YA0ZgsTPcIdqRSmND_o4X2uIo3ZSc9Yu1Hjp8OLgzbSGyX-QT0vHudeDFiCXw4Xc4O6JWm4kKNUEVSGj4Z1V4aJmw3T58nS374VPReiuC2TIDNkYodu-bBVWFF7GaMo-UGW7GnzmpgHi18nHgFeoT2FMcDq26X68cTdhXOOjbTjpIWhpops2uOABe9LOWiKbGdVnk4'
   ];
   const [selectedImage, setSelectedImage] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Static product data for demo
   const product = {
     name: "Summer Breeze Dress",
     description:
       "A lightweight, flowy dress perfect for warm weather. Made from breathable cotton, it features a flattering silhouette and adjustable straps for a comfortable fit.",
+    longDescription: `Experience the perfect blend of comfort and style with our Summer Breeze Dress. This elegant piece is crafted from premium 100% cotton, ensuring breathability and comfort even on the warmest days.
+
+Key Features:
+• Lightweight and breathable cotton fabric
+• Flattering A-line silhouette
+• Adjustable shoulder straps for a custom fit
+• Hidden side pockets for convenience
+• Machine washable for easy care
+• Available in multiple sizes and colors
+
+Perfect for:
+• Summer gatherings and parties
+• Beach outings and vacations
+• Casual daytime events
+• Office wear in warm weather
+• Weekend brunches and shopping
+
+Care Instructions:
+• Machine wash cold with similar colors
+• Tumble dry low
+• Iron on low heat if needed
+• Do not bleach
+
+The Summer Breeze Dress is designed to be your go-to piece for warm weather occasions. Its versatile style and comfortable fit make it a must-have addition to your summer wardrobe. The adjustable straps ensure a perfect fit for various body types, while the hidden pockets add both functionality and a clean silhouette.`,
     price: "$49.99",
     sizes: ["XS", "S", "M", "L", "XL"],
     colors: [
@@ -146,9 +171,18 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
               </div>
               <div className="flex justify-stretch">
                 <div className="flex flex-1 gap-3 flex-wrap py-3 justify-start">
-                  <button className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 bg-[#528bc5] text-white text-sm font-bold leading-normal tracking-[0.015em]">
+                  <Link 
+                    href={`/checkout?product=${encodeURIComponent(JSON.stringify({
+                      id,
+                      category,
+                      name: product.name,
+                      price: product.price,
+                      image: productImages[selectedImage]
+                    }))}`}
+                    className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 bg-[#528bc5] text-white text-sm font-bold leading-normal tracking-[0.015em]"
+                  >
                     <span className="truncate">Buy Now</span>
-                  </button>
+                  </Link>
                   <button className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 bg-[#f1f2f4] text-[#121416] text-sm font-bold leading-normal tracking-[0.015em]">
                     <span className="truncate">Add to Cart</span>
                   </button>
@@ -163,6 +197,22 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* Long Description Section */}
+          <div className="px-4 py-6 border-t border-[#dde0e3]">
+            <h3 className="text-[#121416] text-lg font-bold leading-tight tracking-[-0.015em] mb-4">Product Description</h3>
+            <div className="relative">
+              <div className={`text-[#121416] text-base font-normal leading-normal whitespace-pre-line ${!isExpanded ? 'line-clamp-3' : ''}`}>
+                {product.longDescription}
+              </div>
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="mt-2 text-[#397fc5] text-sm font-medium hover:text-[#528bc5] transition-colors"
+              >
+                {isExpanded ? 'Show less' : 'Show more'}
+              </button>
             </div>
           </div>
 

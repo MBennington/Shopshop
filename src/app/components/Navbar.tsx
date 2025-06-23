@@ -3,15 +3,19 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 
 export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Searching for:", searchQuery);
-    // Implement search functionality here
+    if (searchQuery.trim()) {
+      router.push(`/search?query=${encodeURIComponent(searchQuery.trim())}`);
+    }
   };
 
   const toggleDropdown = () => {
@@ -50,11 +54,11 @@ export default function Navbar() {
           </Link>
         </div>
         <nav className="flex items-center gap-9">
-          <Link className="text-[#0d141c] text-sm font-medium leading-normal hover:text-blue-600 transition-colors" href="/">Home</Link>
-          <Link className="text-[#0d141c] text-sm font-medium leading-normal hover:text-blue-600 transition-colors" href="/categories">Categories</Link>
-          <Link className="text-[#0d141c] text-sm font-medium leading-normal hover:text-blue-600 transition-colors" href="/deals">Deals</Link>
-          <Link className="text-[#0d141c] text-sm font-medium leading-normal hover:text-blue-600 transition-colors" href="/new-arrivals">New Arrivals</Link>
-          <Link className="text-[#0d141c] text-sm font-medium leading-normal hover:text-blue-600 transition-colors" href="/shops">Shops</Link>
+          <Link href="/" className={`px-4 py-2 rounded-full transition-all duration-200 text-sm font-medium leading-normal ${pathname === '/' ? 'bg-black text-white' : 'bg-[#f1f2f3] text-[#0d141c] hover:bg-[#e3eaf6] hover:text-black'}`}>Home</Link>
+          <Link href="/categories" className={`px-4 py-2 rounded-full transition-all duration-200 text-sm font-medium leading-normal ${pathname.startsWith('/categories') ? 'bg-black text-white' : 'bg-[#f1f2f3] text-[#0d141c] hover:bg-[#e3eaf6] hover:text-black'}`}>Categories</Link>
+          <Link href="/deals" className={`px-4 py-2 rounded-full transition-all duration-200 text-sm font-medium leading-normal ${pathname.startsWith('/deals') ? 'bg-black text-white' : 'bg-[#f1f2f3] text-[#0d141c] hover:bg-[#e3eaf6] hover:text-black'}`}>Deals</Link>
+          <Link href="/new-arrivals" className={`px-4 py-2 rounded-full transition-all duration-200 text-sm font-medium leading-normal ${pathname.startsWith('/new-arrivals') ? 'bg-black text-white' : 'bg-[#f1f2f3] text-[#0d141c] hover:bg-[#e3eaf6] hover:text-black'}`}>New Arrivals</Link>
+          <Link href="/shops" className={`px-4 py-2 rounded-full transition-all duration-200 text-sm font-medium leading-normal ${pathname.startsWith('/shops') ? 'bg-black text-white' : 'bg-[#f1f2f3] text-[#0d141c] hover:bg-[#e3eaf6] hover:text-black'}`}>Shops</Link>
         </nav>
       </div>
       <div className="flex flex-1 justify-end gap-8">
@@ -75,24 +79,33 @@ export default function Navbar() {
         </form>
         <div className="flex gap-2">
           <button
-            onClick={() => console.log("Favorites clicked")}
+            onClick={() => router.push('/wishlist')}
             className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-[#e7edf4] text-[#0d141c] gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5 hover:bg-[#d1dbe9] transition-colors"
             aria-label="Favorites"
           >
             <div className="text-[#0d141c]">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="currentColor" viewBox="0 0 256 256">
-                <path d="M178,32c-20.65,0-38.73,8.88-50,23.89C116.73,40.88,98.65,32,78,32A62.07,62.07,0,0,0,16,94c0,70,103.79,126.66,108.21,129a8,8,0,0,0,7.58,0C136.21,220.66,240,164,240,94A62.07,62.07,0,0,0,178,32ZM128,206.8C109.74,196.16,32,147.69,32,94A46.06,46.06,0,0,1,78,48c19.45,0,35.78,10.36,42.6,27a8,8,0,0,0,14.8,0c6.82-16.67,23.15-27,42.6-27a46.06,46.06,0,0,1,46,46C224,147.61,146.24,196.15,128,206.8Z"></path>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill={pathname.startsWith('/wishlist') ? '#e53935' : 'none'} stroke="#e53935" strokeWidth="2">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41 0.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
               </svg>
             </div>
           </button>
           <button
-            onClick={() => console.log("Cart clicked")}
-            className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-[#e7edf4] text-[#0d141c] gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5 hover:bg-[#d1dbe9] transition-colors"
+            onClick={() => router.push('/cart')}
+            className={`flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5 transition-colors
+              ${pathname.startsWith('/cart') ? 'bg-black' : 'bg-[#e7edf4] hover:bg-[#d1dbe9]'}`}
             aria-label="Shopping Cart"
           >
-            <div className="text-[#0d141c]">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="currentColor" viewBox="0 0 256 256">
-                <path d="M222.14,58.87A8,8,0,0,0,216,56H54.68L49.79,29.14A16,16,0,0,0,34.05,16H16a8,8,0,0,0,0,16h18L59.56,172.29a24,24,0,0,0,5.33,11.27,28,28,0,1,0,44.4,8.44h45.42A27.75,27.75,0,0,0,152,204a28,28,0,1,0,28-28H83.17a8,8,0,0,1-7.87-6.57L72.13,152h116a24,24,0,0,0,23.61-19.71l12.16-66.86A8,8,0,0,0,222.14,58.87ZM96,204a12,12,0,1,1-12-12A12,12,0,0,1,96,204Zm96,0a12,12,0,1,1-12-12A12,12,0,0,1,192,204Zm4-74.57A8,8,0,0,1,188.1,136H69.22L57.59,72H206.41Z"></path>
+            <div>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20px"
+                height="20px"
+                viewBox="0 0 256 256"
+                fill={pathname.startsWith('/cart') ? '#90caf9' : 'none'}
+                stroke={pathname.startsWith('/cart') ? '#fff' : '#154178'}
+                strokeWidth="2"
+              >
+                <path d="M222.14,58.87A8,8,0,0,0,216,56H54.68L49.79,29.14A16,16,0,0,0,34.05,16H16a8,8,0,0,0,0,16h18L59.56,172.29a24,24,0,0,0,5.33,11.27,28,28,0,1,0,44.4,8.44h45.42A27.75,27.75,0,0,0,152,204a28,28,0,1,0,28-28H83.17a8,8,0,0,1-7.87-6.57L72.13,152h116a24,24,0,0,0,23.61-19.71l12.16-66.86A8,8,0,0,0,222.14,58.87ZM96,204a12,12,0,1,1-12-12A12,12,0,0,1,96,204Zm96,0a12,12,0,1,1-12-12A12,12,0,0,1,192,204Zm4-74.57A8,8,0,0,1,188.1,136H69.22L57.59,72H206.41Z"/>
               </svg>
             </div>
           </button>

@@ -35,7 +35,7 @@ export default function ShopsPage() {
   );
   return (
     <div className="min-h-screen bg-[#f7f8fa] py-10 px-4">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <h1 className="text-3xl font-bold text-[#121416] mb-6">Shops</h1>
         <div className="mb-6 flex justify-end">
           <input
@@ -46,7 +46,7 @@ export default function ShopsPage() {
             className="w-full max-w-xs px-4 py-2 border border-[#dde0e3] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#397fc5] focus:border-transparent bg-white text-[#121416] placeholder:text-[#6a7581]"
           />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
           {filteredShops.map((shop) => (
             <Link key={shop.id} href={`/shops/${shop.id}`} className="group">
               <div className="bg-white rounded-2xl shadow-lg border border-[#dde0e3] flex flex-col overflow-hidden hover:shadow-xl transition-shadow duration-200 cursor-pointer group-hover:scale-[1.02]">
@@ -54,7 +54,7 @@ export default function ShopsPage() {
                   <img src={shop.image} alt={shop.name} className="object-cover w-full h-full" />
                 </div>
                 <div className="p-6 flex flex-col gap-2 flex-1">
-                  <h2 className="text-xl font-bold text-[#121416] truncate">{shop.name}</h2>
+                  <h2 className="text-lg font-bold text-[#121416] truncate">{shop.name}</h2>
                   <p className="text-[#6a7581] text-sm mb-2 line-clamp-2">{shop.description}</p>
                   <div className="mt-auto flex items-center gap-2 pt-2">
                     <div className="w-8 h-8 rounded-full bg-[#397fc5] flex items-center justify-center text-white font-bold text-xs">{shop.owner.split(' ').map(n => n[0]).join('')}</div>
