@@ -14,7 +14,6 @@ const {
 module.exports.createUser = async (req, res) => {
     try {
       const data = await userService.createUser(req.body);
-      //return successWithData(data, res);
       return successWithDataAndToken(data, res);
     } catch (error) {
       return customError(`${error.message}`, res);
