@@ -2,12 +2,11 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
 export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -17,28 +16,6 @@ export default function Navbar() {
       router.push(`/search?query=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
-
-  const toggleDropdown = () => {
-    setIsDropdownOpen(!isDropdownOpen);
-  };
-
-  const closeDropdown = () => {
-    setIsDropdownOpen(false);
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest('.profile-dropdown')) {
-        closeDropdown();
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
 
   return (
     <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#e7edf4] px-10 py-3 sticky top-0 bg-white z-50 shadow-sm">
@@ -110,18 +87,19 @@ export default function Navbar() {
             </div>
           </button>
         </div>
-        <div className="relative profile-dropdown">
-          <button onClick={toggleDropdown} className="w-10 h-10 rounded-full bg-[#397fc5] text-white flex items-center justify-center">
-            <span className="text-sm font-medium">JD</span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => router.push('/auth')}
+            className="px-4 py-2 text-sm font-medium text-[#0d141c] bg-[#e7edf4] rounded-lg hover:bg-[#d1dbe9] transition-colors"
+          >
+            Sign In
           </button>
-          {isDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-10">
-              <Link href="/profile" className="block px-4 py-2 text-[#121417] hover:bg-[#f8f9fa]">Profile</Link>
-              <Link href="/orders" className="block px-4 py-2 text-[#121417] hover:bg-[#f8f9fa]">My Orders</Link>
-              <Link href="/sell" className="block px-4 py-2 text-[#121417] hover:bg-[#f8f9fa]">Sell</Link>
-              <button className="block w-full text-left px-4 py-2 text-[#121417] hover:bg-[#f8f9fa]">Logout</button>
-            </div>
-          )}
+          <button
+            onClick={() => router.push('/auth')}
+            className="px-4 py-2 text-sm font-medium text-white bg-[#0d141c] rounded-lg hover:bg-[#1a2332] transition-colors"
+          >
+            Sign Up
+          </button>
         </div>
       </div>
     </header>
