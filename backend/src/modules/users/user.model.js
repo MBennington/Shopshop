@@ -5,11 +5,6 @@ const {roles} = require('../../config/role.config');
 
 const userSchema = new Schema(
   {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
     email: {
       type: String,
       required: true,
@@ -23,9 +18,26 @@ const userSchema = new Schema(
     role: {
       type: String,
       enum: Object.values(roles),
-      default: roles.seller,
+      default: roles.buyer,
+    },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    //seller specific
+    businessName: {
+      type: String,
+    },
+    phone: {
+      type: String,
+    },
+    businessType: {
+      type: String,
     },
   },
+
   {
     timestamps: {
       createdAt: "created_at",

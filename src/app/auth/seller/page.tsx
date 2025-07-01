@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 
 export default function SellerAuthPage() {
+  const [errorMessage, setErrorMessage] = useState('');
+const [successMessage, setSuccessMessage] = useState('');
   const [loginForm, setLoginForm] = useState({
     email: '',
     password: ''
@@ -30,33 +32,112 @@ export default function SellerAuthPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
+  setSuccessMessage('');
     setIsLoading(true);
+
+    try {
+    const res = await fetch('http://localhost:5000/api/users/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(loginForm)
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      router.push('/sell');
+    } else {
+      setErrorMessage(data.msg || 'Login failed');
+      setTimeout(() => {
+    setErrorMessage('');
+  }, 3000);
+    }
+  } catch (error) {
+    console.error('Login error:', error);
+    setErrorMessage('Server error during login');
+    setTimeout(() => {
+    setErrorMessage('');
+  }, 3000);
+  } finally {
+    setIsLoading(false);
+  }
     
     // Simulate API call
-    setTimeout(() => {
-      console.log('Seller Login:', loginForm);
-      setIsLoading(false);
-      // Redirect to seller dashboard after successful login
-      router.push('/sell');
-    }, 1000);
+    // setTimeout(() => {
+    //   console.log('Seller Login:', loginForm);
+    //   setIsLoading(false);
+    //   // Redirect to seller dashboard after successful login
+    //   router.push('/sell');
+    // }, 1000);
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
+  setSuccessMessage('');
     if (signupForm.password !== signupForm.confirmPassword) {
-      alert('Passwords do not match');
+      setErrorMessage('Passwords do not match');
+      setTimeout(() => {
+    setErrorMessage('');
+  }, 3000);
       return;
     }
     
     setIsLoading(true);
+
+    const payload = {
+    businessName: signupForm.businessName,
+    email: signupForm.email,
+    phone: signupForm.phone,
+    businessType: signupForm.businessType,
+    password: signupForm.password,
+    role: 'seller',
+    name: signupForm.contactName,
+  };
+
+  try {
+    const res = await fetch('http://localhost:5000/api/users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      setSuccessMessage('Seller account created successfully!');
+      setTimeout(() => {
+    setSuccessMessage('');
+  }, 3000);
+      router.push('/sell');
+    } else {
+      setErrorMessage(data.msg || 'Signup failed');
+      setTimeout(() => {
+    setErrorMessage('');
+  }, 3000);
+    }
+  } catch (error) {
+    console.error('Signup error:', error);
+    setErrorMessage('Server error during signup');
+    setTimeout(() => {
+    setErrorMessage('');
+  }, 3000);
+  } finally {
+    setIsLoading(false);
+  }
     
     // Simulate API call
-    setTimeout(() => {
-      console.log('Seller Signup:', signupForm);
-      setIsLoading(false);
-      // Redirect to seller dashboard after successful signup
-      router.push('/sell');
-    }, 1000);
+    // setTimeout(() => {
+    //   console.log('Seller Signup:', signupForm);
+    //   setIsLoading(false);
+    //   // Redirect to seller dashboard after successful signup
+    //   router.push('/sell');
+    // }, 1000);
   };
 
   return (
@@ -138,6 +219,17 @@ export default function SellerAuthPage() {
                     {isLoading ? 'Signing in...' : 'Sign In to Seller Portal'}
                   </Button>
                 </form>
+                                {/* 🔽 success or error message */}
+  {errorMessage && (
+    <div className="text-sm text-red-600 bg-red-100 border border-red-300 p-2 rounded">
+      {errorMessage}
+    </div>
+  )}
+  {successMessage && (
+    <div className="text-sm text-green-600 bg-green-100 border border-green-300 p-2 rounded">
+      {successMessage}
+    </div>
+  )}
               </TabsContent>
               
               <TabsContent value="signup">
@@ -255,6 +347,17 @@ export default function SellerAuthPage() {
                     {isLoading ? 'Creating seller account...' : 'Start Selling'}
                   </Button>
                 </form>
+                                {/* 🔽 ADD THIS BLOCK HERE */}
+  {errorMessage && (
+    <div className="text-sm text-red-600 bg-red-100 border border-red-300 p-2 rounded">
+      {errorMessage}
+    </div>
+  )}
+  {successMessage && (
+    <div className="text-sm text-green-600 bg-green-100 border border-green-300 p-2 rounded">
+      {successMessage}
+    </div>
+  )}
               </TabsContent>
             </Tabs>
             
