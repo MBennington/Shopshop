@@ -21,39 +21,106 @@ export default function AuthPage() {
     password: '',
     confirmPassword: ''
   });
+
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
+
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      console.log('Login:', loginForm);
-      setIsLoading(false);
-      // Redirect to home page after successful login
+    try {
+    const res = await fetch('http://localhost:5000/api/users/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(loginForm)
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
       router.push('/');
-    }, 1000);
+    } else {
+      setErrorMessage(data.msg || 'Login failed');
+    }
+  } catch (error) {
+    console.error('Login error:', error);
+    setErrorMessage('Server error during login');
+  } finally {
+    setIsLoading(false);
+  }
+    
+    // Simulate API call
+    // setTimeout(() => {
+    //   console.log('Login:', loginForm);
+    //   setIsLoading(false);
+    //   // Redirect to home page after successful login
+    //   router.push('/');
+    // }, 1000);
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
     if (signupForm.password !== signupForm.confirmPassword) {
-      alert('Passwords do not match');
+      setErrorMessage('Passwords do not match');
+      setTimeout(() => {
+    setErrorMessage('');
+  }, 3000);
       return;
     }
     
     setIsLoading(true);
+
+    const payload = {
+    name: signupForm.name,
+    email: signupForm.email,
+    password: signupForm.password,
+    role: 'buyer',
+  };
+
+  try {
+    const res = await fetch('http://localhost:5000/api/users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      setSuccessMessage('Account created successfully!');
+      setTimeout(() => {
+        router.push('/');
+      }, 1000);
+    } else {
+      setErrorMessage(data.msg || 'Signup failed');
+    }
+  } catch (error) {
+    console.error('Signup error:', error);
+    setErrorMessage('Server error during signup');
+  } finally {
+    setIsLoading(false);
+  }
     
     // Simulate API call
-    setTimeout(() => {
-      console.log('Signup:', signupForm);
-      setIsLoading(false);
-      // Redirect to home page after successful signup
-      router.push('/');
-    }, 1000);
+    // setTimeout(() => {
+    //   console.log('Signup:', signupForm);
+    //   setIsLoading(false);
+    //   // Redirect to home page after successful signup
+    //   router.push('/');
+    // }, 1000);
   };
 
   return (
@@ -130,6 +197,17 @@ export default function AuthPage() {
                     {isLoading ? 'Signing in...' : 'Sign In'}
                   </Button>
                 </form>
+                                {/* 🔽 Display success or error message */}
+  {errorMessage && (
+    <div className="text-sm text-red-600 bg-red-100 border border-red-300 p-2 rounded">
+      {errorMessage}
+    </div>
+  )}
+  {successMessage && (
+    <div className="text-sm text-green-600 bg-green-100 border border-green-300 p-2 rounded">
+      {successMessage}
+    </div>
+  )}
               </TabsContent>
               
               <TabsContent value="signup">
@@ -198,6 +276,17 @@ export default function AuthPage() {
                     {isLoading ? 'Creating account...' : 'Create Account'}
                   </Button>
                 </form>
+                                {/* 🔽  Display success or error message */}
+  {errorMessage && (
+    <div className="text-sm text-red-600 bg-red-100 border border-red-300 p-2 rounded">
+      {errorMessage}
+    </div>
+  )}
+  {successMessage && (
+    <div className="text-sm text-green-600 bg-green-100 border border-green-300 p-2 rounded">
+      {successMessage}
+    </div>
+  )}
               </TabsContent>
             </Tabs>
             
