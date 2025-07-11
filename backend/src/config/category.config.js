@@ -1,12 +1,12 @@
 module.exports = {
-    categories: {
-      fashion: "fashion",
-      home_and_living: "home_and_living",
-      electronics: "electronics",
-      books: "books",
-      sports_and_outdoors: "sports_and_outdoors",
-      beauty_and_personal_care: "beauty_and_personal_care",
-      toys_and_games: "toys_and_games",
-      food_and_grocery: "food_and_grocery",
-    },
-  };
+  categories: {
+    fashion: 'Fashion',
+    home_and_living: 'Home & Living',
+    electronics: 'Electronics',
+    books: 'Books',
+    sports_and_outdoors: 'Sports & Outdoors',
+    beauty_and_personal_care: 'Beauty & Personal Care',
+    toys_and_games: 'Toys & Games',
+    food_and_grocery: 'Food & Grocery',
+  },
+};
