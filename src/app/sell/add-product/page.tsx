@@ -12,52 +12,94 @@ interface ColorOption {
 export default function AddProductPage() {
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [colors, setColors] = useState<ColorOption[]>([]);
+  const [name, setName] = useState('');
+  const [price, setPrice] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const formData = new FormData();
+
+    formData.append('name', name);
+    formData.append('price', String(Number(price)));
+    formData.append('description', description);
+    formData.append('category', category);
+    selectedSizes.forEach((size) => formData.append('sizes[]', size));
+
+    colors.forEach((color, index) => {
+      formData.append(`colors[${index}][colorCode]`, color.color);
+      color.images.forEach((file, i) => {
+        formData.append(`colors[${index}][images][${i}]`, file);
+      });
+    });
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:5000/api/products`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.msg || 'Something went wrong');
+      alert('Product created successfully!');
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message);
+    }
+  };
 
   const handleSizeChange = (size: string) => {
-    setSelectedSizes(prev => 
-      prev.includes(size) 
-        ? prev.filter(s => s !== size)
-        : [...prev, size]
+    setSelectedSizes((prev) =>
+      prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size]
     );
   };
 
   const addColor = () => {
-    setColors(prev => [
+    setColors((prev) => [
       ...prev,
-      { id: Math.random().toString(36).slice(2), color: '#cccccc', images: [] }
+      { id: Math.random().toString(36).slice(2), color: '#cccccc', images: [] },
     ]);
   };
 
   const removeColor = (id: string) => {
-    setColors(prev => prev.filter(c => c.id !== id));
+    setColors((prev) => prev.filter((c) => c.id !== id));
   };
 
   const updateColor = (id: string, color: string) => {
-    setColors(prev => prev.map(c => c.id === id ? { ...c, color } : c));
+    setColors((prev) => prev.map((c) => (c.id === id ? { ...c, color } : c)));
   };
 
   const handleImageChange = (id: string, files: FileList | null) => {
     if (!files) return;
-    setColors(prev => prev.map(c =>
-      c.id === id ? { ...c, images: Array.from(files) } : c
-    ));
+    setColors((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, images: Array.from(files) } : c))
+    );
   };
 
   return (
     <div className="flex min-h-screen bg-[#f7f8fa]">
       <Sidebar />
-      
+
       <div className="flex-1 p-8">
         <div className="max-w-[1200px] mx-auto">
           <div className="flex justify-between items-center mb-8">
             <div>
-              <h1 className="text-2xl font-bold text-[#121416] mb-1">Add New Product</h1>
+              <h1 className="text-2xl font-bold text-[#121416] mb-1">
+                Add New Product
+              </h1>
               <p className="text-[#6a7581]">Create a new product listing</p>
             </div>
           </div>
 
           <div className="bg-white rounded-xl p-6">
-            <form className="space-y-6">
+            <form className="space-y-6" onSubmit={handleSubmit}>
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <label className="block text-[#121417] text-sm font-medium mb-2">
@@ -65,6 +107,8 @@ export default function AddProductPage() {
                   </label>
                   <input
                     type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     className="w-full px-4 py-2 border border-[#dde0e3] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#121416] focus:border-transparent"
                     placeholder="Enter product name"
                   />
@@ -76,6 +120,8 @@ export default function AddProductPage() {
                   </label>
                   <input
                     type="number"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
                     className="w-full px-4 py-2 border border-[#dde0e3] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#121416] focus:border-transparent"
                     placeholder="Enter price"
                   />
@@ -87,6 +133,8 @@ export default function AddProductPage() {
                   Description
                 </label>
                 <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                   className="w-full px-4 py-2 border border-[#dde0e3] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#121416] focus:border-transparent"
                   rows={4}
                   placeholder="Enter product description"
@@ -97,9 +145,13 @@ export default function AddProductPage() {
                 <label className="block text-[#121417] text-sm font-medium mb-2">
                   Category
                 </label>
-                <select className="w-full px-4 py-2 border border-[#dde0e3] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#121416] focus:border-transparent">
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full px-4 py-2 border border-[#dde0e3] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#121416] focus:border-transparent"
+                >
                   <option value="">Select a category</option>
-                  <option value="clothing">Clothing</option>
+                  <option value="Fashion">Fashion</option>
                   <option value="accessories">Accessories</option>
                   <option value="shoes">Shoes</option>
                 </select>
@@ -137,24 +189,39 @@ export default function AddProductPage() {
                 </label>
                 <div className="flex flex-col gap-4">
                   {colors.map((colorOption, idx) => (
-                    <div key={colorOption.id} className="flex flex-col gap-2 border border-[#dde0e3] rounded-lg p-4">
+                    <div
+                      key={colorOption.id}
+                      className="flex flex-col gap-2 border border-[#dde0e3] rounded-lg p-4"
+                    >
                       <div className="flex items-center gap-4">
                         <input
                           type="color"
                           value={colorOption.color}
-                          onChange={e => updateColor(colorOption.id, e.target.value)}
+                          onChange={(e) =>
+                            updateColor(colorOption.id, e.target.value)
+                          }
                           className="w-10 h-10 p-0 border-none bg-transparent cursor-pointer"
                         />
                         <span className="text-sm">{colorOption.color}</span>
-                        <button type="button" onClick={() => removeColor(colorOption.id)} className="ml-auto text-[#ef4444] text-xs font-bold">Remove</button>
+                        <button
+                          type="button"
+                          onClick={() => removeColor(colorOption.id)}
+                          className="ml-auto text-[#ef4444] text-xs font-bold"
+                        >
+                          Remove
+                        </button>
                       </div>
                       <div>
-                        <label className="block text-[#121417] text-xs font-medium mb-1">Upload Images for this Color</label>
+                        <label className="block text-[#121417] text-xs font-medium mb-1">
+                          Upload Images for this Color
+                        </label>
                         <input
                           type="file"
                           multiple
                           accept="image/*"
-                          onChange={e => handleImageChange(colorOption.id, e.target.files)}
+                          onChange={(e) =>
+                            handleImageChange(colorOption.id, e.target.files)
+                          }
                         />
                         <div className="flex gap-2 mt-2 flex-wrap">
                           {colorOption.images.map((file, i) => (
@@ -169,7 +236,13 @@ export default function AddProductPage() {
                       </div>
                     </div>
                   ))}
-                  <button type="button" onClick={addColor} className="w-fit px-4 py-2 bg-[#121416] text-white rounded-lg hover:bg-[#2a2d30] transition-colors text-sm font-medium">+ Add Color</button>
+                  <button
+                    type="button"
+                    onClick={addColor}
+                    className="w-fit px-4 py-2 bg-[#121416] text-white rounded-lg hover:bg-[#2a2d30] transition-colors text-sm font-medium"
+                  >
+                    + Add Color
+                  </button>
                 </div>
               </div>
 
@@ -193,4 +266,4 @@ export default function AddProductPage() {
       </div>
     </div>
   );
-} 
+}
