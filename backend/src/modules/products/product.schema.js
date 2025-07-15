@@ -1,7 +1,6 @@
 const joi = require('joi');
 const { categories } = require('../../config/category.config');
 const { sizes } = require('../../config/sizes.config');
-const { status } = require('../../config/status.config');
 
 module.exports.createProduct = joi.object({
   name: joi.string().trim().min(1).required(),
@@ -45,7 +44,7 @@ module.exports.createProduct = joi.object({
     .min(1)
     .required(),
 
-  status: joi.string().valid(...Object.values(status)),
+
 });
 
 module.exports.updateProduct = joi.object({
@@ -90,5 +89,5 @@ module.exports.updateProduct = joi.object({
     .min(1)
     .optional(),
 
-  status: joi.string().valid(...Object.values(status)).optional(),
+
 });

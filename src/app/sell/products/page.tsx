@@ -23,7 +23,7 @@ interface Product {
   }>;
   inventory?: number; // For old schema products
   totalInventory: number;
-  status: string;
+  isActive: boolean;
   created_at: string;
 }
 
@@ -35,12 +35,12 @@ export default function ProductsPage() {
     show: boolean;
     productId: string;
     productName: string;
-    currentStatus: string;
+    isActive: boolean;
   }>({
     show: false,
     productId: '',
     productName: '',
-    currentStatus: '',
+    isActive: true,
   });
   const [deleting, setDeleting] = useState(false);
 
@@ -89,25 +89,16 @@ export default function ProductsPage() {
     });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Active':
-        return 'bg-green-100 text-green-800';
-      case 'Inactive':
-        return 'bg-red-100 text-red-800';
-      case 'Pending':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+  const getStatusColor = (isActive: boolean) => {
+    return isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
   };
 
-  const handleDeleteClick = (productId: string, productName: string, currentStatus: string) => {
+  const handleDeleteClick = (productId: string, productName: string, isActive: boolean) => {
     setDeleteDialog({
       show: true,
       productId,
       productName,
-      currentStatus,
+      isActive,
     });
   };
 
@@ -134,12 +125,12 @@ export default function ProductsPage() {
       setProducts((prev) =>
         prev.map((product) =>
           product._id === deleteDialog.productId
-            ? { ...product, status: deleteDialog.currentStatus === 'Active' ? 'Inactive' : 'Active' }
+            ? { ...product, isActive: !deleteDialog.isActive }
             : product
         )
       );
 
-      setDeleteDialog({ show: false, productId: '', productName: '', currentStatus: '' });
+      setDeleteDialog({ show: false, productId: '', productName: '', isActive: true });
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -148,7 +139,7 @@ export default function ProductsPage() {
   };
 
   const handleDeleteCancel = () => {
-    setDeleteDialog({ show: false, productId: '', productName: '', currentStatus: '' });
+    setDeleteDialog({ show: false, productId: '', productName: '', isActive: true });
   };
 
   if (loading) {
@@ -241,10 +232,10 @@ export default function ProductsPage() {
                     </div>
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                        product.status
+                        product.isActive
                       )}`}
                     >
-                      {product.status}
+                      {product.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </div>
 
@@ -300,15 +291,15 @@ export default function ProductsPage() {
                     </Link>
                                         <button 
                       onClick={() =>
-                        handleDeleteClick(product._id, product.name, product.status)
+                        handleDeleteClick(product._id, product.name, product.isActive)
                       }
                       className={`flex-1 px-4 py-2 border rounded-lg transition-colors text-sm ${
-                        product.status === 'Active'
+                        product.isActive
                           ? 'border-red-200 text-red-600 hover:bg-red-50'
                           : 'border-green-200 text-green-600 hover:bg-green-50'
                       }`}
                     >
-                      {product.status === 'Active' ? 'Deactivate' : 'Activate'}
+                      {product.isActive ? 'Deactivate' : 'Activate'}
                     </button>
                   </div>
                 </div>
@@ -326,10 +317,10 @@ export default function ProductsPage() {
               <div className="fixed inset-0 flex items-center justify-center z-[9999]">
                 <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl border border-gray-200">
                                   <h3 className="text-lg font-semibold text-[#121416] mb-4">
-                  {deleteDialog.currentStatus === 'Active' ? 'Deactivate' : 'Activate'} Product
+                  {deleteDialog.isActive ? 'Deactivate' : 'Activate'} Product
                 </h3>
                 <p className="text-[#6a7581] mb-6">
-                  {deleteDialog.currentStatus === 'Active' 
+                  {deleteDialog.isActive 
                     ? 'This will change the product status to inactive. Users will no longer see your product in listings.'
                     : 'This will change the product status to active. Users will be able to see your product in listings.'
                   }

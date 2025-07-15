@@ -1,7 +1,6 @@
 const ProductModel = require('./product.model');
 const userService = require('../users/user.service');
 const { roles } = require('../../config/role.config');
-const { status } = require('../../config/status.config');
 const repository = require('../../services/repository.service');
 const mongoose = require('mongoose');
 
@@ -253,15 +252,13 @@ module.exports.deleteProduct = async (product_id, user_id) => {
     throw new Error('You can only deactivate your own products');
   }
 
-  // Toggle product status between active and inactive
-  const updatedStatus =
-    existingProduct.status === status.active ? status.inactive : status.active;
+  // Toggle product isActive status
   const updatedProduct = await repository.updateOne(
     ProductModel,
     {
       _id: new mongoose.Types.ObjectId(product_id),
     },
-    { status: updatedStatus },
+    { isActive: !existingProduct.isActive },
     {
       new: true,
     }

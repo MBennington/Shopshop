@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 const { categories } = require('../../config/category.config');
 const { sizes } = require('../../config/sizes.config');
-const { status } = require('../../config/status.config');
 
 const productSchema = new Schema(
   {
@@ -49,10 +48,9 @@ const productSchema = new Schema(
       ref: 'user',
       required: true,
     },
-    status: {
-      type: String,
-      enum: Object.values(status),
-      default: status.active,
+    isActive: {
+      type: Boolean,
+      default: true,
     },
   },
   {
