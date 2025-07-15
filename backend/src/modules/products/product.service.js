@@ -130,25 +130,81 @@ module.exports.getProductsBySeller = async (seller_id) => {
 /**
  * Update product
  * @param body
+ * @param product_id
+ * @param user_id
  * @returns {Promise<*>}
  */
-module.exports.updateProduct = async (body, product_id) => {
-  let isExistingProduct = await this.getProductById(product_id);
+module.exports.updateProduct = async (body, product_id, user_id) => {
+  const user = await userService.getUserById(user_id);
 
-  if (!isExistingProduct) {
-    throw new Error('Cannot find the item');
+  if (!user) {
+    throw new Error('User not found.');
+  }
+  if (user.role !== roles.seller) {
+    throw new Error(
+      'Only sellers are allowed to update products. Please log in with a seller account.'
+    );
   }
 
-  return repository.updateOne(
+  let existingProduct = await this.getProductById(product_id);
+
+  if (!existingProduct) {
+    throw new Error('Product not found');
+  }
+
+  // Check if the product belongs to the user
+  if (existingProduct.seller.toString() !== user._id.toString()) {
+    throw new Error('You can only update your own products');
+  }
+
+  const processedData = {};
+
+  // Only include fields that are provided in the request
+  if (body.name !== undefined) processedData.name = body.name;
+  if (body.category !== undefined) processedData.category = body.category;
+  if (body.price !== undefined) processedData.price = Number(body.price);
+  if (body.description !== undefined) processedData.description = body.description;
+  if (body.hasSizes !== undefined) processedData.hasSizes = body.hasSizes === 'true' || body.hasSizes === true;
+
+  // Handle colors if provided
+  if (body.colors && Array.isArray(body.colors)) {
+    processedData.colors = [];
+    body.colors.forEach((colorData, index) => {
+      const color = {
+        colorCode: colorData.colorCode,
+        colorName: colorData.colorName,
+        images: existingProduct.colors?.[index]?.images || [], // Keep existing images
+        sizes: [],
+        quantity: 0,
+      };
+
+      if (processedData.hasSizes !== undefined ? processedData.hasSizes : existingProduct.hasSizes) {
+        if (colorData.sizes && Array.isArray(colorData.sizes)) {
+          color.sizes = colorData.sizes.map((sizeData) => ({
+            size: sizeData.size,
+            quantity: Number(sizeData.quantity),
+          }));
+        }
+      } else {
+        color.quantity = Number(colorData.quantity || 0);
+      }
+
+      processedData.colors.push(color);
+    });
+  }
+
+  const updatedProduct = await repository.updateOne(
     ProductModel,
     {
-      _id: mongoose.Types.ObjectId(isExistingProduct.id),
+      _id: new mongoose.Types.ObjectId(product_id),
     },
-    body,
+    processedData,
     {
       new: true,
     }
   );
+
+  return updatedProduct;
 };
 
 /**
@@ -172,6 +228,6 @@ module.exports.deleteProduct = async (product_id) => {
   if (!existingProduct) throw new Error('Product not found');
 
   return repository.deleteOne(ProductModel, {
-    _id: mongoose.Types.ObjectId(product_id),
+    _id: new mongoose.Types.ObjectId(product_id),
   });
 };

@@ -245,6 +245,17 @@ export default function AddProductPage() {
       <div className="flex-1 p-8">
         <div className="max-w-[1200px] mx-auto">
           <div className="flex justify-between items-center mb-8">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => router.push('/sell/products')}
+                className="flex items-center space-x-2 text-[#6a7581] hover:text-[#121416] transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span>Back to Products</span>
+              </button>
+            </div>
             <div>
               <h1 className="text-2xl font-bold text-[#121416] mb-1">
                 Add New Product

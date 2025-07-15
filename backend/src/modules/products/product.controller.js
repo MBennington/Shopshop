@@ -36,3 +36,36 @@ module.exports.getProductsBySeller = async (req, res) => {
     return customError(`${error.message}`, res);
   }
 };
+
+/**
+ * Get product by ID
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.getProductById = async (req, res) => {
+  try {
+    const product_id = req.params.id;
+    const data = await productService.getProductById(product_id);
+    return successWithData(data, res);
+  } catch (error) {
+    return customError(`${error.message}`, res);
+  }
+};
+
+/**
+ * Update product
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.updateProduct = async (req, res) => {
+  try {
+    const product_id = req.params.id;
+    const user_id = res.locals.user.id;
+    const data = await productService.updateProduct(req.body, product_id, user_id);
+    return successWithData(data, res);
+  } catch (error) {
+    return customError(`${error.message}`, res);
+  }
+};

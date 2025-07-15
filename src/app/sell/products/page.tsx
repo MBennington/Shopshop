@@ -204,11 +204,23 @@ export default function ProductsPage() {
                         {product.totalInventory} units
                       </span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-[#6a7581] text-sm">Colors:</span>
-                      <span className="font-semibold text-[#121416]">
-                        {product.colors?.length || 0}
-                      </span>
+                      <div className="flex space-x-1">
+                        {product.colors?.slice(0, 5).map((color, index) => (
+                          <div
+                            key={index}
+                            className="w-4 h-4 rounded-full border border-gray-200"
+                            style={{ backgroundColor: color.colorCode }}
+                            title={color.colorName}
+                          />
+                        ))}
+                        {product.colors && product.colors.length > 5 && (
+                          <span className="text-xs text-[#6a7581] ml-1">
+                            +{product.colors.length - 5}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[#6a7581] text-sm">Added:</span>
@@ -219,9 +231,12 @@ export default function ProductsPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    <button className="flex-1 px-4 py-2 border border-[#dde0e3] rounded-lg text-[#6a7581] hover:bg-[#f7f8fa] transition-colors text-sm">
+                    <Link
+                      href={`/sell/edit-product/${product._id}`}
+                      className="flex-1 px-4 py-2 border border-[#dde0e3] rounded-lg text-[#6a7581] hover:bg-[#f7f8fa] transition-colors text-sm text-center"
+                    >
                       Edit
-                    </button>
+                    </Link>
                     <button className="flex-1 px-4 py-2 border border-red-200 rounded-lg text-red-600 hover:bg-red-50 transition-colors text-sm">
                       Delete
                     </button>

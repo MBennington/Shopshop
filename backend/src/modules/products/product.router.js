@@ -26,4 +26,20 @@ router
     controller.getProductsBySeller
   );
 
+router
+  .route(permissions.getProductById.path)
+  .get(
+    validator.validateHeader(permissions.getProductById.grantedUserRoles),
+    controller.getProductById
+  );
+
+router
+  .route(permissions.updateProduct.path)
+  .put(
+    upload.single('image'),
+    validator.validateHeader(permissions.updateProduct.grantedUserRoles),
+    validator.validateBody(schema.updateProduct), // Use update schema
+    controller.updateProduct
+  );
+
 module.exports = router;
