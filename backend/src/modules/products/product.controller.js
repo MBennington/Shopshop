@@ -63,8 +63,29 @@ module.exports.updateProduct = async (req, res) => {
   try {
     const product_id = req.params.id;
     const user_id = res.locals.user.id;
-    const data = await productService.updateProduct(req.body, product_id, user_id);
+    const data = await productService.updateProduct(
+      req.body,
+      product_id,
+      user_id
+    );
     return successWithData(data, res);
+  } catch (error) {
+    return customError(`${error.message}`, res);
+  }
+};
+
+/**
+ * Soft delete product (change status to inactive)
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.deleteProduct = async (req, res) => {
+  try {
+    const product_id = req.params.id;
+    const user_id = res.locals.user.id;
+    await productService.deleteProduct(product_id, user_id);
+    return successWithMessage('Product deactivated successfully', res);
   } catch (error) {
     return customError(`${error.message}`, res);
   }

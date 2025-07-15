@@ -42,4 +42,11 @@ router
     controller.updateProduct
   );
 
+router
+  .route(permissions.deleteProduct.path)
+  .delete(
+    validator.validateHeader(permissions.deleteProduct.grantedUserRoles),
+    controller.deleteProduct
+  );
+
 module.exports = router;

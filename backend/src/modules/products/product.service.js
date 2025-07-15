@@ -1,6 +1,7 @@
 const ProductModel = require('./product.model');
 const userService = require('../users/user.service');
 const { roles } = require('../../config/role.config');
+const { status } = require('../../config/status.config');
 const repository = require('../../services/repository.service');
 const mongoose = require('mongoose');
 
@@ -163,8 +164,10 @@ module.exports.updateProduct = async (body, product_id, user_id) => {
   if (body.name !== undefined) processedData.name = body.name;
   if (body.category !== undefined) processedData.category = body.category;
   if (body.price !== undefined) processedData.price = Number(body.price);
-  if (body.description !== undefined) processedData.description = body.description;
-  if (body.hasSizes !== undefined) processedData.hasSizes = body.hasSizes === 'true' || body.hasSizes === true;
+  if (body.description !== undefined)
+    processedData.description = body.description;
+  if (body.hasSizes !== undefined)
+    processedData.hasSizes = body.hasSizes === 'true' || body.hasSizes === true;
 
   // Handle colors if provided
   if (body.colors && Array.isArray(body.colors)) {
@@ -178,7 +181,11 @@ module.exports.updateProduct = async (body, product_id, user_id) => {
         quantity: 0,
       };
 
-      if (processedData.hasSizes !== undefined ? processedData.hasSizes : existingProduct.hasSizes) {
+      if (
+        processedData.hasSizes !== undefined
+          ? processedData.hasSizes
+          : existingProduct.hasSizes
+      ) {
         if (colorData.sizes && Array.isArray(colorData.sizes)) {
           color.sizes = colorData.sizes.map((sizeData) => ({
             size: sizeData.size,
@@ -219,15 +226,46 @@ module.exports.getProductById = async (product_id) => {
 };
 
 /**
- * Delete a product
- * @param id
+ * Soft delete a product (change status to inactive)
+ * @param product_id
+ * @param user_id
  * @returns {Promise<*>}
  */
-module.exports.deleteProduct = async (product_id) => {
-  const existingProduct = await this.getProductById(product_id);
-  if (!existingProduct) throw new Error('Product not found');
+module.exports.deleteProduct = async (product_id, user_id) => {
+  const user = await userService.getUserById(user_id);
 
-  return repository.deleteOne(ProductModel, {
-    _id: new mongoose.Types.ObjectId(product_id),
-  });
+  if (!user) {
+    throw new Error('User not found.');
+  }
+  if (user.role !== roles.seller) {
+    throw new Error(
+      'Only sellers are allowed to deactivate products. Please log in with a seller account.'
+    );
+  }
+
+  const existingProduct = await this.getProductById(product_id);
+  if (!existingProduct) {
+    throw new Error('Product not found');
+  }
+
+  // Check if the product belongs to the user
+  if (existingProduct.seller.toString() !== user._id.toString()) {
+    throw new Error('You can only deactivate your own products');
+  }
+
+  // Toggle product status between active and inactive
+  const updatedStatus =
+    existingProduct.status === status.active ? status.inactive : status.active;
+  const updatedProduct = await repository.updateOne(
+    ProductModel,
+    {
+      _id: new mongoose.Types.ObjectId(product_id),
+    },
+    { status: updatedStatus },
+    {
+      new: true,
+    }
+  );
+
+  return updatedProduct;
 };

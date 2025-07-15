@@ -31,6 +31,18 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deleteDialog, setDeleteDialog] = useState<{
+    show: boolean;
+    productId: string;
+    productName: string;
+    currentStatus: string;
+  }>({
+    show: false,
+    productId: '',
+    productName: '',
+    currentStatus: '',
+  });
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -79,15 +91,64 @@ export default function ProductsPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active':
+      case 'Active':
         return 'bg-green-100 text-green-800';
-      case 'inactive':
-        return 'bg-gray-100 text-gray-800';
-      case 'pending':
+      case 'Inactive':
+        return 'bg-red-100 text-red-800';
+      case 'Pending':
         return 'bg-yellow-100 text-yellow-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const handleDeleteClick = (productId: string, productName: string, currentStatus: string) => {
+    setDeleteDialog({
+      show: true,
+      productId,
+      productName,
+      currentStatus,
+    });
+  };
+
+  const handleDeleteConfirm = async () => {
+    try {
+      setDeleting(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `http://localhost:5000/api/products/${deleteDialog.productId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.msg || 'Failed to deactivate product');
+      }
+
+      // Update the product status in the local state
+      setProducts((prev) =>
+        prev.map((product) =>
+          product._id === deleteDialog.productId
+            ? { ...product, status: deleteDialog.currentStatus === 'Active' ? 'Inactive' : 'Active' }
+            : product
+        )
+      );
+
+      setDeleteDialog({ show: false, productId: '', productName: '', currentStatus: '' });
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialog({ show: false, productId: '', productName: '', currentStatus: '' });
   };
 
   if (loading) {
@@ -237,13 +298,67 @@ export default function ProductsPage() {
                     >
                       Edit
                     </Link>
-                    <button className="flex-1 px-4 py-2 border border-red-200 rounded-lg text-red-600 hover:bg-red-50 transition-colors text-sm">
-                      Delete
+                                        <button 
+                      onClick={() =>
+                        handleDeleteClick(product._id, product.name, product.status)
+                      }
+                      className={`flex-1 px-4 py-2 border rounded-lg transition-colors text-sm ${
+                        product.status === 'Active'
+                          ? 'border-red-200 text-red-600 hover:bg-red-50'
+                          : 'border-green-200 text-green-600 hover:bg-green-50'
+                      }`}
+                    >
+                      {product.status === 'Active' ? 'Deactivate' : 'Activate'}
                     </button>
                   </div>
                 </div>
               ))}
             </div>
+          )}
+
+          {/* Delete Confirmation Dialog */}
+          {deleteDialog.show && (
+            <>
+              {/* Background Overlay */}
+              <div className="fixed inset-0 bg-black bg-opacity-30 z-[9998]" />
+
+              {/* Modal */}
+              <div className="fixed inset-0 flex items-center justify-center z-[9999]">
+                <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl border border-gray-200">
+                                  <h3 className="text-lg font-semibold text-[#121416] mb-4">
+                  {deleteDialog.currentStatus === 'Active' ? 'Deactivate' : 'Activate'} Product
+                </h3>
+                <p className="text-[#6a7581] mb-6">
+                  {deleteDialog.currentStatus === 'Active' 
+                    ? 'This will change the product status to inactive. Users will no longer see your product in listings.'
+                    : 'This will change the product status to active. Users will be able to see your product in listings.'
+                  }
+                </p>
+                  <p className="text-sm font-medium text-[#121416] mb-6">
+                    Product:{' '}
+                    <span className="font-normal">
+                      {deleteDialog.productName}
+                    </span>
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleDeleteCancel}
+                      disabled={deleting}
+                      className="flex-1 px-4 py-2 border border-[#dde0e3] text-[#6a7581] rounded-lg hover:bg-[#f7f8fa] transition-colors disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleDeleteConfirm}
+                      disabled={deleting}
+                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                    >
+                      {deleting ? 'Deactivating...' : 'Continue'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>
