@@ -20,3 +20,19 @@ module.exports.createProduct = async (req, res) => {
     return customError(`${error.message}`, res);
   }
 };
+
+/**
+ * Get products by seller
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.getProductsBySeller = async (req, res) => {
+  try {
+    const user_id = res.locals.user.id;
+    const data = await productService.getProductsBySeller(user_id);
+    return successWithData(data, res);
+  } catch (error) {
+    return customError(`${error.message}`, res);
+  }
+};

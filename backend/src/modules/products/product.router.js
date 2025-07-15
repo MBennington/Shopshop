@@ -19,4 +19,11 @@ router
     controller.createProduct
   );
 
+router
+  .route(permissions.getProductsBySeller.path)
+  .get(
+    validator.validateHeader(permissions.getProductsBySeller.grantedUserRoles),
+    controller.getProductsBySeller
+  );
+
 module.exports = router;
