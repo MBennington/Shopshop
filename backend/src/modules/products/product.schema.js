@@ -43,8 +43,6 @@ module.exports.createProduct = joi.object({
     )
     .min(1)
     .required(),
-
-
 });
 
 module.exports.updateProduct = joi.object({
@@ -88,6 +86,16 @@ module.exports.updateProduct = joi.object({
     )
     .min(1)
     .optional(),
+});
 
-
+module.exports.getProducts = joi.object({
+  page: joi.number().integer().min(1).default(1),
+  limit: joi.number().integer().min(1).max(100).default(10),
+  category: joi.string().valid(...Object.values(categories)).optional(),
+  search: joi.string().trim().min(1).optional(),
+  sort: joi.string().valid('featured', 'price_asc', 'price_desc', 'newest').default('featured'),
+  order: joi.string().valid('asc', 'desc').default('desc'),
+  minPrice: joi.number().min(0).optional(),
+  maxPrice: joi.number().min(0).optional(),
+  seller_id: joi.string().optional(),
 });

@@ -266,3 +266,107 @@ module.exports.deleteProduct = async (product_id, user_id) => {
 
   return updatedProduct;
 };
+
+/**
+ * Get all products (legacy method - kept for backward compatibility)
+ * @param body
+ * @returns {Promise<*>}
+ */
+module.exports.getProducts = async (body) => {
+  const { limit, order = 'desc', page, search, category } = body;
+  const column = body.column || -1;
+
+  // Simple sorting logic without external dependencies
+  const sortingOrder = order === 'desc' || !order ? -1 : 1;
+  const sortingColumn =
+    column === 0
+      ? 'name'
+      : column === 1
+      ? 'price'
+      : column === 2
+      ? 'category'
+      : 'created_at';
+
+  let matchQuery = {
+    isActive: { $ne: false }, // Only active products
+  };
+
+  if (category) {
+    matchQuery = {
+      ...matchQuery,
+      category: category,
+    };
+  }
+
+  const sortQuery = {
+    [sortingColumn]: sortingOrder,
+    created_at: -1,
+  };
+
+  // Base query (no pagination)
+  const prePaginationQuery = [{ $match: matchQuery }];
+
+  // Count total records
+  let recordsTotal = await repository.findByAggregateQuery(ProductModel, [
+    ...prePaginationQuery,
+    { $count: 'count' },
+  ]);
+
+  recordsTotal = recordsTotal?.[0]?.count || 0;
+
+  // Ensure limit is positive and reasonable
+  const pageLimit = Math.max(1, Math.min(parseInt(limit) || 10, 100));
+
+  // Pagination + sorting
+  const paginationQuery = [
+    { $sort: sortQuery },
+    { $skip: page ? pageLimit * (page - 1) : 0 },
+    { $limit: pageLimit },
+  ];
+
+  let records;
+
+  // If no search term, fetch normally
+  if (!search) {
+    records = await repository.findByAggregateQuery(ProductModel, [
+      ...prePaginationQuery,
+      ...paginationQuery,
+    ]);
+  } else {
+    // If search term exists
+    const searchRegex = { $regex: search, $options: 'i' };
+    const searchQuery = [
+      ...prePaginationQuery,
+      {
+        $match: {
+          $or: [
+            { name: searchRegex },
+            { category: searchRegex },
+            { description: searchRegex },
+            { price: parseFloat(search) || -1 },
+          ],
+        },
+      },
+    ];
+
+    const data = await repository.findByAggregateQuery(ProductModel, [
+      {
+        $facet: {
+          records: [...searchQuery, ...paginationQuery],
+          recordsTotal: [...searchQuery, { $count: 'count' }],
+        },
+      },
+    ]);
+
+    records = data?.[0]?.records || [];
+    recordsTotal = data?.[0]?.recordsTotal?.[0]?.count || 0;
+  }
+
+  const recordsFiltered = records?.length || 0;
+
+  return {
+    records,
+    recordsTotal,
+    recordsFiltered,
+  };
+};

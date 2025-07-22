@@ -33,14 +33,18 @@ router
     controller.getProductById
   );
 
-router
-  .route(permissions.updateProduct.path)
-  .put(
-    upload.single('image'),
-    validator.validateHeader(permissions.updateProduct.grantedUserRoles),
-    validator.validateBody(schema.updateProduct), // Use update schema
-    controller.updateProduct
-  );
+router.route(permissions.getProducts.path).get(
+  //validator.validateHeader(),
+  validator.validateQueryParameters(schema.getProducts),
+  controller.getProducts
+);
+
+router.route(permissions.updateProduct.path).put(
+  upload.single('image'),
+  validator.validateHeader(permissions.updateProduct.grantedUserRoles),
+  validator.validateBody(schema.updateProduct), // Use update schema
+  controller.updateProduct
+);
 
 router
   .route(permissions.deleteProduct.path)

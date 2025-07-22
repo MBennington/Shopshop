@@ -90,3 +90,18 @@ module.exports.deleteProduct = async (req, res) => {
     return customError(`${error.message}`, res);
   }
 };
+
+/**
+ * Get products
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.getProducts = async (req, res) => {
+  try {
+    const data = await productService.getProducts(req.query);
+    return successWithData(data, res);
+  } catch (error) {
+    return customError(`${error}`, res);
+  }
+};
