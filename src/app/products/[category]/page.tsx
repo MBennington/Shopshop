@@ -46,7 +46,7 @@ export default function ProductCatalogue({
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 12,
+    limit: 20, // Suitable limit for better UX
     total: 0,
     pages: 0,
   });
@@ -59,13 +59,15 @@ export default function ProductCatalogue({
   const decodedCategory = decodeURIComponent(category);
   const categoryName = decodedCategory
     .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 
   // Fetch products from API
-  const fetchProducts = async () => {
+  const fetchProducts = async (isLoadMore = false) => {
     try {
-      setLoading(true);
+      if (!isLoadMore) {
+        setLoading(true);
+      }
       setError(null);
 
       const queryParams = new URLSearchParams({
@@ -87,7 +89,9 @@ export default function ProductCatalogue({
         }
       }
 
-      const response = await fetch(`http://localhost:5000/api/products/?${queryParams}`);
+      const response = await fetch(
+        `http://localhost:5000/api/products/?${queryParams}`
+      );
 
       if (!response.ok) {
         throw new Error('Failed to fetch products');
@@ -95,7 +99,25 @@ export default function ProductCatalogue({
 
       const responseData: ProductsResponse = await response.json();
       console.log('Frontend received data:', responseData);
-      setProducts(responseData.data.records);
+      console.log(
+        'Current page:',
+        pagination.page,
+        'Products received:',
+        responseData.data.records.length,
+        'Total products:',
+        responseData.data.recordsTotal
+      );
+
+      if (isLoadMore) {
+        // Only append if we actually received new products
+        if (responseData.data.records.length > 0) {
+          setProducts((prev) => [...prev, ...responseData.data.records]);
+        }
+      } else {
+        // Replace products for new search/filter
+        setProducts(responseData.data.records);
+      }
+
       setPagination({
         page: pagination.page,
         limit: pagination.limit,
@@ -111,8 +133,8 @@ export default function ProductCatalogue({
 
   // Fetch products when filters change
   useEffect(() => {
-    fetchProducts();
-  }, [category, sortBy, searchQuery, pagination.page]);
+    fetchProducts(false);
+  }, [category, sortBy, searchQuery]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -125,11 +147,73 @@ export default function ProductCatalogue({
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchProducts();
+    setPagination((prev) => ({ ...prev, page: 1 }));
+    fetchProducts(false);
   };
 
-  const handlePageChange = (page: number) => {
-    setPagination((prev) => ({ ...prev, page }));
+  const handleLoadMore = () => {
+    const nextPage = pagination.page + 1;
+    setPagination((prev) => ({ ...prev, page: nextPage }));
+
+    // Create a new fetch function with the updated page
+    const fetchNextPage = async () => {
+      try {
+        setError(null);
+
+        const queryParams = new URLSearchParams({
+          page: nextPage.toString(),
+          limit: pagination.limit.toString(),
+          category: categoryName,
+        });
+
+        // Only add search parameter if there's a search query
+        if (searchQuery.trim()) {
+          queryParams.append('search', searchQuery.trim());
+        }
+
+        // Add sorting if not default
+        if (sortBy !== 'featured') {
+          queryParams.append('order', sortBy === 'price_asc' ? 'asc' : 'desc');
+          if (sortBy === 'price_asc' || sortBy === 'price_desc') {
+            queryParams.append('column', '1'); // price column
+          }
+        }
+
+        const response = await fetch(
+          `http://localhost:5000/api/products/?${queryParams}`
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch products');
+        }
+
+        const responseData: ProductsResponse = await response.json();
+        console.log('Frontend received data:', responseData);
+        console.log(
+          'Current page:',
+          nextPage,
+          'Products received:',
+          responseData.data.records.length,
+          'Total products:',
+          responseData.data.recordsTotal
+        );
+
+        // Only append if we actually received new products
+        if (responseData.data.records.length > 0) {
+          setProducts((prev) => [...prev, ...responseData.data.records]);
+        }
+
+        setPagination((prev) => ({
+          ...prev,
+          total: responseData.data.recordsTotal,
+          pages: Math.ceil(responseData.data.recordsTotal / pagination.limit),
+        }));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      }
+    };
+
+    fetchNextPage();
   };
 
   return (
@@ -189,8 +273,6 @@ export default function ProductCatalogue({
               <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
             </div>
           </div>
-
-
         </div>
 
         {/* Loading State */}
@@ -205,7 +287,7 @@ export default function ProductCatalogue({
           <div className="text-center py-12">
             <p className="text-red-600 mb-4">{error}</p>
             <button
-              onClick={fetchProducts}
+              onClick={() => fetchProducts(false)}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               Try Again
@@ -226,16 +308,15 @@ export default function ProductCatalogue({
                     No products found
                   </h3>
                   <p className="text-gray-500 mb-4">
-                    {searchQuery 
+                    {searchQuery
                       ? `No products found for "${searchQuery}" in ${categoryName}`
-                      : `No products available in ${categoryName} at the moment`
-                    }
+                      : `No products available in ${categoryName} at the moment`}
                   </p>
                   {searchQuery && (
                     <button
                       onClick={() => {
                         setSearchQuery('');
-                        setPagination(prev => ({ ...prev, page: 1 }));
+                        setPagination((prev) => ({ ...prev, page: 1 }));
                       }}
                       className="text-blue-600 hover:text-blue-700 font-medium"
                     >
@@ -313,43 +394,22 @@ export default function ProductCatalogue({
                   ))}
                 </div>
 
-                {/* Pagination */}
-                {pagination.pages > 1 && (
-                  <div className="flex justify-center items-center gap-2">
+                {/* Load More Button */}
+                {products.length < pagination.total && products.length > 0 && (
+                  <div className="flex justify-center mt-8">
                     <button
-                      onClick={() => handlePageChange(pagination.page - 1)}
-                      disabled={pagination.page === 1}
-                      className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                      onClick={handleLoadMore}
+                      disabled={loading}
+                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      Previous
-                    </button>
-
-                    {Array.from(
-                      { length: Math.min(5, pagination.pages) },
-                      (_, i) => {
-                        const page = i + 1;
-                        return (
-                          <button
-                            key={page}
-                            onClick={() => handlePageChange(page)}
-                            className={`px-3 py-2 rounded-lg ${
-                              page === pagination.page
-                                ? 'bg-blue-600 text-white'
-                                : 'border border-gray-300 hover:bg-gray-50'
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        );
-                      }
-                    )}
-
-                    <button
-                      onClick={() => handlePageChange(pagination.page + 1)}
-                      disabled={pagination.page === pagination.pages}
-                      className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                    >
-                      Next
+                      {loading ? (
+                        <div className="flex items-center gap-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Loading...
+                        </div>
+                      ) : (
+                        `Load More (${products.length} of ${pagination.total})`
+                      )}
                     </button>
                   </div>
                 )}
@@ -359,7 +419,7 @@ export default function ProductCatalogue({
         )}
       </div>
 
-            <style jsx>{`
+      <style jsx>{`
         .line-clamp-2 {
           display: -webkit-box;
           -webkit-line-clamp: 2;
