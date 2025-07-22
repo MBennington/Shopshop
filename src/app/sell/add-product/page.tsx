@@ -1,38 +1,121 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
+
+interface SizeQuantity {
+  size: string;
+  quantity: number;
+}
 
 interface ColorOption {
   id: string;
   color: string;
   images: File[];
+  sizeQuantities: SizeQuantity[];
+  quantity?: number; // if no size tracking for this color
 }
 
 export default function AddProductPage() {
-  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
+  const router = useRouter();
   const [colors, setColors] = useState<ColorOption[]>([]);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
+  const [hasSizes, setHasSizes] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  const validateForm = () => {
+    const newErrors: { [key: string]: string } = {};
+
+    if (!name.trim()) newErrors.name = 'Product name is required';
+    if (!price || Number(price) <= 0)
+      newErrors.price = 'Valid price is required';
+    if (!description.trim()) newErrors.description = 'Description is required';
+    if (!category) newErrors.category = 'Category is required';
+
+    if (colors.length === 0) {
+      newErrors.colors = 'At least one color is required';
+    }
+
+    if (hasSizes) {
+      const hasValidQuantity = colors.some((color) =>
+        color.sizeQuantities.some((sq) => sq.quantity > 0)
+      );
+      if (!hasValidQuantity)
+        newErrors.quantities = 'At least one quantity must be greater than 0';
+    } else {
+      const hasValidQuantity = colors.some(
+        (color) => (color.quantity || 0) > 0
+      );
+      if (!hasValidQuantity)
+        newErrors.quantities = 'At least one quantity must be greater than 0';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrors({});
+
     const formData = new FormData();
 
-    formData.append('name', name);
+    // Basic product information
+    formData.append('name', name.trim());
     formData.append('price', String(Number(price)));
-    formData.append('description', description);
+    formData.append('description', description.trim());
     formData.append('category', category);
-    selectedSizes.forEach((size) => formData.append('sizes[]', size));
+    formData.append('hasSizes', String(hasSizes));
 
-    colors.forEach((color, index) => {
-      formData.append(`colors[${index}][colorCode]`, color.color);
-      color.images.forEach((file, i) => {
-        formData.append(`colors[${index}][images][${i}]`, file);
+    // Product metadata
+    formData.append(
+      'totalImages',
+      String(colors.reduce((total, color) => total + color.images.length, 0))
+    );
+    formData.append('totalColors', String(colors.length));
+    formData.append('totalSizes', String(hasSizes ? 5 : 0)); // All sizes available when hasSizes is true
+
+    // Always send colors (every product has colors)
+    colors.forEach((color, colorIndex) => {
+      // Color information
+      formData.append(`colors[${colorIndex}][colorCode]`, color.color);
+      formData.append(`colors[${colorIndex}][colorName]`, color.color);
+
+      // Color images
+      color.images.forEach((file, imageIndex) => {
+        formData.append(`colors[${colorIndex}][images][${imageIndex}]`, file);
       });
+
+      if (hasSizes) {
+        // Color with sizes - send size quantities
+        color.sizeQuantities.forEach((sq, sizeIndex) => {
+          formData.append(
+            `colors[${colorIndex}][sizes][${sizeIndex}][size]`,
+            sq.size
+          );
+          formData.append(
+            `colors[${colorIndex}][sizes][${sizeIndex}][quantity]`,
+            String(sq.quantity)
+          );
+        });
+      } else {
+        // Color without sizes - send simple quantity
+        formData.append(
+          `colors[${colorIndex}][quantity]`,
+          String(color.quantity || 0)
+        );
+      }
     });
 
     try {
@@ -44,28 +127,83 @@ export default function AddProductPage() {
         },
         body: formData,
       });
-
       const data = await res.json();
-
       if (!res.ok) throw new Error(data.msg || 'Something went wrong');
+
+      // Reset form on success
+      setName('');
+      setPrice('');
+      setDescription('');
+      setCategory('');
+      setColors([]);
+
       alert('Product created successfully!');
+      // Redirect to products page after showing success message
+      router.push('/sell/products');
     } catch (err: any) {
       console.error(err);
-      alert(err.message);
+      setErrors({ submit: err.message });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleSizeChange = (size: string) => {
-    setSelectedSizes((prev) =>
-      prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size]
-    );
-  };
+  const SIZES = ['XS', 'S', 'M', 'L', 'XL'];
+  const CATEGORIES = [
+    'Fashion',
+    'Home & Living',
+    'Electronics',
+    'Books',
+    'Sports & Outdoors',
+    'Beauty & Personal Care',
+    'Toys & Games',
+    'Food & Grocery',
+    'Other',
+  ];
 
   const addColor = () => {
     setColors((prev) => [
       ...prev,
-      { id: Math.random().toString(36).slice(2), color: '#cccccc', images: [] },
+      {
+        id: Math.random().toString(36).slice(2),
+        color: '#cccccc',
+        images: [],
+        sizeQuantities: SIZES.map((size) => ({ size, quantity: 0 })),
+        quantity: 0,
+      },
     ]);
+  };
+
+  // Initialize with one default color if no colors exist
+  useEffect(() => {
+    if (colors.length === 0) {
+      addColor();
+    }
+  }, []);
+
+  const updateSizeQuantity = (
+    colorId: string,
+    size: string,
+    quantity: number
+  ) => {
+    setColors((prev) =>
+      prev.map((color) =>
+        color.id === colorId
+          ? {
+              ...color,
+              sizeQuantities: color.sizeQuantities.map((sq) =>
+                sq.size === size ? { ...sq, quantity } : sq
+              ),
+            }
+          : color
+      )
+    );
+  };
+
+  const updateColorQuantity = (id: string, quantity: number) => {
+    setColors((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, quantity } : c))
+    );
   };
 
   const removeColor = (id: string) => {
@@ -78,8 +216,25 @@ export default function AddProductPage() {
 
   const handleImageChange = (id: string, files: FileList | null) => {
     if (!files) return;
+
+    // Validate file sizes (max 5MB per file)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const validFiles = Array.from(files).filter((file) => {
+      if (file.size > maxSize) {
+        alert(`File ${file.name} is too large. Maximum size is 5MB.`);
+        return false;
+      }
+      return true;
+    });
+
+    // Limit to 5 images per color
+    if (validFiles.length > 5) {
+      alert('Maximum 5 images allowed per color');
+      validFiles.splice(5);
+    }
+
     setColors((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, images: Array.from(files) } : c))
+      prev.map((c) => (c.id === id ? { ...c, images: validFiles } : c))
     );
   };
 
@@ -90,6 +245,17 @@ export default function AddProductPage() {
       <div className="flex-1 p-8">
         <div className="max-w-[1200px] mx-auto">
           <div className="flex justify-between items-center mb-8">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => router.push('/sell/products')}
+                className="flex items-center space-x-2 text-[#6a7581] hover:text-[#121416] transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span>Back to Products</span>
+              </button>
+            </div>
             <div>
               <h1 className="text-2xl font-bold text-[#121416] mb-1">
                 Add New Product
@@ -109,9 +275,15 @@ export default function AddProductPage() {
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-4 py-2 border border-[#dde0e3] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#121416] focus:border-transparent"
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#121416] focus:border-transparent ${
+                      errors.name ? 'border-red-500' : 'border-[#dde0e3]'
+                    }`}
                     placeholder="Enter product name"
+                    maxLength={100}
                   />
+                  {errors.name && (
+                    <p className="text-red-500 text-sm mt-1">{errors.name}</p>
+                  )}
                 </div>
 
                 <div>
@@ -122,9 +294,15 @@ export default function AddProductPage() {
                     type="number"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
-                    className="w-full px-4 py-2 border border-[#dde0e3] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#121416] focus:border-transparent"
-                    placeholder="Enter price"
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#121416] focus:border-transparent ${
+                      errors.price ? 'border-red-500' : 'border-[#dde0e3]'
+                    }`}
+                    placeholder="Enter price in LKR"
+                    min="0"
                   />
+                  {errors.price && (
+                    <p className="text-red-500 text-sm mt-1">{errors.price}</p>
+                  )}
                 </div>
               </div>
 
@@ -135,10 +313,18 @@ export default function AddProductPage() {
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-4 py-2 border border-[#dde0e3] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#121416] focus:border-transparent"
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#121416] focus:border-transparent ${
+                    errors.description ? 'border-red-500' : 'border-[#dde0e3]'
+                  }`}
                   rows={4}
                   placeholder="Enter product description"
+                  maxLength={500}
                 />
+                {errors.description && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.description}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -148,116 +334,193 @@ export default function AddProductPage() {
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-4 py-2 border border-[#dde0e3] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#121416] focus:border-transparent"
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#121416] focus:border-transparent ${
+                    errors.category ? 'border-red-500' : 'border-[#dde0e3]'
+                  }`}
                 >
                   <option value="">Select a category</option>
-                  <option value="Fashion">Fashion</option>
-                  <option value="accessories">Accessories</option>
-                  <option value="shoes">Shoes</option>
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
                 </select>
+                {errors.category && (
+                  <p className="text-red-500 text-sm mt-1">{errors.category}</p>
+                )}
               </div>
 
-              <div>
-                <label className="block text-[#121417] text-sm font-medium mb-2">
-                  Sizes
-                </label>
-                <div className="flex flex-wrap gap-3">
-                  {['XS', 'S', 'M', 'L', 'XL'].map((size) => (
-                    <label
-                      key={size}
-                      className={`text-sm font-medium leading-normal flex items-center justify-center rounded-xl border px-4 h-11 cursor-pointer transition-colors ${
-                        selectedSizes.includes(size)
-                          ? 'bg-[#121416] text-white border-[#121416]'
-                          : 'border-[#dde0e4] text-[#121417] hover:bg-[#f7f8fa]'
-                      }`}
-                    >
-                      {size}
+              <div className="flex-1 p-8">
+                <div className="max-w-4xl mx-auto">
+                  <div className="mb-6 flex gap-6">
+                    <label className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        className="invisible absolute"
-                        checked={selectedSizes.includes(size)}
-                        onChange={() => handleSizeChange(size)}
+                        checked={hasSizes}
+                        onChange={() => setHasSizes(!hasSizes)}
                       />
+                      <span className="text-sm text-[#121416]">Has Sizes</span>
                     </label>
-                  ))}
+                  </div>
+
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-[#121417] mb-2">
+                      Color Options
+                    </label>
+                    {errors.colors && (
+                      <p className="text-red-500 text-sm mb-2">
+                        {errors.colors}
+                      </p>
+                    )}
+                    <div className="flex flex-col gap-4">
+                      {colors.map((colorOption, idx) => (
+                        <div
+                          key={colorOption.id}
+                          className="border border-[#dde0e3] rounded p-4 space-y-3"
+                        >
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="color"
+                              value={colorOption.color}
+                              onChange={(e) =>
+                                updateColor(colorOption.id, e.target.value)
+                              }
+                              className="w-10 h-10 p-0 border-none bg-transparent cursor-pointer"
+                            />
+                            <span>{colorOption.color}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeColor(colorOption.id)}
+                              className="ml-auto text-red-500 text-sm"
+                            >
+                              Remove
+                            </button>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-medium text-[#121417] mb-1">
+                              Upload Images (Max 5, 5MB each)
+                            </label>
+                            <input
+                              type="file"
+                              multiple
+                              accept="image/*"
+                              onChange={(e) =>
+                                handleImageChange(
+                                  colorOption.id,
+                                  e.target.files
+                                )
+                              }
+                            />
+                            {colorOption.images.length > 0 && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                {colorOption.images.length} image(s) selected
+                              </p>
+                            )}
+                          </div>
+
+                          {hasSizes ? (
+                            <div>
+                              <label className="block text-xs font-medium text-[#121417] mb-1">
+                                Size Quantities
+                              </label>
+                              <div className="grid grid-cols-3 gap-4">
+                                {colorOption.sizeQuantities.map((sq) => (
+                                  <div
+                                    key={sq.size}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <span className="text-sm w-6">
+                                      {sq.size}
+                                    </span>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      value={sq.quantity || ''}
+                                      onChange={(e) =>
+                                        updateSizeQuantity(
+                                          colorOption.id,
+                                          sq.size,
+                                          Number(e.target.value) || 0
+                                        )
+                                      }
+                                      className="w-20 px-2 py-1 border border-[#dde0e3] rounded"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <label className="block text-xs font-medium text-[#121417] mb-1">
+                                Quantity
+                              </label>
+                              <input
+                                type="number"
+                                min={0}
+                                value={colorOption.quantity || ''}
+                                onChange={(e) =>
+                                  updateColorQuantity(
+                                    colorOption.id,
+                                    Number(e.target.value) || 0
+                                  )
+                                }
+                                className="w-32 px-3 py-2 border border-[#dde0e3] rounded"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={addColor}
+                        className="w-fit px-4 py-2 bg-[#121416] text-white rounded-lg hover:bg-[#2a2d30] transition-colors text-sm font-medium"
+                      >
+                        + Add Color
+                      </button>
+                      {errors.quantities && (
+                        <p className="text-red-500 text-sm mt-2">
+                          {errors.quantities}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[#121417] text-sm font-medium mb-2">
-                  Colors
-                </label>
-                <div className="flex flex-col gap-4">
-                  {colors.map((colorOption, idx) => (
-                    <div
-                      key={colorOption.id}
-                      className="flex flex-col gap-2 border border-[#dde0e3] rounded-lg p-4"
-                    >
-                      <div className="flex items-center gap-4">
-                        <input
-                          type="color"
-                          value={colorOption.color}
-                          onChange={(e) =>
-                            updateColor(colorOption.id, e.target.value)
-                          }
-                          className="w-10 h-10 p-0 border-none bg-transparent cursor-pointer"
-                        />
-                        <span className="text-sm">{colorOption.color}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeColor(colorOption.id)}
-                          className="ml-auto text-[#ef4444] text-xs font-bold"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                      <div>
-                        <label className="block text-[#121417] text-xs font-medium mb-1">
-                          Upload Images for this Color
-                        </label>
-                        <input
-                          type="file"
-                          multiple
-                          accept="image/*"
-                          onChange={(e) =>
-                            handleImageChange(colorOption.id, e.target.files)
-                          }
-                        />
-                        <div className="flex gap-2 mt-2 flex-wrap">
-                          {colorOption.images.map((file, i) => (
-                            <img
-                              key={i}
-                              src={URL.createObjectURL(file)}
-                              alt="Preview"
-                              className="w-16 h-16 object-cover rounded border"
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={addColor}
-                    className="w-fit px-4 py-2 bg-[#121416] text-white rounded-lg hover:bg-[#2a2d30] transition-colors text-sm font-medium"
-                  >
-                    + Add Color
-                  </button>
+              {errors.submit && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-red-600 text-sm">{errors.submit}</p>
                 </div>
-              </div>
+              )}
 
               <div className="flex justify-end gap-4">
                 <button
                   type="button"
+                  onClick={() => {
+                    // Reset form
+                    setName('');
+                    setPrice('');
+                    setDescription('');
+                    setCategory('');
+                    setColors([]);
+                    setErrors({});
+                  }}
                   className="px-6 py-2 border border-[#dde0e3] rounded-lg text-[#6a7581] hover:bg-[#f7f8fa]"
                 >
-                  Cancel
+                  Reset Form
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-[#121416] text-white rounded-lg hover:bg-[#2a2d30] transition-colors"
+                  disabled={isSubmitting}
+                  className={`px-6 py-2 rounded-lg transition-colors ${
+                    isSubmitting
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-[#121416] text-white hover:bg-[#2a2d30]'
+                  }`}
                 >
-                  Create Product
+                  {isSubmitting ? 'Creating...' : 'Create Product'}
                 </button>
               </div>
             </form>

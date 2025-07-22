@@ -5,4 +5,23 @@ module.exports.permissions = {
     path: '/',
     grantedUserRoles: [roles.admin, roles.seller],
   },
+  getProductsBySeller: {
+    path: '/products-by-seller',
+    grantedUserRoles: [roles.admin, roles.seller],
+  },
+  getProductById: {
+    path: '/:id',
+    grantedUserRoles: [roles.admin, roles.seller],
+  },
+  getProducts: {
+    path: '/',
+  },
+  updateProduct: {
+    path: '/:id',
+    grantedUserRoles: [roles.admin, roles.seller],
+  },
+  deleteProduct: {
+    path: '/:id',
+    grantedUserRoles: [roles.admin, roles.seller],
+  },
 };

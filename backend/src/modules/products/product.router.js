@@ -19,4 +19,38 @@ router
     controller.createProduct
   );
 
+router
+  .route(permissions.getProductsBySeller.path)
+  .get(
+    validator.validateHeader(permissions.getProductsBySeller.grantedUserRoles),
+    controller.getProductsBySeller
+  );
+
+router
+  .route(permissions.getProductById.path)
+  .get(
+    validator.validateHeader(permissions.getProductById.grantedUserRoles),
+    controller.getProductById
+  );
+
+router.route(permissions.getProducts.path).get(
+  //validator.validateHeader(),
+  validator.validateQueryParameters(schema.getProducts),
+  controller.getProducts
+);
+
+router.route(permissions.updateProduct.path).put(
+  upload.single('image'),
+  validator.validateHeader(permissions.updateProduct.grantedUserRoles),
+  validator.validateBody(schema.updateProduct), // Use update schema
+  controller.updateProduct
+);
+
+router
+  .route(permissions.deleteProduct.path)
+  .delete(
+    validator.validateHeader(permissions.deleteProduct.grantedUserRoles),
+    controller.deleteProduct
+  );
+
 module.exports = router;
