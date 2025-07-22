@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { use } from 'react';
-import { ChevronDown, Search } from 'lucide-react';
+import { ChevronDown, Search, ArrowLeft } from 'lucide-react';
 
 interface Product {
   _id: string;
@@ -55,7 +55,12 @@ export default function ProductCatalogue({
   const [sortBy, setSortBy] = useState('featured');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const categoryName = category.charAt(0).toUpperCase() + category.slice(1);
+  // Decode URL-encoded category and format properly
+  const decodedCategory = decodeURIComponent(category);
+  const categoryName = decodedCategory
+    .split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 
   // Fetch products from API
   const fetchProducts = async () => {
@@ -132,6 +137,15 @@ export default function ProductCatalogue({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
+          <div className="flex items-center gap-4 mb-4">
+            <Link
+              href="/categories"
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span className="text-sm font-medium">Back to Categories</span>
+            </Link>
+          </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             {categoryName}
           </h1>
