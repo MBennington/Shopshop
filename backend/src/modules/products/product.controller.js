@@ -105,3 +105,19 @@ module.exports.getProducts = async (req, res) => {
     return customError(`${error}`, res);
   }
 };
+
+/**
+ * Get product details with seller info and review summary
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.getProductDetails = async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const data = await productService.getProductDetails(productId);
+    return successWithData(data, res);
+  } catch (error) {
+    return customError(`${error.message}`, res);
+  }
+};

@@ -1,5 +1,6 @@
 const ProductModel = require('./product.model');
 const userService = require('../users/user.service');
+const reviewService = require('../reviews/review.service');
 const { roles } = require('../../config/role.config');
 const repository = require('../../services/repository.service');
 const mongoose = require('mongoose');
@@ -368,5 +369,44 @@ module.exports.getProducts = async (body) => {
     records,
     recordsTotal,
     recordsFiltered,
+  };
+};
+
+/**
+ * Get product details with seller info and review summary
+ * @param productId
+ * @returns {Promise<*>}
+ */
+module.exports.getProductDetails = async (productId) => {
+  // Get product with inventory calculation
+  const product = await repository.findOne(ProductModel, {
+    _id: new mongoose.Types.ObjectId(productId),
+  });
+
+  if (!product) {
+    throw new Error('Product not found');
+  }
+
+  const productObj = product.toObject();
+  productObj.totalInventory =
+    module.exports.calculateTotalInventory(productObj);
+
+  // Get seller information
+  const seller = await userService.getUserById(productObj.seller);
+
+  // Get review summary
+  const reviewSummary = await reviewService.getReviewSummary(productId, 5);
+
+  return {
+    product: productObj,
+    seller: {
+      _id: seller._id,
+      name: seller.name,
+      email: seller.email,
+      avatar: seller.avatar,
+      role: seller.role,
+      businessName: seller.businessName,
+    },
+    reviews: reviewSummary,
   };
 };

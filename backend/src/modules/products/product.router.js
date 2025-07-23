@@ -53,4 +53,10 @@ router
     controller.deleteProduct
   );
 
+router.route(permissions.getProductDetails.path).get(
+  //validator.validateHeader(),
+  validator.validateQueryParameters(schema.getProductDetails),
+  controller.getProductDetails
+);
+
 module.exports = router;
