@@ -28,18 +28,12 @@ interface Product {
     }>;
     quantity?: number;
   }>;
-  seller: string;
-  created_at: string;
-  updated_at: string;
-  isActive: boolean;
   totalInventory: number;
 }
 
 interface Seller {
   _id: string;
   name: string;
-  email: string;
-  role: string;
   businessName: string;
 }
 
@@ -48,13 +42,11 @@ interface Review {
   rating: number;
   title?: string;
   content: string;
-  isVerified: boolean;
   helpfulCount: number;
   unhelpfulCount: number;
   createdAt: string;
   userData: {
     name: string;
-    email: string;
     avatar?: string;
   };
 }
@@ -82,27 +74,10 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [selectedColor, setSelectedColor] = useState<number>(0);
+  const [selectedColor, setSelectedColor] = useState(0);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
-  const [isExpanded, setIsExpanded] = useState(false);
   const [stockError, setStockError] = useState<string | null>(null);
-
-  // Reset quantity if it exceeds available stock
-  useEffect(() => {
-    if (productData && selectedSize !== null) {
-      const availableSizes =
-        productData.product?.colors[selectedColor]?.sizes || [];
-      const sizeData = availableSizes.find(
-        (size: any) => size.size === selectedSize
-      );
-      const availableQuantity = sizeData ? sizeData.quantity : 0;
-
-      if (quantity > availableQuantity && availableQuantity > 0) {
-        setQuantity(availableQuantity);
-      }
-    }
-  }, [productData, selectedSize, selectedColor, quantity]);
 
   // Fetch product details
   useEffect(() => {
@@ -131,6 +106,33 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
     fetchProductDetails();
   }, [id]);
 
+  // Reset quantity if it exceeds available stock
+  useEffect(() => {
+    if (productData?.product) {
+      const product = productData.product;
+      let currentAvailableQuantity = 0;
+
+      if (product.hasSizes) {
+        if (selectedSize !== null) {
+          const availableSizes = product.colors[selectedColor]?.sizes || [];
+          const sizeData = availableSizes.find(
+            (size: any) => size.size === selectedSize
+          );
+          currentAvailableQuantity = sizeData ? sizeData.quantity : 0;
+        }
+      } else {
+        const selectedColorData = product.colors[selectedColor];
+        currentAvailableQuantity = selectedColorData
+          ? selectedColorData.quantity || 0
+          : 0;
+      }
+
+      if (quantity > currentAvailableQuantity && currentAvailableQuantity > 0) {
+        setQuantity(currentAvailableQuantity);
+      }
+    }
+  }, [productData, selectedSize, selectedColor, quantity]);
+
   // Loading state
   if (loading) {
     return (
@@ -157,25 +159,28 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
     );
   }
 
-  const { product, seller, reviews } = productData || {};
+  const { product, seller, reviews } = productData;
 
-  // Get available images from selected color
+  // Get available images and sizes from selected color
   const availableImages = product.colors[selectedColor]?.images || [];
   const productImages = availableImages.length > 0 ? availableImages : [];
-
-  // Get available sizes from selected color
   const availableSizes = product.colors[selectedColor]?.sizes || [];
 
   // Get available quantity for selected color and size
   const getAvailableQuantity = () => {
-    if (selectedSize === null) return 0;
-    const sizeData = availableSizes.find(
-      (size: any) => size.size === selectedSize
-    );
-    return sizeData ? sizeData.quantity : 0;
+    if (product.hasSizes) {
+      if (selectedSize === null) return 0;
+      const sizeData = availableSizes.find(
+        (size: any) => size.size === selectedSize
+      );
+      return sizeData ? sizeData.quantity : 0;
+    } else {
+      const selectedColorData = product.colors[selectedColor];
+      return selectedColorData ? selectedColorData.quantity : 0;
+    }
   };
 
-  const availableQuantity = getAvailableQuantity();
+  const availableQuantity = getAvailableQuantity() || 0;
 
   // Calculate rating distribution percentages
   const getRatingPercentage = (rating: number) => {
@@ -185,14 +190,36 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
     );
   };
 
-  // Early return if data is not loaded
-  if (!productData || !product) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // Handle purchase action
+  const handlePurchase = (action: 'buy' | 'cart') => {
+    if (product.hasSizes && selectedSize === null) {
+      setStockError('Please select a size first');
+      return;
+    }
+    if (quantity > availableQuantity) {
+      setStockError(`Only ${availableQuantity} items available in stock`);
+      return;
+    }
+
+    if (action === 'buy') {
+      const checkoutData = {
+        id,
+        category,
+        name: product.name,
+        price: product.price,
+        image: productImages.length > 0 ? productImages[selectedImage] : null,
+        color: product.colors[selectedColor]?.colorName,
+        size: selectedSize,
+        quantity: quantity,
+      };
+      window.location.href = `/checkout?product=${encodeURIComponent(
+        JSON.stringify(checkoutData)
+      )}`;
+    } else {
+      // Add to cart logic here
+      setStockError(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -336,7 +363,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                 ))}
               </div>
 
-              {/* Size Selection */}
+              {/* Size Selection - Only for products with sizes */}
               {product.hasSizes && availableSizes.length > 0 && (
                 <>
                   <h3 className="text-[#121416] text-lg font-bold leading-tight tracking-[-0.015em] pb-2 pt-4">
@@ -379,9 +406,11 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
               <div className="flex items-center gap-3 pb-2">
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  disabled={selectedSize === null || quantity <= 1}
+                  disabled={
+                    (product.hasSizes && selectedSize === null) || quantity <= 1
+                  }
                   className={`w-10 h-10 rounded-lg border border-[#dde0e3] flex items-center justify-center ${
-                    selectedSize === null || quantity <= 1
+                    (product.hasSizes && selectedSize === null) || quantity <= 1
                       ? 'text-gray-400 cursor-not-allowed'
                       : 'text-[#121416] hover:bg-gray-50 cursor-pointer'
                   }`}
@@ -405,9 +434,9 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                     setQuantity(maxQuantity);
                     setStockError(null);
                   }}
-                  disabled={selectedSize === null}
+                  disabled={product.hasSizes && selectedSize === null}
                   className={`w-16 h-10 text-center border border-[#dde0e3] rounded-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
-                    selectedSize === null
+                    product.hasSizes && selectedSize === null
                       ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
                       : 'text-[#121416]'
                   }`}
@@ -422,10 +451,12 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                     setStockError(null);
                   }}
                   disabled={
-                    selectedSize === null || quantity >= availableQuantity
+                    (product.hasSizes && selectedSize === null) ||
+                    quantity >= availableQuantity
                   }
                   className={`w-10 h-10 rounded-lg border border-[#dde0e3] flex items-center justify-center ${
-                    selectedSize === null || quantity >= availableQuantity
+                    (product.hasSizes && selectedSize === null) ||
+                    quantity >= availableQuantity
                       ? 'text-gray-400 cursor-not-allowed'
                       : 'text-[#121416] hover:bg-gray-50 cursor-pointer'
                   }`}
@@ -433,7 +464,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                   +
                 </button>
               </div>
-              {selectedSize && (
+              {(selectedSize || !product.hasSizes) && (
                 <p className="text-sm text-gray-600 mt-1">
                   {availableQuantity} available in stock
                 </p>
@@ -446,40 +477,14 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
               <div className="flex justify-stretch">
                 <div className="flex flex-1 gap-3 flex-wrap py-3 justify-start">
                   <button
-                    onClick={() => {
-                      if (selectedSize === null) {
-                        setStockError('Please select a size first');
-                        return;
-                      }
-                      if (quantity > availableQuantity) {
-                        setStockError(
-                          `Only ${availableQuantity} items available in stock`
-                        );
-                        return;
-                      }
-                      // Proceed to checkout
-                      const checkoutData = {
-                        id,
-                        category,
-                        name: product.name,
-                        price: product.price,
-                        image:
-                          productImages.length > 0
-                            ? productImages[selectedImage]
-                            : null,
-                        color: product.colors[selectedColor]?.colorName,
-                        size: selectedSize,
-                        quantity: quantity,
-                      };
-                      window.location.href = `/checkout?product=${encodeURIComponent(
-                        JSON.stringify(checkoutData)
-                      )}`;
-                    }}
+                    onClick={() => handlePurchase('buy')}
                     disabled={
-                      selectedSize === null || quantity > availableQuantity
+                      (product.hasSizes && selectedSize === null) ||
+                      quantity > availableQuantity
                     }
                     className={`flex min-w-[84px] max-w-[480px] items-center justify-center overflow-hidden rounded-full h-10 px-4 text-sm font-bold leading-normal tracking-[0.015em] ${
-                      selectedSize === null || quantity > availableQuantity
+                      (product.hasSizes && selectedSize === null) ||
+                      quantity > availableQuantity
                         ? 'cursor-not-allowed bg-gray-300 text-gray-500'
                         : 'cursor-pointer bg-[#528bc5] text-white hover:bg-[#4a7bb3]'
                     }`}
@@ -487,25 +492,14 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                     <span className="truncate">Buy Now</span>
                   </button>
                   <button
-                    onClick={() => {
-                      if (selectedSize === null) {
-                        setStockError('Please select a size first');
-                        return;
-                      }
-                      if (quantity > availableQuantity) {
-                        setStockError(
-                          `Only ${availableQuantity} items available in stock`
-                        );
-                        return;
-                      }
-                      // Add to cart logic here
-                      setStockError(null);
-                    }}
+                    onClick={() => handlePurchase('cart')}
                     disabled={
-                      selectedSize === null || quantity > availableQuantity
+                      (product.hasSizes && selectedSize === null) ||
+                      quantity > availableQuantity
                     }
                     className={`flex min-w-[84px] max-w-[480px] items-center justify-center overflow-hidden rounded-full h-10 px-4 text-sm font-bold leading-normal tracking-[0.015em] ${
-                      selectedSize === null || quantity > availableQuantity
+                      (product.hasSizes && selectedSize === null) ||
+                      quantity > availableQuantity
                         ? 'cursor-not-allowed bg-gray-300 text-gray-500'
                         : 'cursor-pointer bg-[#f1f2f4] text-[#121416] hover:bg-[#e5e7eb]'
                     }`}
