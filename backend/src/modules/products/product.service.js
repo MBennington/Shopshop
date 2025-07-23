@@ -8,23 +8,7 @@ const {
   deleteFromCloudinary,
 } = require('../../services/cloudinary.service');
 const mongoose = require('mongoose');
-
-/**
- * Extract public ID from Cloudinary URL
- * @param url
- * @returns {string|null}
- */
-const extractPublicIdFromUrl = (url) => {
-  try {
-    // Extract the path from the URL and remove the file extension
-    const path = url.split('/').slice(-2).join('/'); // Get last two parts
-    const publicId = path.split('.')[0]; // Remove file extension
-    return publicId;
-  } catch (error) {
-    console.error('Error extracting public ID:', error);
-    return null;
-  }
-};
+const extractPublicIdFromUrl = require('../../utils/extractPublicIdFromUrl.util');
 
 /**
  * Process product data with image uploads
@@ -167,7 +151,7 @@ module.exports.processProductData = async (
  * @param body
  * @returns {Promise<*>}
  */
-module.exports.createProduct = async (body, user_id) => {
+module.exports.createProduct = async (body, files, user_id) => {
   const user = await userService.getUserById(user_id);
 
   if (!user) {
@@ -179,9 +163,11 @@ module.exports.createProduct = async (body, user_id) => {
     );
   }
 
+  const processedData = await this.processProductData(body, files);
+
   // Create new product
   let product = new ProductModel({
-    ...body,
+    ...processedData,
     seller: user._id,
   });
   await repository.save(product);
