@@ -272,14 +272,15 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                     <img
                       src={productImages[selectedImage]}
                       alt="Product main"
-                      className="object-cover w-full h-full"
+                      className="object-contain w-full h-full"
                     />
                   </div>
-                  <div className="grid grid-cols-[repeat(auto-fit,minmax(64px,1fr))] gap-2">
+                  {/* Show thumbnails for all images, even single ones */}
+                  <div className="flex gap-1 justify-center">
                     {productImages.map((img, idx) => (
                       <button
-                        key={img}
-                        className={`aspect-square rounded-xl border-2 ${
+                        key={`${img}-${idx}`}
+                        className={`w-16 h-16 rounded-sm border-2 ${
                           selectedImage === idx
                             ? 'border-[#528bc5]'
                             : 'border-[#dde0e3]'
@@ -289,8 +290,8 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                       >
                         <img
                           src={img}
-                          alt="Product thumbnail"
-                          className="object-cover w-full h-full"
+                          alt={`Product thumbnail ${idx + 1}`}
+                          className="object-contain w-full h-full"
                         />
                       </button>
                     ))}
