@@ -251,29 +251,29 @@ export default function ProductCatalogue({
             />
           </form>
         </div>
-
-        {/* Filters and Sort */}
+            
+            {/* Filters and Sort */}
         <div className="flex flex-col sm:flex-row gap-4 mb-8">
           {/* Sort Dropdown */}
-          <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700">
               Sort by:
             </label>
             <div className="relative">
-              <select
-                value={sortBy}
+                <select 
+                  value={sortBy}
                 onChange={(e) => handleSortChange(e.target.value)}
                 className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="featured">Featured</option>
+                >
+                  <option value="featured">Featured</option>
                 <option value="price_asc">Price: Low to High</option>
                 <option value="price_desc">Price: High to Low</option>
-                <option value="newest">Newest</option>
-              </select>
+                  <option value="newest">Newest</option>
+                </select>
               <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
+              </div>
+              </div>
             </div>
-          </div>
-        </div>
 
         {/* Loading State */}
         {loading && (
@@ -295,7 +295,7 @@ export default function ProductCatalogue({
           </div>
         )}
 
-        {/* Products Grid */}
+            {/* Products Grid */}
         {!loading && !error && (
           <>
             {products.length === 0 ? (
@@ -389,10 +389,10 @@ export default function ProductCatalogue({
                               : 'Available'}
                           </span>
                         </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
 
                 {/* Load More Button */}
                 {products.length < pagination.total && products.length > 0 && (
@@ -406,12 +406,12 @@ export default function ProductCatalogue({
                         <div className="flex items-center gap-2">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                           Loading...
-                        </div>
+          </div>
                       ) : (
                         `Load More (${products.length} of ${pagination.total})`
                       )}
                     </button>
-                  </div>
+        </div>
                 )}
               </>
             )}
@@ -429,4 +429,4 @@ export default function ProductCatalogue({
       `}</style>
     </div>
   );
-}
+} 
