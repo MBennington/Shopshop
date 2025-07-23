@@ -14,16 +14,13 @@ const {
 module.exports.createProduct = async (req, res) => {
   try {
     const user_id = res.locals.user.id;
-    
-    console.log('=== CREATE PRODUCT ===');
-    console.log('Body keys:', Object.keys(req.body));
-    console.log('Files keys:', req.files ? Object.keys(req.files) : 'No files');
-    console.log('Colors in body:', req.body.colors ? req.body.colors.length : 'No colors');
-    
-    // Process form data with images
-    const processedData = await productService.processProductData(req.body, req.files);
-    const data = await productService.createProduct(processedData, user_id);
-    
+
+    const data = await productService.createProduct(
+      req.body,
+      req.files,
+      user_id
+    );
+
     return successWithData(data, res);
   } catch (error) {
     console.error('Create product error:', error);
@@ -73,23 +70,22 @@ module.exports.updateProduct = async (req, res) => {
   try {
     const product_id = req.params.id;
     const user_id = res.locals.user.id;
-    
-    console.log('=== UPDATE PRODUCT ===');
-    console.log('Body keys:', Object.keys(req.body));
-    console.log('Files keys:', req.files ? Object.keys(req.files) : 'No files');
-    console.log('Colors in body:', req.body.colors ? req.body.colors.length : 'No colors');
-    
+
     // Get existing product for image merging
     const existingProduct = await productService.getProductById(product_id);
-    
+
     // Process form data with images, merging with existing images
-    const processedData = await productService.processProductData(req.body, req.files, existingProduct);
+    const processedData = await productService.processProductData(
+      req.body,
+      req.files,
+      existingProduct
+    );
     const data = await productService.updateProduct(
       processedData,
       product_id,
       user_id
     );
-    
+
     return successWithData(data, res);
   } catch (error) {
     console.error('Update product error:', error);
