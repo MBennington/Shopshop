@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface FormData {
   fullName: string;
@@ -23,6 +24,12 @@ interface FormData {
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('Account');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const { user, updateUser } = useAuth();
+  
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
     email: '',
@@ -41,6 +48,19 @@ export default function SettingsPage() {
     },
   });
 
+  // Load user data on component mount
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        fullName: user.name || '',
+        email: user.email || '',
+        phoneNumber: user.phone || '',
+      }));
+      setLoading(false);
+    }
+  }, [user]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -54,10 +74,46 @@ export default function SettingsPage() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission
-    console.log('Form data:', formData);
+    setSaving(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Authentication required');
+        return;
+      }
+
+      const updateData = {
+        name: formData.fullName,
+        phone: formData.phoneNumber,
+      };
+
+      const response = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.msg || 'Failed to update profile');
+      }
+
+      setSuccess('Profile updated successfully!');
+      updateUser(data.data);
+    } catch (error: any) {
+      console.error('Error updating profile:', error);
+      setError(error.message || 'Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -72,6 +128,18 @@ export default function SettingsPage() {
                 <p className="text-[#6a7581] text-sm font-normal leading-normal">Manage your account settings and preferences</p>
               </div>
             </div>
+
+            {/* Error and Success Messages */}
+            {error && (
+              <div className="mx-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-600">{error}</p>
+              </div>
+            )}
+            {success && (
+              <div className="mx-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-green-600">{success}</p>
+              </div>
+            )}
 
             <div className="pb-3">
               <div className="flex border-b border-[#dde0e3] px-4 gap-8">
@@ -267,9 +335,10 @@ export default function SettingsPage() {
                 <div className="flex px-4 py-3 justify-end">
                   <button
                     type="submit"
-                    className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 bg-[#528bc5] text-white text-sm font-bold leading-normal tracking-[0.015em]"
+                    disabled={saving}
+                    className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 bg-[#528bc5] text-white text-sm font-bold leading-normal tracking-[0.015em] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <span className="truncate">Save Changes</span>
+                    <span className="truncate">{saving ? 'Saving...' : 'Save Changes'}</span>
                   </button>
                 </div>
               </div>
