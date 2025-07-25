@@ -6,6 +6,7 @@ const {
   deleteFromCloudinary,
 } = require('../../services/cloudinary.service');
 const extractPublicIdFromUrl = require('../../utils/extractPublicIdFromUrl.util');
+const { log } = require('console');
 
 /**
  * Process user data with profile picture upload
@@ -18,9 +19,82 @@ module.exports.processUserData = async (body, files, existingUser = null) => {
   console.log('Processing user data...');
   console.log('Files received:', files ? files.length : 'No files');
 
-  const processedData = {
-    name: body.name,
-  };
+  const processedData = {};
+
+  // Only add fields if they exist in the body
+  if (body.name !== undefined) {
+    processedData.name = body.name;
+  }
+
+  // Add any other fields that might come in body
+  if (body.email !== undefined) {
+    processedData.email = body.email;
+  }
+  if (body.role !== undefined) {
+    processedData.role = body.role;
+  }
+  if (body.sellerInfo !== undefined) {
+    let incomingSellerInfo;
+    try {
+      incomingSellerInfo = JSON.parse(body.sellerInfo);
+    } catch {
+      incomingSellerInfo = body.sellerInfo;
+    }
+
+    // Merge with existing sellerInfo to avoid overwriting other fields
+    const existingSellerInfo = existingUser?.sellerInfo || {};
+    processedData.sellerInfo = {
+      ...existingSellerInfo,
+      ...incomingSellerInfo,
+    };
+  }
+  if (body.notifications !== undefined) {
+    let incomingNotificationsInfo;
+    try {
+      incomingNotificationsInfo = JSON.parse(body.notifications);
+    } catch {
+      incomingNotificationsInfo = body.notifications;
+    }
+    const existingNotificationsInfo = existingUser?.notifications || {};
+    processedData.notifications = {
+      ...existingNotificationsInfo,
+      ...incomingNotificationsInfo,
+    };
+  }
+  if (body.privacySettings !== undefined) {
+    try {
+      processedData.privacySettings = JSON.parse(body.privacySettings);
+    } catch {
+      processedData.privacySettings = body.privacySettings;
+    }
+  }
+  if (body.accountPreferences !== undefined) {
+    let incomingAccountPreferencesInfo;
+    try {
+      incomingAccountPreferencesInfo = JSON.parse(body.accountPreferences);
+    } catch {
+      incomingAccountPreferencesInfo = body.accountPreferences;
+    }
+    const existingAccountPreferencesInfo =
+      existingUser?.accountPreferences || {};
+    processedData.accountPreferences = {
+      ...existingAccountPreferencesInfo,
+      ...incomingAccountPreferencesInfo,
+    };
+  }
+  if (body.savedAddresses !== undefined) {
+    let incomingSavedAddressesInfo;
+    try {
+      incomingSavedAddressesInfo = JSON.parse(body.savedAddresses);
+    } catch {
+      incomingSavedAddressesInfo = body.savedAddresses;
+    }
+    const existingSavedAddressesInfo = existingUser?.savedAddresses || {};
+    processedData.savedAddresses = {
+      ...existingSavedAddressesInfo,
+      ...incomingSavedAddressesInfo,
+    };
+  }
 
   // Handle profile picture upload
   if (files && files.length > 0) {

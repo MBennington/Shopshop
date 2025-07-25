@@ -11,6 +11,42 @@ const passwordValidation = joi
     'string.pattern.base': 'Password must not contain spaces',
   });
 
+const contactDetailsSchema = joi.object({
+  address: joi.string(),
+  city: joi.string(),
+  postalCode: joi.string(),
+  country: joi.string(),
+});
+
+const payoutsSchema = joi.object({
+  paymentMethod: joi.string(),
+  accountNumber: joi.string(),
+  routingNumber: joi.string(),
+});
+
+const sellerInfoSchema = joi.object({
+  businessName: joi.string(),
+  phone: joi.string(),
+  businessType: joi.string(),
+  contactDetails: contactDetailsSchema.optional(),
+  payouts: payoutsSchema.optional(),
+});
+
+const notificationsSchema = joi.object({
+  orderUpdates: joi.boolean(),
+  productInquiries: joi.boolean(),
+  marketingEmails: joi.boolean(),
+});
+
+const privacySettingsSchema = joi.object({
+  twoFactorAuth: joi.boolean(),
+});
+
+const accountPreferencesSchema = joi.object({
+  language: joi.string(),
+  currency: joi.string(),
+});
+
 module.exports.createUser = joi.object().keys({
   name: joi.string().trim().min(1).required(),
   email: joi
@@ -49,29 +85,15 @@ module.exports.login = joi.object().keys({
   password: passwordValidation,
 });
 
-module.exports.updateUserProfile = joi.object().keys({
-  name: joi.string().trim().min(1).optional(),
-  role: joi
-    .string()
-    .valid(...Object.values(roles))
-    .optional(),
-
-  // seller-specific fields (conditionally required)
-  businessName: joi.when('role', {
-    is: 'seller',
-    then: joi.string().optional(),
-    otherwise: joi.optional(),
-  }),
-  phone: joi.when('role', {
-    is: 'seller',
-    then: joi.string().optional(),
-    otherwise: joi.optional(),
-  }),
-  businessType: joi.when('role', {
-    is: 'seller',
-    then: joi.string().optional(),
-    otherwise: joi.optional(),
-  }),
+module.exports.updateUserProfile = joi.object({
+  name: joi.string(),
+  email: joi.string().email(),
+  role: joi.string().valid('seller', 'buyer'),
+  sellerInfo: sellerInfoSchema,
+  notifications: notificationsSchema,
+  privacySettings: privacySettingsSchema,
+  accountPreferences: accountPreferencesSchema,
+  profilePicture: joi.string().uri(),
 });
 
 module.exports.changePassword = joi.object().keys({

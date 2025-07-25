@@ -7,6 +7,9 @@ const validator = require('../../services/validator.service');
 const { permissions } = require('./user.permission');
 const controller = require('./user.controller');
 const schema = require('./user.schema');
+const {
+  parseJSONFields,
+} = require('../../middleware/parseJsonFields.middleware');
 
 // Public routes
 router
@@ -29,6 +32,7 @@ router
   .route(permissions.updateUserProfile.path)
   .put(
     upload.single('profilePicture'),
+    parseJSONFields,
     validator.validateHeader(permissions.updateUserProfile.grantedUserRoles),
     validator.validateBody(schema.updateUserProfile),
     controller.updateUserProfile

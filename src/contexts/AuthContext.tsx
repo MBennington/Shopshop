@@ -1,17 +1,55 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from 'react';
 import { useRouter } from 'next/navigation';
 
 interface User {
   _id: string;
   name: string;
   email: string;
-  role: string;
+  role: 'buyer' | 'seller';
   profilePicture?: string;
-  businessName?: string;
-  phone?: string;
-  businessType?: string;
+  savedAddresses?: {
+    label: string;
+    address: string;
+    city: string;
+    postalCode: string;
+    country: string;
+  }[];
+  notifications?: {
+    orderUpdates?: boolean;
+    productInquiries?: boolean;
+    marketingEmails?: boolean;
+  };
+  privacySettings?: {
+    twoFactorAuth?: boolean;
+  };
+  accountPreferences?: {
+    language?: string;
+    currency?: string;
+  };
+  sellerInfo?: {
+    businessName?: string;
+    phone?: string;
+    businessType?: string;
+    contactDetails?: {
+      address?: string;
+      city?: string;
+      postalCode?: string;
+      country?: string;
+    };
+    payouts?: {
+      paymentMethod?: string;
+      accountNumber?: string;
+      routingNumber?: string;
+    };
+  };
 }
 
 interface AuthContextType {
@@ -41,11 +79,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserProfile = async (token: string) => {
     try {
-      console.log('Fetching user profile with token:', token.substring(0, 20) + '...');
-      
+      console.log(
+        'Fetching user profile with token:',
+        token.substring(0, 20) + '...'
+      );
+
       const response = await fetch('/api/profile', {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -74,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = (token: string, userData: User) => {
     localStorage.setItem('token', token);
     setUser(userData);
-    
+
     // Redirect based on user role
     if (userData.role === 'seller') {
       router.push('/sell');
@@ -103,11 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updateUser,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
@@ -116,4 +153,4 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-} 
+}

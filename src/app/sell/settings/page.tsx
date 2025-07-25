@@ -7,21 +7,45 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
 interface FormData {
+  _id: string;
   name: string;
-  businessName: string;
-  phone: string;
-  businessType: string;
-  address: string;
-  city: string;
-  postalCode: string;
-  country: string;
-  paymentMethod: string;
-  accountNumber: string;
-  routingNumber: string;
-  notifications: {
-    orderUpdates: boolean;
-    productInquiries: boolean;
-    promotionalOffers: boolean;
+  email: string;
+  role: 'buyer' | 'seller';
+  profilePicture?: string;
+  savedAddresses?: {
+    label: string;
+    address: string;
+    city: string;
+    postalCode: string;
+    country: string;
+  }[];
+  notifications?: {
+    orderUpdates?: boolean;
+    productInquiries?: boolean;
+    marketingEmails?: boolean;
+  };
+  privacySettings?: {
+    twoFactorAuth?: boolean;
+  };
+  accountPreferences?: {
+    language?: string;
+    currency?: string;
+  };
+  sellerInfo?: {
+    businessName?: string;
+    phone?: string;
+    businessType?: string;
+    contactDetails?: {
+      address?: string;
+      city?: string;
+      postalCode?: string;
+      country?: string;
+    };
+    payouts?: {
+      paymentMethod?: string;
+      accountNumber?: string;
+      routingNumber?: string;
+    };
   };
 }
 
@@ -36,21 +60,37 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<FormData>({
+    _id: '',
     name: '',
-    businessName: '',
-    phone: '',
-    businessType: '',
-    address: '',
-    city: '',
-    postalCode: '',
-    country: '',
-    paymentMethod: '',
-    accountNumber: '',
-    routingNumber: '',
+    email: '',
+    role: 'seller', // or 'buyer', depending on default
+    sellerInfo: {
+      businessName: '',
+      phone: '',
+      businessType: '',
+      contactDetails: {
+        address: '',
+        city: '',
+        postalCode: '',
+        country: '',
+      },
+      payouts: {
+        paymentMethod: '',
+        accountNumber: '',
+        routingNumber: '',
+      },
+    },
     notifications: {
       orderUpdates: true,
       productInquiries: true,
-      promotionalOffers: false,
+      marketingEmails: false,
+    },
+    privacySettings: {
+      twoFactorAuth: false,
+    },
+    accountPreferences: {
+      language: 'en',
+      currency: 'USD',
     },
   });
 
@@ -72,13 +112,40 @@ export default function SettingsPage() {
   // Load user data on component mount
   useEffect(() => {
     if (user) {
-      setFormData((prev) => ({
-        ...prev,
+      setFormData({
+        _id: user._id || '',
         name: user.name || '',
-        businessName: user.businessName || '',
-        phone: user.phone || '',
-        businessType: user.businessType || '',
-      }));
+        email: user.email || '',
+        role: user.role || 'seller',
+        sellerInfo: {
+          businessName: user.sellerInfo?.businessName || '',
+          phone: user.sellerInfo?.phone || '',
+          businessType: user.sellerInfo?.businessType || '',
+          contactDetails: {
+            address: user.sellerInfo?.contactDetails?.address || '',
+            city: user.sellerInfo?.contactDetails?.city || '',
+            postalCode: user.sellerInfo?.contactDetails?.postalCode || '',
+            country: user.sellerInfo?.contactDetails?.country || '',
+          },
+          payouts: {
+            paymentMethod: user.sellerInfo?.payouts?.paymentMethod || '',
+            accountNumber: user.sellerInfo?.payouts?.accountNumber || '',
+            routingNumber: user.sellerInfo?.payouts?.routingNumber || '',
+          },
+        },
+        notifications: {
+          orderUpdates: user.notifications?.orderUpdates ?? true,
+          productInquiries: user.notifications?.productInquiries ?? true,
+          marketingEmails: user.notifications?.marketingEmails ?? false,
+        },
+        privacySettings: {
+          twoFactorAuth: user.privacySettings?.twoFactorAuth ?? false,
+        },
+        accountPreferences: {
+          language: user.accountPreferences?.language || 'en',
+          currency: user.accountPreferences?.currency || 'USD',
+        },
+      });
       setLoading(false);
     }
   }, [user]);
@@ -87,10 +154,58 @@ export default function SettingsPage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+
+    // Handle nested sellerInfo fields
+    if (
+      name === 'businessName' ||
+      name === 'phone' ||
+      name === 'businessType'
+    ) {
+      setFormData((prev) => ({
+        ...prev,
+        sellerInfo: {
+          ...prev.sellerInfo,
+          [name]: value,
+        },
+      }));
+    } else if (
+      name === 'address' ||
+      name === 'city' ||
+      name === 'postalCode' ||
+      name === 'country'
+    ) {
+      setFormData((prev) => ({
+        ...prev,
+        sellerInfo: {
+          ...prev.sellerInfo,
+          contactDetails: {
+            ...prev.sellerInfo?.contactDetails,
+            [name]: value,
+          },
+        },
+      }));
+    } else if (
+      name === 'paymentMethod' ||
+      name === 'accountNumber' ||
+      name === 'routingNumber'
+    ) {
+      setFormData((prev) => ({
+        ...prev,
+        sellerInfo: {
+          ...prev.sellerInfo,
+          payouts: {
+            ...prev.sellerInfo?.payouts,
+            [name]: value,
+          },
+        },
+      }));
+    } else {
+      // Handle flat fields
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
 
     // Clear error when user starts typing
     if (formErrors[name]) {
@@ -116,15 +231,15 @@ export default function SettingsPage() {
       errors.name = 'Name is required';
     }
 
-    if (!formData.businessName?.trim()) {
+    if (!formData.sellerInfo?.businessName?.trim()) {
       errors.businessName = 'Business name is required for sellers';
     }
 
-    if (!formData.phone?.trim()) {
+    if (!formData.sellerInfo?.phone?.trim()) {
       errors.phone = 'Phone number is required for sellers';
     }
 
-    if (!formData.businessType?.trim()) {
+    if (!formData.sellerInfo?.businessType?.trim()) {
       errors.businessType = 'Business type is required for sellers';
     }
 
@@ -164,6 +279,10 @@ export default function SettingsPage() {
     }
   };
 
+  function isChangedNonEmpty(newValue: any, oldValue: any): boolean {
+    return newValue !== oldValue && newValue !== '';
+  }
+
   const handleSaveChanges = async () => {
     try {
       setSaving(true);
@@ -171,7 +290,6 @@ export default function SettingsPage() {
       setSuccess('');
       setFormErrors({});
 
-      // Validate form before submission
       if (!validateForm()) {
         setSaving(false);
         return;
@@ -185,13 +303,141 @@ export default function SettingsPage() {
 
       const formDataToSend = new FormData();
 
-      // Add form fields
-      formDataToSend.append('name', formData.name);
-      formDataToSend.append('businessName', formData.businessName);
-      formDataToSend.append('phone', formData.phone);
-      formDataToSend.append('businessType', formData.businessType);
+      // Compare and append primitive fields
+      if (formData.name !== user?.name) {
+        formDataToSend.append('name', formData.name);
+      }
 
-      // Add profile picture if selected
+      // Prepare sellerInfo diff
+      const sellerInfoDiff: any = {};
+      if (
+        isChangedNonEmpty(
+          formData.sellerInfo?.businessName,
+          user?.sellerInfo?.businessName
+        )
+      ) {
+        sellerInfoDiff.businessName = formData.sellerInfo?.businessName;
+      }
+      if (
+        isChangedNonEmpty(formData.sellerInfo?.phone, user?.sellerInfo?.phone)
+      ) {
+        sellerInfoDiff.phone = formData.sellerInfo?.phone;
+      }
+      if (
+        isChangedNonEmpty(
+          formData.sellerInfo?.businessType,
+          user?.sellerInfo?.businessType
+        )
+      ) {
+        sellerInfoDiff.businessType = formData.sellerInfo?.businessType;
+      }
+
+      const contact = formData.sellerInfo?.contactDetails || {};
+      const originalContact = user?.sellerInfo?.contactDetails || {};
+      const contactDiff: any = {};
+      if (isChangedNonEmpty(contact.address, originalContact.address)) {
+        contactDiff.address = contact.address;
+      }
+      if (isChangedNonEmpty(contact.city, originalContact.city)) {
+        contactDiff.city = contact.city;
+      }
+      if (isChangedNonEmpty(contact.postalCode, originalContact.postalCode)) {
+        contactDiff.postalCode = contact.postalCode;
+      }
+      if (isChangedNonEmpty(contact.country, originalContact.country)) {
+        contactDiff.country = contact.country;
+      }
+      if (Object.keys(contactDiff).length > 0) {
+        sellerInfoDiff.contactDetails = contactDiff;
+      }
+
+      const payouts = formData.sellerInfo?.payouts || {};
+      const originalPayouts = user?.sellerInfo?.payouts || {};
+      const payoutsDiff: any = {};
+
+      if (
+        isChangedNonEmpty(payouts.paymentMethod, originalPayouts.paymentMethod)
+      ) {
+        payoutsDiff.paymentMethod = payouts.paymentMethod;
+      }
+      if (
+        isChangedNonEmpty(payouts.accountNumber, originalPayouts.accountNumber)
+      ) {
+        payoutsDiff.accountNumber = payouts.accountNumber;
+      }
+      if (
+        isChangedNonEmpty(payouts.routingNumber, originalPayouts.routingNumber)
+      ) {
+        payoutsDiff.routingNumber = payouts.routingNumber;
+      }
+      if (Object.keys(payoutsDiff).length > 0) {
+        sellerInfoDiff.payouts = payoutsDiff;
+      }
+
+      if (Object.keys(sellerInfoDiff).length > 0) {
+        formDataToSend.append('sellerInfo', JSON.stringify(sellerInfoDiff));
+      }
+
+      // Notifications
+      const notificationsDiff: any = {};
+      if (
+        formData.notifications?.orderUpdates !==
+        user?.notifications?.orderUpdates
+      ) {
+        notificationsDiff.orderUpdates = formData.notifications?.orderUpdates;
+      }
+      if (
+        formData.notifications?.productInquiries !==
+        user?.notifications?.productInquiries
+      ) {
+        notificationsDiff.productInquiries =
+          formData.notifications?.productInquiries;
+      }
+      if (
+        formData.notifications?.marketingEmails !==
+        user?.notifications?.marketingEmails
+      ) {
+        notificationsDiff.marketingEmails =
+          formData.notifications?.marketingEmails;
+      }
+      if (Object.keys(notificationsDiff).length > 0) {
+        formDataToSend.append(
+          'notifications',
+          JSON.stringify(notificationsDiff)
+        );
+      }
+
+      // Privacy
+      const privacyDiff: any = {};
+      if (
+        formData.privacySettings?.twoFactorAuth !==
+        user?.privacySettings?.twoFactorAuth
+      ) {
+        privacyDiff.twoFactorAuth = formData.privacySettings?.twoFactorAuth;
+      }
+      if (Object.keys(privacyDiff).length > 0) {
+        formDataToSend.append('privacySettings', JSON.stringify(privacyDiff));
+      }
+
+      // Account Preferences
+      const prefsDiff: any = {};
+      if (
+        formData.accountPreferences?.language !==
+        user?.accountPreferences?.language
+      ) {
+        prefsDiff.language = formData.accountPreferences?.language;
+      }
+      if (
+        formData.accountPreferences?.currency !==
+        user?.accountPreferences?.currency
+      ) {
+        prefsDiff.currency = formData.accountPreferences?.currency;
+      }
+      if (Object.keys(prefsDiff).length > 0) {
+        formDataToSend.append('accountPreferences', JSON.stringify(prefsDiff));
+      }
+
+      // Profile picture
       if (profilePicture) {
         formDataToSend.append('profilePicture', profilePicture);
       }
@@ -217,9 +463,22 @@ export default function SettingsPage() {
       setFormData((prev) => ({
         ...prev,
         name: data.data.name || '',
-        businessName: data.data.businessName || '',
-        phone: data.data.phone || '',
-        businessType: data.data.businessType || '',
+        sellerInfo: {
+          ...prev.sellerInfo,
+          ...data.data.sellerInfo,
+        },
+        notifications: {
+          ...prev.notifications,
+          ...data.data.notifications,
+        },
+        privacySettings: {
+          ...prev.privacySettings,
+          ...data.data.privacySettings,
+        },
+        accountPreferences: {
+          ...prev.accountPreferences,
+          ...data.data.accountPreferences,
+        },
       }));
     } catch (error: any) {
       console.error('Error updating profile:', error);
@@ -227,12 +486,6 @@ export default function SettingsPage() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleSaveSettings = () => {
-    // Here you would typically make an API call to update the user's settings
-    console.log('Saving settings:', formData.notifications);
-    setSuccess('Settings saved successfully!');
   };
 
   if (loading) {
@@ -358,13 +611,14 @@ export default function SettingsPage() {
               </button>
             </div>
 
-            {/* Content Sections */}
+            {/* Content */}
             <div className="p-8">
               {activeTab === 'account' && (
                 <div className="space-y-6">
                   {/* Profile Picture Section */}
                   <div className="space-y-4">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 px-2">
+                      {/* Profile Picture */}
                       <div className="relative">
                         <img
                           src={currentProfilePicture}
@@ -386,19 +640,15 @@ export default function SettingsPage() {
                           className="hidden"
                         />
                       </div>
-                      <div>
-                        <h3 className="font-medium text-[#121416]">
-                          Profile Picture
-                        </h3>
-                        <p className="text-sm text-[#6a7581]">
-                          Upload a new profile picture
+
+                      {/* Business Name & Email */}
+                      <div className="flex flex-col justify-center">
+                        <p className="text-lg font-semibold text-[#121416]">
+                          {formData.sellerInfo?.businessName || 'Business Name'}
                         </p>
-                        <button
-                          onClick={() => fileInputRef.current?.click()}
-                          className="mt-2 text-sm text-[#397fc5] hover:text-[#2c5f94] font-medium"
-                        >
-                          Choose Image
-                        </button>
+                        <p className="text-sm text-[#6a7581]">
+                          {formData.email || user.email}
+                        </p>
                       </div>
                     </div>
 
@@ -469,7 +719,7 @@ export default function SettingsPage() {
                         </p>
                         <input
                           name="businessName"
-                          value={formData.businessName}
+                          value={formData.sellerInfo?.businessName || ''}
                           onChange={handleInputChange}
                           className={`form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#121416] focus:outline-0 focus:ring-0 border bg-white focus:border-[#dde0e3] h-14 placeholder:text-[#6a7581] p-[15px] text-base font-normal leading-normal ${
                             formErrors.businessName
@@ -492,7 +742,7 @@ export default function SettingsPage() {
                         <input
                           name="phone"
                           type="tel"
-                          value={formData.phone}
+                          value={formData.sellerInfo?.phone}
                           onChange={handleInputChange}
                           className={`form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#121416] focus:outline-0 focus:ring-0 border bg-white focus:border-[#dde0e3] h-14 placeholder:text-[#6a7581] p-[15px] text-base font-normal leading-normal ${
                             formErrors.phone
@@ -514,7 +764,7 @@ export default function SettingsPage() {
                         </p>
                         <select
                           name="businessType"
-                          value={formData.businessType}
+                          value={formData.sellerInfo?.businessType || ''}
                           onChange={handleInputChange}
                           className={`form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#121416] focus:outline-0 focus:ring-0 border bg-white focus:border-[#dde0e3] h-14 placeholder:text-[#6a7581] p-[15px] text-base font-normal leading-normal ${
                             formErrors.businessType
@@ -522,7 +772,9 @@ export default function SettingsPage() {
                               : 'border-[#dde0e3]'
                           }`}
                         >
-                          <option value="">Select business type</option>
+                          <option value="">
+                            `{formData.sellerInfo?.businessType}`
+                          </option>
                           <option value="retail">Retail</option>
                           <option value="wholesale">Wholesale</option>
                           <option value="manufacturing">Manufacturing</option>
@@ -570,7 +822,9 @@ export default function SettingsPage() {
                           </p>
                           <input
                             name="address"
-                            value={formData.address}
+                            value={
+                              formData.sellerInfo?.contactDetails?.address || ''
+                            }
                             onChange={handleInputChange}
                             className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#121416] focus:outline-0 focus:ring-0 border border-[#dde0e3] bg-white focus:border-[#dde0e3] h-14 placeholder:text-[#6a7581] p-[15px] text-base font-normal leading-normal"
                           />
@@ -583,7 +837,9 @@ export default function SettingsPage() {
                           </p>
                           <input
                             name="city"
-                            value={formData.city}
+                            value={
+                              formData.sellerInfo?.contactDetails?.city || ''
+                            }
                             onChange={handleInputChange}
                             className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#121416] focus:outline-0 focus:ring-0 border border-[#dde0e3] bg-white focus:border-[#dde0e3] h-14 placeholder:text-[#6a7581] p-[15px] text-base font-normal leading-normal"
                           />
@@ -594,7 +850,10 @@ export default function SettingsPage() {
                           </p>
                           <input
                             name="postalCode"
-                            value={formData.postalCode}
+                            value={
+                              formData.sellerInfo?.contactDetails?.postalCode ||
+                              ''
+                            }
                             onChange={handleInputChange}
                             className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#121416] focus:outline-0 focus:ring-0 border border-[#dde0e3] bg-white focus:border-[#dde0e3] h-14 placeholder:text-[#6a7581] p-[15px] text-base font-normal leading-normal"
                           />
@@ -607,7 +866,9 @@ export default function SettingsPage() {
                           </p>
                           <input
                             name="country"
-                            value={formData.country}
+                            value={
+                              formData.sellerInfo?.contactDetails?.country || ''
+                            }
                             onChange={handleInputChange}
                             className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#121416] focus:outline-0 focus:ring-0 border border-[#dde0e3] bg-white focus:border-[#dde0e3] h-14 placeholder:text-[#6a7581] p-[15px] text-base font-normal leading-normal"
                           />
@@ -644,7 +905,9 @@ export default function SettingsPage() {
                         </p>
                         <select
                           name="paymentMethod"
-                          value={formData.paymentMethod}
+                          value={
+                            formData.sellerInfo?.payouts?.paymentMethod || ''
+                          }
                           onChange={handleInputChange}
                           className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#121416] focus:outline-0 focus:ring-0 border border-[#dde0e3] bg-white focus:border-[#dde0e3] h-14 placeholder:text-[#6a7581] p-[15px] text-base font-normal leading-normal"
                         >
@@ -662,7 +925,9 @@ export default function SettingsPage() {
                         </p>
                         <input
                           name="accountNumber"
-                          value={formData.accountNumber}
+                          value={
+                            formData.sellerInfo?.payouts?.accountNumber || ''
+                          }
                           onChange={handleInputChange}
                           className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#121416] focus:outline-0 focus:ring-0 border border-[#dde0e3] bg-white focus:border-[#dde0e3] h-14 placeholder:text-[#6a7581] p-[15px] text-base font-normal leading-normal"
                         />
@@ -675,7 +940,9 @@ export default function SettingsPage() {
                         </p>
                         <input
                           name="routingNumber"
-                          value={formData.routingNumber}
+                          value={
+                            formData.sellerInfo?.payouts?.routingNumber || ''
+                          }
                           onChange={handleInputChange}
                           className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#121416] focus:outline-0 focus:ring-0 border border-[#dde0e3] bg-white focus:border-[#dde0e3] h-14 placeholder:text-[#6a7581] p-[15px] text-base font-normal leading-normal"
                         />
@@ -709,7 +976,7 @@ export default function SettingsPage() {
                         <input
                           type="checkbox"
                           name="orderUpdates"
-                          checked={formData.notifications.orderUpdates}
+                          checked={formData.notifications?.orderUpdates}
                           onChange={handleCheckboxChange}
                           className="h-5 w-5 rounded border-[#dde0e3] border-2 bg-transparent text-[#528bc5] checked:bg-[#528bc5] checked:border-[#528bc5] checked:bg-[image:--checkbox-tick-svg] focus:ring-0 focus:ring-offset-0 focus:border-[#dde0e3] focus:outline-none"
                         />
@@ -721,7 +988,7 @@ export default function SettingsPage() {
                         <input
                           type="checkbox"
                           name="productInquiries"
-                          checked={formData.notifications.productInquiries}
+                          checked={formData.notifications?.productInquiries}
                           onChange={handleCheckboxChange}
                           className="h-5 w-5 rounded border-[#dde0e3] border-2 bg-transparent text-[#528bc5] checked:bg-[#528bc5] checked:border-[#528bc5] checked:bg-[image:--checkbox-tick-svg] focus:ring-0 focus:ring-offset-0 focus:border-[#dde0e3] focus:outline-none"
                         />
@@ -732,8 +999,8 @@ export default function SettingsPage() {
                       <label className="flex gap-x-3 py-3 flex-row">
                         <input
                           type="checkbox"
-                          name="promotionalOffers"
-                          checked={formData.notifications.promotionalOffers}
+                          name="marketingEmails"
+                          checked={formData.notifications?.marketingEmails}
                           onChange={handleCheckboxChange}
                           className="h-5 w-5 rounded border-[#dde0e3] border-2 bg-transparent text-[#528bc5] checked:bg-[#528bc5] checked:border-[#528bc5] checked:bg-[image:--checkbox-tick-svg] focus:ring-0 focus:ring-offset-0 focus:border-[#dde0e3] focus:outline-none"
                         />
@@ -746,11 +1013,11 @@ export default function SettingsPage() {
 
                   <div className="flex justify-end pt-4">
                     <button
-                      onClick={handleSaveSettings}
+                      onClick={handleSaveChanges}
                       className="px-6 py-2 bg-[#397fc5] text-white rounded-lg hover:bg-[#2c5f94] transition-colors flex items-center gap-2"
                     >
                       <FiSave size={16} />
-                      Save Settings
+                      Save Changes
                     </button>
                   </div>
                 </div>
