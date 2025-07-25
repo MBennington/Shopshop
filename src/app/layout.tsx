@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Navbar from "./components/Navbar";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,10 +25,12 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.className} relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden`} style={{ fontFamily: 'Manrope, "Noto Sans", sans-serif' }}>
-        <div className="layout-container flex h-full grow flex-col">
-          <Navbar />
-          {children}
-        </div>
+        <AuthProvider>
+          <div className="layout-container flex h-full grow flex-col">
+            <Navbar />
+            {children}
+          </div>
+        </AuthProvider>
       </body>
     </html>
   );
