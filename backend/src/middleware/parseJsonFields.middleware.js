@@ -5,6 +5,7 @@ const parseJSONFields = (req, res, next) => {
       'notifications',
       'privacySettings',
       'accountPreferences',
+      'savedAddresses',
     ];
 
     fieldsToParse.forEach((field) => {
@@ -15,12 +16,10 @@ const parseJSONFields = (req, res, next) => {
 
     next();
   } catch (error) {
-    return res
-      .status(400)
-      .json({
-        status: false,
-        msg: 'Invalid JSON format in one of the fields.',
-      });
+    return res.status(400).json({
+      status: false,
+      msg: 'Invalid JSON format in one of the fields.',
+    });
   }
 };
 

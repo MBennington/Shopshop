@@ -47,6 +47,14 @@ const accountPreferencesSchema = joi.object({
   currency: joi.string(),
 });
 
+const addressSchema = joi.object({
+  label: joi.string().required(),
+  address: joi.string().required(),
+  city: joi.string().required(),
+  postalCode: joi.string().required(),
+  country: joi.string().required(),
+});
+
 module.exports.createUser = joi.object().keys({
   name: joi.string().trim().min(1).required(),
   email: joi
@@ -93,6 +101,7 @@ module.exports.updateUserProfile = joi.object({
   notifications: notificationsSchema,
   privacySettings: privacySettingsSchema,
   accountPreferences: accountPreferencesSchema,
+  savedAddresses: joi.array().items(addressSchema),
   profilePicture: joi.string().uri(),
 });
 

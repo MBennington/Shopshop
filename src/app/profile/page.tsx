@@ -12,19 +12,36 @@ import {
   FiUserCheck,
   FiCamera,
   FiX,
+  FiPlus,
+  FiTrash2,
 } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
-interface User {
+interface FormData {
   _id: string;
   name: string;
   email: string;
-  role: string;
+  role: 'buyer' | 'seller';
   profilePicture?: string;
-  businessName?: string;
-  phone?: string;
-  businessType?: string;
+  savedAddresses: {
+    label: string;
+    address: string;
+    city: string;
+    postalCode: string;
+    country: string;
+  }[];
+  notifications?: {
+    orderUpdates?: boolean;
+    marketingEmails?: boolean;
+  };
+  privacySettings?: {
+    twoFactorAuth?: boolean;
+  };
+  accountPreferences?: {
+    language?: string;
+    currency?: string;
+  };
 }
 
 export default function ProfilePage() {
@@ -35,15 +52,42 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [addressForm, setAddressForm] = useState({
+    label: '',
+    address: '',
+    city: '',
+    postalCode: '',
+    country: '',
+  });
   const { user, updateUser, logout } = useAuth();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
+    _id: '',
     name: '',
+    email: '',
+    role: 'buyer',
+    savedAddresses: [],
+    notifications: {
+      orderUpdates: true,
+      marketingEmails: false,
+    },
+    privacySettings: {
+      twoFactorAuth: false,
+    },
+    accountPreferences: {
+      language: 'en',
+      currency: 'LKR',
+    },
   });
 
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+  const [addressErrors, setAddressErrors] = useState<{ [key: string]: string }>(
+    {}
+  );
 
   // Auto-dismiss success/error messages
   useEffect(() => {
@@ -56,22 +100,33 @@ export default function ProfilePage() {
     }
   }, [success, error]);
 
-  const settings = {
-    emailNotifications: true,
-    orderUpdates: true,
-    marketingEmails: false,
-    twoFactorAuth: false,
-    showProfile: true,
-    showOrders: true,
-    language: 'English',
-    currency: 'USD',
-  };
-
-  // Set loading to false when user is available
+  // Load user data on component mount
   useEffect(() => {
     if (user) {
       setFormData({
+        _id: user._id || '',
         name: user.name || '',
+        email: user.email || '',
+        role: user.role || 'seller',
+        savedAddresses:
+          user.savedAddresses?.map((addr: any) => ({
+            label: addr.label || '',
+            address: addr.address || '',
+            city: addr.city || '',
+            postalCode: addr.postalCode || '',
+            country: addr.country || '',
+          })) || [],
+        notifications: {
+          orderUpdates: user.notifications?.orderUpdates ?? true,
+          marketingEmails: user.notifications?.marketingEmails ?? false,
+        },
+        privacySettings: {
+          twoFactorAuth: user.privacySettings?.twoFactorAuth ?? false,
+        },
+        accountPreferences: {
+          language: user.accountPreferences?.language || 'en',
+          currency: user.accountPreferences?.currency || 'LKR',
+        },
       });
       setLoading(false);
     }
@@ -80,13 +135,96 @@ export default function ProfilePage() {
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    const { name, value, type, dataset } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
 
-    // Clear error when user starts typing
+    // Handle nested address updates (if address index is present)
+    if (dataset.addressIndex !== undefined) {
+      const index = Number(dataset.addressIndex);
+      const field = name;
+
+      setFormData((prev) => {
+        const updatedAddresses = [...(prev.savedAddresses || [])];
+        updatedAddresses[index] = {
+          ...updatedAddresses[index],
+          [field]: type === 'checkbox' ? checked : value,
+        };
+        return { ...prev, savedAddresses: updatedAddresses };
+      });
+    }
+
+    // Handle notifications (checkboxes or values)
+    else if (['orderUpdates', 'marketingEmails'].includes(name)) {
+      setFormData((prev) => ({
+        ...prev,
+        notifications: {
+          ...prev.notifications,
+          [name]: type === 'checkbox' ? checked : value,
+        },
+      }));
+    }
+
+    // Handle privacy settings
+    else if (['twoFactorAuth'].includes(name)) {
+      setFormData((prev) => ({
+        ...prev,
+        privacySettings: {
+          ...prev.privacySettings,
+          [name]: type === 'checkbox' ? checked : value,
+        },
+      }));
+    }
+
+    // Handle account preferences
+    else if (['language', 'currency'].includes(name)) {
+      setFormData((prev) => ({
+        ...prev,
+        accountPreferences: {
+          ...prev.accountPreferences,
+          [name]: value,
+        },
+      }));
+    }
+
+    // Top-level fields like name, email
+    else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
+
+    // Clear errors if any
+    if (formErrors[name]) {
+      setFormErrors((prev) => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+
+    // Check if it's a privacy setting
+    if (['twoFactorAuth'].includes(name)) {
+      setFormData((prev) => ({
+        ...prev,
+        privacySettings: {
+          ...prev.privacySettings,
+          [name]: checked,
+        },
+      }));
+    }
+    // Otherwise treat as notification setting
+    else if (['orderUpdates', 'marketingEmails'].includes(name)) {
+      setFormData((prev) => ({
+        ...prev,
+        notifications: {
+          ...prev.notifications,
+          [name]: checked,
+        },
+      }));
+    }
+
+    // Clear error if exists
     if (formErrors[name]) {
       setFormErrors((prev) => ({
         ...prev,
@@ -104,6 +242,147 @@ export default function ProfilePage() {
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
+  };
+
+  const validateAddressForm = () => {
+    const errors: { [key: string]: string } = {};
+
+    if (!addressForm.label.trim()) {
+      errors.label = 'Label is required';
+    }
+    if (!addressForm.address.trim()) {
+      errors.address = 'Address is required';
+    }
+    if (!addressForm.city.trim()) {
+      errors.city = 'City is required';
+    }
+    if (!addressForm.postalCode.trim()) {
+      errors.postalCode = 'Postal code is required';
+    }
+    if (!addressForm.country.trim()) {
+      errors.country = 'Country is required';
+    }
+
+    setAddressErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleAddAddress = () => {
+    setShowAddressForm(true);
+    setEditingIndex(null);
+    setAddressForm({
+      label: '',
+      address: '',
+      city: '',
+      postalCode: '',
+      country: '',
+    });
+    setAddressErrors({});
+  };
+
+  const handleEditAddress = (index: number) => {
+    const address = formData.savedAddresses[index];
+    setAddressForm({
+      label: address.label,
+      address: address.address,
+      city: address.city,
+      postalCode: address.postalCode,
+      country: address.country,
+    });
+    setEditingIndex(index);
+    setShowAddressForm(true);
+    setAddressErrors({});
+  };
+
+  const handleDeleteAddress = (index: number) => {
+    if (window.confirm('Are you sure you want to delete this address?')) {
+      setFormData((prev) => {
+        const newAddresses = prev.savedAddresses.filter((_, i) => i !== index);
+        
+        // Update user context immediately to prevent re-saving
+        if (user) {
+          updateUser({
+            ...user,
+            savedAddresses: newAddresses,
+          });
+        }
+        
+        return { ...prev, savedAddresses: newAddresses };
+      });
+    }
+  };
+
+  const handleAddressFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setAddressForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    // Clear error if exists
+    if (addressErrors[name]) {
+      setAddressErrors((prev) => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const handleAddressFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateAddressForm()) {
+      return;
+    }
+
+    let updatedAddresses;
+    
+    if (editingIndex !== null) {
+      // Update existing address
+      setFormData((prev) => {
+        const newAddresses = [...prev.savedAddresses];
+        newAddresses[editingIndex] = { ...addressForm };
+        updatedAddresses = newAddresses;
+        return { ...prev, savedAddresses: newAddresses };
+      });
+    } else {
+      // Add new address
+      setFormData((prev) => {
+        const newAddresses = [...prev.savedAddresses, { ...addressForm }];
+        updatedAddresses = newAddresses;
+        return { ...prev, savedAddresses: newAddresses };
+      });
+    }
+
+    // Update user context immediately to prevent re-saving
+    if (updatedAddresses && user) {
+      updateUser({
+        ...user,
+        savedAddresses: updatedAddresses,
+      });
+    }
+
+    // Reset form immediately after adding/editing
+    setShowAddressForm(false);
+    setEditingIndex(null);
+    setAddressForm({
+      label: '',
+      address: '',
+      city: '',
+      postalCode: '',
+      country: '',
+    });
+    setAddressErrors({});
+  };
+
+  const cancelAddressForm = () => {
+    setShowAddressForm(false);
+    setEditingIndex(null);
+    setAddressForm({
+      label: '',
+      address: '',
+      city: '',
+      postalCode: '',
+      country: '',
+    });
+    setAddressErrors({});
   };
 
   const handleProfilePictureChange = (
@@ -140,6 +419,10 @@ export default function ProfilePage() {
     }
   };
 
+  function isChangedNonEmpty(newValue: any, oldValue: any): boolean {
+    return newValue !== oldValue && newValue !== '';
+  }
+
   const handleSaveChanges = async () => {
     try {
       setSaving(true);
@@ -147,7 +430,6 @@ export default function ProfilePage() {
       setSuccess('');
       setFormErrors({});
 
-      // Validate form before submission
       if (!validateForm()) {
         setSaving(false);
         return;
@@ -161,12 +443,89 @@ export default function ProfilePage() {
 
       const formDataToSend = new FormData();
 
-      // Add form fields
-      formDataToSend.append('name', formData.name);
+      // Compare and append primitive fields
+      if (formData.name !== user?.name) {
+        formDataToSend.append('name', formData.name);
+      }
 
-      // Add profile picture if selected
+      // Handle address changes - send the complete updated address list
+      const updatedAddresses = formData.savedAddresses || [];
+      const originalAddresses = user?.savedAddresses || [];
+
+      // Check if addresses have changed (length, content, or structure)
+      const addressesChanged =
+        updatedAddresses.length !== originalAddresses.length ||
+        JSON.stringify(updatedAddresses) !== JSON.stringify(originalAddresses);
+
+      if (addressesChanged) {
+        formDataToSend.append(
+          'savedAddresses',
+          JSON.stringify(updatedAddresses)
+        );
+      }
+
+      // Notifications
+      const notificationsDiff: any = {};
+      if (
+        formData.notifications?.orderUpdates !==
+        user?.notifications?.orderUpdates
+      ) {
+        notificationsDiff.orderUpdates = formData.notifications?.orderUpdates;
+      }
+      if (
+        formData.notifications?.marketingEmails !==
+        user?.notifications?.marketingEmails
+      ) {
+        notificationsDiff.marketingEmails =
+          formData.notifications?.marketingEmails;
+      }
+      if (Object.keys(notificationsDiff).length > 0) {
+        formDataToSend.append(
+          'notifications',
+          JSON.stringify(notificationsDiff)
+        );
+      }
+
+      // Privacy
+      const privacyDiff: any = {};
+      if (
+        formData.privacySettings?.twoFactorAuth !==
+        user?.privacySettings?.twoFactorAuth
+      ) {
+        privacyDiff.twoFactorAuth = formData.privacySettings?.twoFactorAuth;
+      }
+      if (Object.keys(privacyDiff).length > 0) {
+        formDataToSend.append('privacySettings', JSON.stringify(privacyDiff));
+      }
+
+      // Account Preferences
+      const prefsDiff: any = {};
+      if (
+        formData.accountPreferences?.language !==
+        user?.accountPreferences?.language
+      ) {
+        prefsDiff.language = formData.accountPreferences?.language;
+      }
+      if (
+        formData.accountPreferences?.currency !==
+        user?.accountPreferences?.currency
+      ) {
+        prefsDiff.currency = formData.accountPreferences?.currency;
+      }
+      if (Object.keys(prefsDiff).length > 0) {
+        formDataToSend.append('accountPreferences', JSON.stringify(prefsDiff));
+      }
+
+      // Profile picture
       if (profilePicture) {
         formDataToSend.append('profilePicture', profilePicture);
+      }
+
+      // Only make API call if there are actual changes
+      if (formDataToSend.entries().next().done) {
+        setSuccess('No changes to save');
+        setSaving(false);
+        return;
       }
 
       const response = await fetch('/api/profile', {
@@ -187,20 +546,42 @@ export default function ProfilePage() {
       updateUser(data.data);
       removeProfilePicture();
 
-      setFormData({
-        name: data.data.name || '',
+      // Update form data with the response data to prevent re-saving
+      setFormData((prev) => ({
+        ...prev,
+        name: data.data.name || prev.name,
+        savedAddresses: data.data.savedAddresses || prev.savedAddresses,
+        notifications: {
+          ...prev.notifications,
+          ...data.data.notifications,
+        },
+        privacySettings: {
+          ...prev.privacySettings,
+          ...data.data.privacySettings,
+        },
+        accountPreferences: {
+          ...prev.accountPreferences,
+          ...data.data.accountPreferences,
+        },
+      }));
+
+      // Always reset address form state after successful save
+      setShowAddressForm(false);
+      setEditingIndex(null);
+      setAddressForm({
+        label: '',
+        address: '',
+        city: '',
+        postalCode: '',
+        country: '',
       });
+      setAddressErrors({});
     } catch (error: any) {
       console.error('Error updating profile:', error);
       setError(error.message || 'Failed to update profile');
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleSaveSettings = () => {
-    // Here you would typically make an API call to update the user's settings
-    console.log('Saving settings:', settings);
   };
 
   if (loading) {
@@ -490,17 +871,241 @@ export default function ProfilePage() {
             )}
 
             {activeTab === 'addresses' && (
-              <div className="space-y-4">
-                <div className="text-center py-8">
-                  <FiMapPin className="mx-auto text-[#6a7581]" size={48} />
-                  <p className="mt-4 text-[#6a7581]">No saved addresses</p>
-                  <p className="text-sm text-[#6a7581]">
-                    Add addresses for faster checkout
-                  </p>
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-[#121416]">
+                    Saved Addresses
+                  </h3>
+                  <button
+                    onClick={handleAddAddress}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#397fc5] text-white rounded-lg hover:bg-[#2c5f94] transition-colors text-sm font-medium"
+                  >
+                    <FiPlus size={16} />
+                    Add Address
+                  </button>
                 </div>
-                <button className="w-full p-4 border-2 border-dashed border-[#dde0e3] rounded-lg text-[#6a7581] hover:border-[#397fc5] hover:text-[#397fc5] transition-colors">
-                  + Add New Address
-                </button>
+
+                {formData.savedAddresses.length > 0 ? (
+                  <div className="space-y-4">
+                    {formData.savedAddresses.map((address, index) => (
+                      <div
+                        key={index}
+                        className="border border-[#dde0e3] p-4 rounded-lg shadow-sm bg-white"
+                      >
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h4 className="font-semibold text-[#121416]">
+                              {address.label}
+                            </h4>
+                            <p className="text-[#6a7581] text-sm mt-1">
+                              {address.address}
+                            </p>
+                            <p className="text-[#6a7581] text-sm">
+                              {address.city}, {address.postalCode},{' '}
+                              {address.country}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEditAddress(index)}
+                              className="flex items-center gap-1 text-[#397fc5] hover:text-[#2c5f94] text-sm font-medium"
+                            >
+                              <FiEdit2 size={14} />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteAddress(index)}
+                              className="flex items-center gap-1 text-red-600 hover:text-red-700 text-sm font-medium"
+                            >
+                              <FiTrash2 size={14} />
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-[#6a7581]">
+                    <FiMapPin className="mx-auto" size={48} />
+                    <p className="mt-4 font-medium">No saved addresses</p>
+                    <p className="text-sm">Add addresses for faster checkout</p>
+                  </div>
+                )}
+
+                {showAddressForm && (
+                  <div className="border border-[#dde0e3] rounded-lg p-6 bg-[#f7f8fa]">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-semibold text-[#121416]">
+                        {editingIndex !== null
+                          ? 'Edit Address'
+                          : 'Add New Address'}
+                      </h4>
+                      <button
+                        onClick={cancelAddressForm}
+                        className="text-[#6a7581] hover:text-[#121416]"
+                      >
+                        <FiX size={20} />
+                      </button>
+                    </div>
+
+                    <form
+                      onSubmit={handleAddressFormSubmit}
+                      className="space-y-4"
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-[#6a7581] mb-2">
+                            Label *
+                          </label>
+                          <input
+                            type="text"
+                            name="label"
+                            value={addressForm.label}
+                            onChange={handleAddressFormChange}
+                            placeholder="e.g., Home, Office"
+                            className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#397fc5] focus:border-transparent ${
+                              addressErrors.label
+                                ? 'border-red-300 focus:ring-red-500'
+                                : 'border-[#dde0e3]'
+                            }`}
+                          />
+                          {addressErrors.label && (
+                            <p className="mt-1 text-sm text-red-600">
+                              {addressErrors.label}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-[#6a7581] mb-2">
+                            Address *
+                          </label>
+                          <input
+                            type="text"
+                            name="address"
+                            value={addressForm.address}
+                            onChange={handleAddressFormChange}
+                            placeholder="Street address"
+                            className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#397fc5] focus:border-transparent ${
+                              addressErrors.address
+                                ? 'border-red-300 focus:ring-red-500'
+                                : 'border-[#dde0e3]'
+                            }`}
+                          />
+                          {addressErrors.address && (
+                            <p className="mt-1 text-sm text-red-600">
+                              {addressErrors.address}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-[#6a7581] mb-2">
+                            City *
+                          </label>
+                          <input
+                            type="text"
+                            name="city"
+                            value={addressForm.city}
+                            onChange={handleAddressFormChange}
+                            placeholder="City"
+                            className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#397fc5] focus:border-transparent ${
+                              addressErrors.city
+                                ? 'border-red-300 focus:ring-red-500'
+                                : 'border-[#dde0e3]'
+                            }`}
+                          />
+                          {addressErrors.city && (
+                            <p className="mt-1 text-sm text-red-600">
+                              {addressErrors.city}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-[#6a7581] mb-2">
+                            Postal Code *
+                          </label>
+                          <input
+                            type="text"
+                            name="postalCode"
+                            value={addressForm.postalCode}
+                            onChange={handleAddressFormChange}
+                            placeholder="Postal code"
+                            className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#397fc5] focus:border-transparent ${
+                              addressErrors.postalCode
+                                ? 'border-red-300 focus:ring-red-500'
+                                : 'border-[#dde0e3]'
+                            }`}
+                          />
+                          {addressErrors.postalCode && (
+                            <p className="mt-1 text-sm text-red-600">
+                              {addressErrors.postalCode}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-[#6a7581] mb-2">
+                            Country *
+                          </label>
+                          <input
+                            type="text"
+                            name="country"
+                            value={addressForm.country}
+                            onChange={handleAddressFormChange}
+                            placeholder="Country"
+                            className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#397fc5] focus:border-transparent ${
+                              addressErrors.country
+                                ? 'border-red-300 focus:ring-red-500'
+                                : 'border-[#dde0e3]'
+                            }`}
+                          />
+                          {addressErrors.country && (
+                            <p className="mt-1 text-sm text-red-600">
+                              {addressErrors.country}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-3 pt-4">
+                        <button
+                          type="button"
+                          onClick={cancelAddressForm}
+                          className="px-4 py-2 border border-[#dde0e3] text-[#6a7581] rounded-lg hover:bg-[#f7f8fa] transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-4 py-2 bg-[#397fc5] text-white rounded-lg hover:bg-[#2c5f94] transition-colors"
+                        >
+                          {editingIndex !== null
+                            ? 'Update Address'
+                            : 'Add Address'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                {/* Save Changes Button for Addresses */}
+                {formData.savedAddresses.length > 0 && (
+                  <div className="flex justify-end pt-6 border-t border-[#dde0e3]">
+                    <button
+                      onClick={handleSaveChanges}
+                      disabled={saving}
+                      className="px-6 py-2 bg-[#397fc5] text-white rounded-lg hover:bg-[#2c5f94] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {saving && (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      )}
+                      {saving ? 'Saving...' : 'Save Address Changes'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -518,17 +1123,9 @@ export default function ProfilePage() {
                     <label className="flex items-center gap-3">
                       <input
                         type="checkbox"
-                        defaultChecked={settings.emailNotifications}
-                        className="w-4 h-4 text-[#397fc5] border-[#dde0e3] rounded focus:ring-[#397fc5]"
-                      />
-                      <span className="text-[#121416]">
-                        Email Notifications
-                      </span>
-                    </label>
-                    <label className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        defaultChecked={settings.orderUpdates}
+                        name="orderUpdates"
+                        checked={formData.notifications?.orderUpdates}
+                        onChange={handleCheckboxChange}
                         className="w-4 h-4 text-[#397fc5] border-[#dde0e3] rounded focus:ring-[#397fc5]"
                       />
                       <span className="text-[#121416]">Order Updates</span>
@@ -536,10 +1133,12 @@ export default function ProfilePage() {
                     <label className="flex items-center gap-3">
                       <input
                         type="checkbox"
-                        defaultChecked={settings.marketingEmails}
+                        name="marketingEmails"
+                        checked={formData.notifications?.marketingEmails}
+                        onChange={handleCheckboxChange}
                         className="w-4 h-4 text-[#397fc5] border-[#dde0e3] rounded focus:ring-[#397fc5]"
                       />
-                      <span className="text-[#121416]">Marketing Emails</span>
+                      <span className="text-[#121416]">Promotional Offers</span>
                     </label>
                   </div>
                 </div>
@@ -556,30 +1155,14 @@ export default function ProfilePage() {
                     <label className="flex items-center gap-3">
                       <input
                         type="checkbox"
-                        defaultChecked={settings.twoFactorAuth}
+                        name="twoFactorAuth"
+                        checked={formData.privacySettings?.twoFactorAuth}
+                        onChange={handleCheckboxChange}
                         className="w-4 h-4 text-[#397fc5] border-[#dde0e3] rounded focus:ring-[#397fc5]"
                       />
                       <span className="text-[#121416]">
                         Two-Factor Authentication
                       </span>
-                    </label>
-                    <label className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        defaultChecked={settings.showProfile}
-                        className="w-4 h-4 text-[#397fc5] border-[#dde0e3] rounded focus:ring-[#397fc5]"
-                      />
-                      <span className="text-[#121416]">
-                        Show Profile to Other Users
-                      </span>
-                    </label>
-                    <label className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        defaultChecked={settings.showOrders}
-                        className="w-4 h-4 text-[#397fc5] border-[#dde0e3] rounded focus:ring-[#397fc5]"
-                      />
-                      <span className="text-[#121416]">Show Order History</span>
                     </label>
                   </div>
                 </div>
@@ -598,13 +1181,15 @@ export default function ProfilePage() {
                         Language
                       </label>
                       <select
-                        defaultValue={settings.language}
+                        name="language"
+                        value={formData.accountPreferences?.language}
+                        onChange={handleInputChange}
                         className="w-full px-4 py-2 border border-[#dde0e3] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#397fc5] focus:border-transparent"
                       >
-                        <option value="English">English</option>
-                        <option value="Spanish">Spanish</option>
-                        <option value="French">French</option>
-                        <option value="German">German</option>
+                        <option value="en">English</option>
+                        <option value="es">Spanish</option>
+                        <option value="fr">French</option>
+                        <option value="de">German</option>
                       </select>
                     </div>
                     <div>
@@ -612,9 +1197,12 @@ export default function ProfilePage() {
                         Currency
                       </label>
                       <select
-                        defaultValue={settings.currency}
+                        name="currency"
+                        value={formData.accountPreferences?.currency}
+                        onChange={handleInputChange}
                         className="w-full px-4 py-2 border border-[#dde0e3] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#397fc5] focus:border-transparent"
                       >
+                        <option value="LKR">LKR (LKR)</option>
                         <option value="USD">USD ($)</option>
                         <option value="EUR">EUR (€)</option>
                         <option value="GBP">GBP (£)</option>
@@ -626,10 +1214,14 @@ export default function ProfilePage() {
 
                 <div className="flex justify-end pt-4">
                   <button
-                    onClick={handleSaveSettings}
-                    className="px-6 py-2 bg-[#397fc5] text-white rounded-lg hover:bg-[#2c5f94] transition-colors"
+                    onClick={handleSaveChanges}
+                    disabled={saving}
+                    className="px-6 py-2 bg-[#397fc5] text-white rounded-lg hover:bg-[#2c5f94] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    Save Settings
+                    {saving && (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    )}
+                    {saving ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>
               </div>

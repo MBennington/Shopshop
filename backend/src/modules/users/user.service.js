@@ -89,11 +89,14 @@ module.exports.processUserData = async (body, files, existingUser = null) => {
     } catch {
       incomingSavedAddressesInfo = body.savedAddresses;
     }
-    const existingSavedAddressesInfo = existingUser?.savedAddresses || {};
-    processedData.savedAddresses = {
+    if (!Array.isArray(incomingSavedAddressesInfo)) {
+      incomingSavedAddressesInfo = [incomingSavedAddressesInfo];
+    }
+    const existingSavedAddressesInfo = existingUser?.savedAddresses || [];
+    processedData.savedAddresses = [
       ...existingSavedAddressesInfo,
       ...incomingSavedAddressesInfo,
-    };
+    ];
   }
 
   // Handle profile picture upload
@@ -228,6 +231,7 @@ module.exports.updateUserProfile = async (user_id, body, files) => {
   if (!existingUser) throw new Error('User not found');
 
   const processedData = await this.processUserData(body, files, existingUser);
+  console.log('processed data----', processedData);
 
   const updatedUser = await repository.updateOne(
     UserModel,
@@ -235,6 +239,8 @@ module.exports.updateUserProfile = async (user_id, body, files) => {
     processedData,
     { new: true }
   );
+
+  console.log('updated user ---', updatedUser);
 
   if (!updatedUser) throw new Error('Failed to update user');
 
