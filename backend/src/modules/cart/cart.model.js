@@ -17,7 +17,7 @@ const cartSchema = new Schema(
       ref: 'user',
       required: true,
     },
-    products_list: [productListSchema],
+    products_list: [productsListSchema],
     total: {
       type: Number,
       required: true,
@@ -32,6 +32,6 @@ const cartSchema = new Schema(
 );
 
 cartSchema.index({ user_id: 1 });
-cartSchema.index({ 'productList.product_id': 1 });
+cartSchema.index({ 'products_list.product_id': 1 });
 
 module.exports = mongoose.model('cart', cartSchema);

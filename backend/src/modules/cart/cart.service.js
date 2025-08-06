@@ -3,6 +3,7 @@ const userModel = require('../users/user.model');
 const userService = require('../users/user.service');
 const mongoose = require('mongoose');
 const repository = require('../../services/repository.service');
+const productService = require('../products/product.service');
 
 /**
  * Add or Update Cart
@@ -10,14 +11,21 @@ const repository = require('../../services/repository.service');
  * @param {String} user_id
  * @returns {Promise<Object>}
  */
-module.exports.addOrUpdateCart = async (body, user_id) => {
+module.exports.createOrUpdateCart = async (body, user_id) => {
   const user = await userService.getUserById(user_id);
   if (!user) {
     throw new Error('User not found.');
   }
 
   const newProduct = body; // { product_id, qty, size, color, price }
-  const subTotal = newProduct.qty * newProduct.price;
+
+  const product = await productService.getProductById(newProduct.product_id);
+
+  if (!product) {
+    throw new Error('Product not found!');
+  }
+
+  const subTotal = newProduct.qty * product.price;
 
   const cart = await CartModel.findOne({ user_id });
 
@@ -30,7 +38,7 @@ module.exports.addOrUpdateCart = async (body, user_id) => {
           quantity: newProduct.qty,
           color: newProduct.color,
           size: newProduct.size,
-          subTotal: subTotal,
+          subtotal: subTotal,
         },
       ],
       total: subTotal,
