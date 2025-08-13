@@ -15,6 +15,11 @@ router
     controller.createOrUpdateCart
   );
 
-router.route(permissions.getCartByUserId.path).get(controller.getCartByUserId);
+router
+  .route(permissions.getCartByUserId.path)
+  .get(
+    validator.validateHeader(permissions.getCartByUserId.grantedUserRoles),
+    controller.getCartByUserId
+  );
 
 module.exports = router;
