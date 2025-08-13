@@ -6,7 +6,7 @@ module.exports.permissions = {
     grantedUserRoles: [roles.admin, roles.seller, roles.buyer],
   },
   getCartByUserId: {
-    path: '/:id',
+    path: '/',
     grantedUserRoles: [roles.admin, roles.seller, roles.buyer],
   },
 };
