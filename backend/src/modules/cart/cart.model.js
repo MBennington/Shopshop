@@ -6,8 +6,8 @@ const productsListSchema = new mongoose.Schema({
   product_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
   quantity: { type: Number, required: true },
   color: { type: String },
+  subtotal: { type: Number, required: true },
   size: { type: String, enum: sizes },
-  subtotal: { type: Number },
 });
 
 const cartSchema = new Schema(

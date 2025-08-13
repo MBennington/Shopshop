@@ -20,12 +20,14 @@ module.exports.createOrUpdateCart = async (body, user_id) => {
   const newProduct = body; // { product_id, qty, size, color, price }
 
   const product = await productService.getProductById(newProduct.product_id);
+  //console.log('product: ', product);
 
   if (!product) {
     throw new Error('Product not found!');
   }
 
   const subTotal = newProduct.qty * product.price;
+  //console.log('subtotal: ', subTotal);
 
   const cart = await CartModel.findOne({ user_id });
 
@@ -50,12 +52,14 @@ module.exports.createOrUpdateCart = async (body, user_id) => {
 
   // If cart exists, update or add product
   let updatedList = [...cart.products_list];
+
   const index = updatedList.findIndex(
     (p) =>
       p.product_id.toString() === newProduct.product_id &&
       p.size === newProduct.size &&
       p.color === newProduct.color
   );
+  console.log('index: ', index);
 
   if (index !== -1) {
     // Update quantity and subTotal
@@ -69,11 +73,12 @@ module.exports.createOrUpdateCart = async (body, user_id) => {
       quantity: newProduct.qty,
       color: newProduct.color,
       size: newProduct.size,
-      subTotal: subTotal,
+      subtotal: subTotal,
     });
   }
 
-  const total = updatedList.reduce((acc, item) => acc + item.subTotal, 0);
+  console.log('updated list: ', updatedList);
+  const total = updatedList.reduce((acc, item) => acc + item.subtotal, 0);
 
   const updatedCart = await repository.updateOne(
     CartModel,
