@@ -59,7 +59,7 @@ module.exports.createOrUpdateCart = async (body, user_id) => {
       p.size === newProduct.size &&
       p.color === newProduct.color
   );
-  console.log('index: ', index);
+  //console.log('index: ', index);
 
   if (index !== -1) {
     // Update quantity and subTotal
@@ -77,7 +77,7 @@ module.exports.createOrUpdateCart = async (body, user_id) => {
     });
   }
 
-  console.log('updated list: ', updatedList);
+  //console.log('updated list: ', updatedList);
   const total = updatedList.reduce((acc, item) => acc + item.subtotal, 0);
 
   const updatedCart = await repository.updateOne(
@@ -95,10 +95,68 @@ module.exports.createOrUpdateCart = async (body, user_id) => {
  * @param user_id
  * @returns {Promise<*>}
  */
-module.exports.getCartByUserId = async (user_id) => {
-  const cart = await repository.findOne(CartModel, {
-    user_id: user_id,
-  });
+module.exports.getCartByUserId = async (userId) => {
+  const cart = await CartModel.aggregate([
+    {
+      $match: { user_id: new mongoose.Types.ObjectId(userId) },
+    },
+    { $unwind: '$products_list' },
+    {
+      $lookup: {
+        from: 'products',
+        localField: 'products_list.product_id',
+        foreignField: '_id',
+        as: 'product',
+      },
+    },
+    { $unwind: '$product' },
+    {
+      $addFields: {
+        selectedColor: {
+          $first: {
+            $filter: {
+              input: '$product.colors',
+              as: 'c',
+              cond: { $eq: ['$$c.colorCode', '$products_list.color'] },
+            },
+          },
+        },
+      },
+    },
+    {
+      $addFields: {
+        'products_list.productName': '$product.name',
+        'products_list.basePrice': '$product.price',
+        'products_list.category': '$product.category',
+        'products_list.images': '$selectedColor.images',
+      },
+    },
+    {
+      $project: {
+        user_id: 1,
+        total: 1,
+        'products_list.product_id': 1,
+        'products_list.quantity': 1,
+        'products_list.subtotal': 1,
+        'products_list.size': 1,
+        'products_list.color': 1,
+        'products_list.productName': 1,
+        'products_list.basePrice': 1,
+        'products_list.category': 1,
+        'products_list.images': 1,
+      },
+    },
+    {
+      $group: {
+        _id: '$_id',
+        user_id: { $first: '$user_id' },
+        total: { $first: '$total' },
+        products_list: { $push: '$products_list' },
+        created_at: { $first: '$created_at' },
+        updated_at: { $first: '$updated_at' },
+      },
+    },
+  ]);
 
-  return cart;
+  return cart[0] || null;
 };

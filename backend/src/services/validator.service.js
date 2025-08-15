@@ -94,7 +94,7 @@ class TokenExpiredError extends Error {
  */
 module.exports.validateBody = function (schema) {
   return (req, res, next) => {
-    console.log('data--- ', req.body);
+    //console.log('data--- ', req.body);
     const result = schema.validate(req.body);
 
     if (result.error) {
