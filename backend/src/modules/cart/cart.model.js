@@ -3,7 +3,7 @@ const { Schema } = mongoose;
 const { sizes } = require('../../config/sizes.config');
 
 const productsListSchema = new mongoose.Schema({
-  product_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+  product_id: { type: mongoose.Schema.Types.ObjectId, ref: 'product' },
   quantity: { type: Number, required: true },
   color: { type: String },
   subtotal: { type: Number, required: true },
