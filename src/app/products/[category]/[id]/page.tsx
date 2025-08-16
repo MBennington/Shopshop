@@ -3,6 +3,7 @@
 import { use, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface ProductDetailsProps {
   params: Promise<{
@@ -78,6 +79,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [stockError, setStockError] = useState<string | null>(null);
+  const router = useRouter();
 
   // Fetch product details
   useEffect(() => {
@@ -190,6 +192,50 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
     );
   };
 
+  const handleAddToCart = async () => {
+    try {
+      setError('');
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/auth');
+        return;
+      }
+
+      // Build payload
+      const payload: any = {
+        product_id: id,
+        qty: quantity,
+        color: product.colors[selectedColor].colorCode,
+      };
+
+      if (product.hasSizes && selectedSize) {
+        payload.size = selectedSize;
+      }
+
+      const response = await fetch('/api/cart', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload), // must be string
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.msg || data.error || 'Failed to update cart');
+      }
+
+      console.log('✅ Cart updated:', data);
+      alert('✅ Item added to cart successfully!');
+    } catch (error: any) {
+      console.error('Error updating cart:', error);
+      setError(error.message || 'Failed to add to cart');
+    }
+  };
+
   // Handle purchase action
   const handlePurchase = (action: 'buy' | 'cart') => {
     if (product.hasSizes && selectedSize === null) {
@@ -217,6 +263,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
       )}`;
     } else {
       // Add to cart logic here
+      handleAddToCart();
       setStockError(null);
     }
   };
@@ -331,7 +378,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                 Price
               </h3>
               <p className="text-[#121416] text-base font-normal leading-normal pb-3 pt-1">
-                ${product.price}
+                LKR {product.price}
               </p>
 
               {/* Color Selection */}
