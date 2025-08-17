@@ -10,3 +10,12 @@ module.exports.createOrUpdateCart = joi.object({
     .optional(),
   color: joi.string().trim().required(),
 });
+
+module.exports.removeFromCart = joi.object({
+  product_id: joi.string().required(),
+  size: joi
+    .string()
+    .valid(...sizes)
+    .optional(),
+  color: joi.string().trim().required(),
+});

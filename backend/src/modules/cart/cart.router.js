@@ -22,4 +22,12 @@ router
     controller.getCartByUserId
   );
 
+router
+  .route(permissions.removeFromCart.path)
+  .delete(
+    validator.validateHeader(permissions.removeFromCart.grantedUserRoles),
+    validator.validateQueryParameters(schema.removeFromCart),
+    controller.removeFromCart
+  );
+
 module.exports = router;

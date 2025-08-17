@@ -39,3 +39,22 @@ module.exports.getCartByUserId = async (req, res) => {
     return customError(`${error.message}`, res);
   }
 };
+
+/**
+ * Remove from Cart
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.removeFromCart = async (req, res) => {
+  try {
+    const user_id = res.locals.user.id;
+
+    const data = await cartService.removeFromCart(user_id, req.query);
+
+    return successWithData(data, res);
+  } catch (error) {
+    console.error('Updating cart error:', error);
+    return customError(`${error.message}`, res);
+  }
+};

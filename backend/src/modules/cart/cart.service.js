@@ -160,3 +160,55 @@ module.exports.getCartByUserId = async (userId) => {
 
   return cart[0] || null;
 };
+
+/**
+ * Remove from Cart
+ * @param {String} user_id
+ * @param {Object} body { product_id, size?, color }
+ * @returns {Promise<*>}
+ */
+module.exports.removeFromCart = async (user_id, body) => {
+  const user = await userService.getUserById(user_id);
+  if (!user) {
+    throw new Error('User not found.');
+  }
+
+  const productData = body;
+
+  const product = await productService.getProductById(productData.product_id);
+  if (!product) {
+    throw new Error('Product not found!');
+  }
+
+  const cart = await this.getCartByUserId(user_id);
+  if (!cart) {
+    throw new Error('Cart not found!');
+  }
+
+  let updatedList = [...cart.products_list];
+
+  // Find the exact product in cart
+  const index = updatedList.findIndex(
+    (p) =>
+      p.product_id.toString() === productData.product_id &&
+      (p.size || null) === (productData.size || null) &&
+      p.color === productData.color
+  );
+
+  if (index === -1) {
+    throw new Error('Product not found in the cart');
+  }
+
+  updatedList.splice(index, 1);
+
+  const total = updatedList.reduce((acc, item) => acc + item.subtotal, 0);
+
+  const updatedCart = await repository.updateOne(
+    CartModel,
+    { _id: cart._id },
+    { products_list: updatedList, total },
+    { new: true }
+  );
+
+  return updatedCart.toObject();
+};
