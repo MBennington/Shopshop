@@ -9,4 +9,8 @@ module.exports.permissions = {
     path: '/',
     grantedUserRoles: [roles.admin, roles.seller, roles.buyer],
   },
+  removeFromCart: {
+    path: '/',
+    grantedUserRoles: [roles.admin, roles.seller, roles.buyer],
+  },
 };
