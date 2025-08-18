@@ -230,6 +230,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
 
       console.log('✅ Cart updated:', data);
       alert('✅ Item added to cart successfully!');
+      router.push('/cart');
     } catch (error: any) {
       console.error('Error updating cart:', error);
       setError(error.message || 'Failed to add to cart');

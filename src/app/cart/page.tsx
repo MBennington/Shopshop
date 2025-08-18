@@ -57,6 +57,40 @@ export default function CartPage() {
     fetchCart();
   }, []);
 
+  const handleEdit = (item: CartItem) => {
+    // Open a modal or redirect to product page with item pre-selected
+    console.log('Edit item:', item);
+  };
+
+  const handleRemove = async (item: CartItem) => {
+    try {
+      const token = localStorage.getItem('token');
+      const params = new URLSearchParams({
+        product_id: item.product_id,
+        color: item.color,
+      });
+      if (item.size) params.append('size', item.size);
+      const res = await fetch(
+        `http://localhost:5000/api/cart?${params.toString()}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const json: CartApiResponse = await res.json();
+
+      if (!res.ok) throw new Error(json.msg || 'Failed to remove item');
+
+      setCart(json.data); // ✅ use updated cart
+      alert('✅ Item removed from cart successfully!');
+    } catch (err) {
+      console.error('Remove failed:', err);
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-20">Loading cart...</div>;
   }
@@ -113,6 +147,21 @@ export default function CartPage() {
                 <p className="text-sm text-gray-800 font-medium mt-1">
                   Subtotal: LKR {item.subtotal.toFixed(2)}
                 </p>
+              </div>
+              {/* Action buttons */}
+              <div className="mt-3 flex space-x-3">
+                <button
+                  //onClick={() => handleEdit(item)}
+                  className="px-4 py-2 text-sm rounded-lg border border-[#1976d2] text-[#1976d2] hover:bg-[#1976d2] hover:text-white transition-colors"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleRemove(item)}
+                  className="px-4 py-2 text-sm rounded-lg border border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-colors"
+                >
+                  Remove
+                </button>
               </div>
             </div>
           ))}

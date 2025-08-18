@@ -203,12 +203,14 @@ module.exports.removeFromCart = async (user_id, body) => {
 
   const total = updatedList.reduce((acc, item) => acc + item.subtotal, 0);
 
-  const updatedCart = await repository.updateOne(
+  await repository.updateOne(
     CartModel,
     { _id: cart._id },
     { products_list: updatedList, total },
     { new: true }
   );
 
-  return updatedCart.toObject();
+  const updatedCart = this.getCartByUserId(user_id);
+
+  return updatedCart;
 };
