@@ -58,3 +58,22 @@ module.exports.removeFromCart = async (req, res) => {
     return customError(`${error.message}`, res);
   }
 };
+
+/**
+ * Update quantity
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.updateQuantity = async (req, res) => {
+  try {
+    const user_id = res.locals.user.id;
+
+    const data = await cartService.updateQuantity(req.body, user_id);
+
+    return successWithData(data, res);
+  } catch (error) {
+    console.error('Updating cart error:', error);
+    return customError(`${error.message}`, res);
+  }
+};

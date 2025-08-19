@@ -214,3 +214,63 @@ module.exports.removeFromCart = async (user_id, body) => {
 
   return updatedCart;
 };
+
+/**
+ * Update quantity
+ * @param {Object} body
+ * @param {String} user_id
+ * @returns {Promise<Object>}
+ */
+module.exports.updateQuantity = async (body, user_id) => {
+  const user = await userService.getUserById(user_id);
+  if (!user) {
+    throw new Error('User not found.');
+  }
+
+  const updatedProduct = body; // { product_id, qty, size, color }
+
+  const product = await productService.getProductById(
+    updatedProduct.product_id
+  );
+
+  if (!product) {
+    throw new Error('Product not found!');
+  }
+
+  const cart = await CartModel.findOne({ user_id });
+
+  if (!cart) {
+    throw new Error('Cart not found!');
+  }
+
+  let updatedList = [...cart.products_list];
+
+  const index = updatedList.findIndex(
+    (p) =>
+      p.product_id.toString() === updatedProduct.product_id &&
+      p.size === updatedProduct.size &&
+      p.color === updatedProduct.color
+  );
+  //console.log('index: ', index);
+
+  if (index == -1) {
+    throw new Error('Product not found in the cart!');
+  }
+  // Update quantity and subTotal
+  updatedList[index].quantity = updatedProduct.qty;
+  updatedList[index].subtotal = updatedList[index].quantity * product.price;
+
+  //console.log('updated list: ', updatedList);
+  const total = updatedList.reduce((acc, item) => acc + item.subtotal, 0);
+
+  await repository.updateOne(
+    CartModel,
+    { _id: cart._id },
+    { products_list: updatedList, total },
+    { new: true }
+  );
+
+  const updatedCart = this.getCartByUserId(user_id);
+
+  return updatedCart;
+};
