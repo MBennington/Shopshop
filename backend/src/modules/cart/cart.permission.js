@@ -13,4 +13,8 @@ module.exports.permissions = {
     path: '/',
     grantedUserRoles: [roles.admin, roles.seller, roles.buyer],
   },
+  updateQuantity: {
+    path: '/',
+    grantedUserRoles: [roles.admin, roles.seller, roles.buyer],
+  },
 };

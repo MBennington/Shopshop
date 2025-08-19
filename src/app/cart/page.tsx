@@ -28,6 +28,7 @@ interface CartResponse {
 export default function CartPage() {
   const [cart, setCart] = useState<CartResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
 
   useEffect(() => {
     const fetchCart = async () => {
@@ -47,6 +48,13 @@ export default function CartPage() {
         if (!res.ok) throw new Error(json.msg || 'Failed to fetch cart');
 
         setCart(json.data); // ✅ use json.data
+
+        // Initialize quantities state
+        const initialQuantities: { [key: string]: number } = {};
+        json.data.products_list.forEach((item) => {
+          initialQuantities[item.product_id] = item.quantity;
+        });
+        setQuantities(initialQuantities);
       } catch (error) {
         console.error('Failed to fetch cart', error);
       } finally {
@@ -57,9 +65,34 @@ export default function CartPage() {
     fetchCart();
   }, []);
 
-  const handleEdit = (item: CartItem) => {
+  const handleUpdate = async (item: CartItem, updatedQty: number) => {
     // Open a modal or redirect to product page with item pre-selected
     console.log('Edit item:', item);
+    const token = localStorage.getItem('token');
+    const payload: any = {
+      product_id: item.product_id,
+      qty: updatedQty,
+      color: item.color,
+    };
+    if (item.size) {
+      payload.size = item.size;
+    }
+
+    const res = await fetch('/api/cart', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const json: CartApiResponse = await res.json();
+
+    if (!res.ok) throw new Error(json.msg || 'Failed to update quantity');
+
+    setCart(json.data);
+    alert('✅ Quantity updated successfully!');
   };
 
   const handleRemove = async (item: CartItem) => {
@@ -136,7 +169,61 @@ export default function CartPage() {
                   LKR {item.basePrice.toFixed(2)}
                 </p>
                 <p className="text-sm text-gray-600">
-                  Qty: {item.quantity} {item.size ? ` Size: ${item.size}` : ''}{' '}
+                  <div className="flex items-center space-x-2">
+                    <button
+                      className="px-2 py-1 bg-gray-200 rounded"
+                      onClick={() =>
+                        setQuantities({
+                          ...quantities,
+                          [item.product_id]: Math.max(
+                            (quantities[item.product_id] || item.quantity) - 1,
+                            1
+                          ),
+                        })
+                      }
+                    >
+                      –
+                    </button>
+
+                    <input
+                      type="number"
+                      min={1}
+                      value={quantities[item.product_id] || item.quantity}
+                      onChange={(e) =>
+                        setQuantities({
+                          ...quantities,
+                          [item.product_id]: Number(e.target.value),
+                        })
+                      }
+                      className="w-12 text-center border rounded"
+                    />
+
+                    <button
+                      className="px-2 py-1 bg-gray-200 rounded"
+                      onClick={() =>
+                        setQuantities({
+                          ...quantities,
+                          [item.product_id]:
+                            (quantities[item.product_id] || item.quantity) + 1,
+                        })
+                      }
+                    >
+                      +
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        handleUpdate(
+                          item,
+                          quantities[item.product_id] || item.quantity
+                        )
+                      }
+                      className="px-3 py-1 bg-blue-500 text-white rounded"
+                    >
+                      Update
+                    </button>
+                  </div>
+                  {item.size ? ` Size: ${item.size}` : ''}{' '}
                   {item.color ? (
                     <span
                       className="ml-2 inline-block w-4 h-4 rounded-full border"
@@ -148,14 +235,9 @@ export default function CartPage() {
                   Subtotal: LKR {item.subtotal.toFixed(2)}
                 </p>
               </div>
+
               {/* Action buttons */}
               <div className="mt-3 flex space-x-3">
-                <button
-                  //onClick={() => handleEdit(item)}
-                  className="px-4 py-2 text-sm rounded-lg border border-[#1976d2] text-[#1976d2] hover:bg-[#1976d2] hover:text-white transition-colors"
-                >
-                  Edit
-                </button>
                 <button
                   onClick={() => handleRemove(item)}
                   className="px-4 py-2 text-sm rounded-lg border border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-colors"

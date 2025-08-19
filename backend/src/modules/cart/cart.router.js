@@ -30,4 +30,12 @@ router
     controller.removeFromCart
   );
 
+router
+  .route(permissions.updateQuantity.path)
+  .put(
+    validator.validateHeader(permissions.updateQuantity.grantedUserRoles),
+    validator.validateBody(schema.updateQuantity),
+    controller.updateQuantity
+  );
+
 module.exports = router;
