@@ -1,6 +1,5 @@
 const orderStatus = Object.freeze({
   PENDING: 'Pending',
-  PAID: 'Paid',
   SHIPPED: 'Shipped',
   DELIVERED: 'Delivered',
   CANCELLED: 'Cancelled',
@@ -25,7 +24,4 @@ module.exports = {
   orderStatus,
   paymentStatus,
   paymentMethod,
-  userRoles,
-  categories,
-  sizes,
 };

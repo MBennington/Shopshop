@@ -8,33 +8,29 @@ const {
 
 const orderSchema = new Schema(
   {
-    user: {
+    user_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
     },
 
-    products: [
+    products_list: [
       {
-        product: {
+        product_id: {
           type: mongoose.Schema.Types.ObjectId,
           ref: 'Product',
           required: true,
         },
-        name: { type: String, required: true },
-        price: { type: Number, required: true },
         qty: { type: Number, required: true },
-        color: { type: String },
+        color: { type: String, required: true },
         size: { type: String },
+        subtotal: { type: Number, required: true },
       },
     ],
 
     shippingAddress: {
-      label: { type: String },
-      address: { type: String, required: true },
-      city: { type: String, required: true },
-      postalCode: { type: String, required: true },
-      country: { type: String, required: true },
+      type: String,
+      required: true,
     },
 
     paymentMethod: {
@@ -46,13 +42,13 @@ const orderSchema = new Schema(
     paymentStatus: {
       type: String,
       enum: Object.values(paymentStatus),
-      default: 'pending',
+      default: paymentStatus.PENDING,
     },
 
     orderStatus: {
       type: String,
       enum: Object.values(orderStatus),
-      default: 'pending',
+      default: orderStatus.PENDING,
     },
 
     totalPrice: {
