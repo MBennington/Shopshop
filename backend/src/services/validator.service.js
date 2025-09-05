@@ -1,4 +1,4 @@
-const formidable = require("formidable");
+const formidable = require('formidable');
 
 //const imageConfig = require("../config/image.config");
 const response = require('./response.service');
@@ -11,8 +11,10 @@ const tokenService = require('./token.service');
  */
 module.exports.getTokenFromHeader = (req) => {
   if (
-    (req.headers.authorization && req.headers.authorization.split(' ')[0] === 'Token')
-    || (req.headers.authorization && req.headers.authorization.split(' ')[0] === 'Bearer')
+    (req.headers.authorization &&
+      req.headers.authorization.split(' ')[0] === 'Token') ||
+    (req.headers.authorization &&
+      req.headers.authorization.split(' ')[0] === 'Bearer')
   ) {
     return req.headers.authorization.split(' ')[1];
   }
@@ -28,9 +30,9 @@ module.exports.getTokenFromHeader = (req) => {
  */
 const validateUserRole = (role, grantedUserRoles) => {
   if (
-    Array.isArray(grantedUserRoles)
-    && grantedUserRoles.length !== 0
-    && grantedUserRoles.includes(role)
+    Array.isArray(grantedUserRoles) &&
+    grantedUserRoles.length !== 0 &&
+    grantedUserRoles.includes(role)
   ) {
     return 'Granted';
   } else {
@@ -57,20 +59,21 @@ module.exports.getUserFromRequest = (req) => {
  * Validate API request header
  * @returns {Function}
  */
-module.exports.validateHeader = (grantedUserRoles) => async (req, res, next) => {
-  try {
-    const jwt = this.getTokenFromHeader(req);
-    res.locals.user = tokenService.verifyJwt(jwt);
+module.exports.validateHeader =
+  (grantedUserRoles) => async (req, res, next) => {
+    try {
+      const jwt = this.getTokenFromHeader(req);
+      res.locals.user = tokenService.verifyJwt(jwt);
 
-    if (grantedUserRoles) {
-      validateUserRole(res.locals.user.role, grantedUserRoles);
+      if (grantedUserRoles) {
+        validateUserRole(res.locals.user.role, grantedUserRoles);
+      }
+
+      next();
+    } catch (error) {
+      return response.customError(`${error}`, res);
     }
-
-    next();
-  } catch (error) {
-    return response.customError(`${error}`, res);
-  }
-};
+  };
 
 /**
  * Validate header with user
@@ -79,8 +82,8 @@ module.exports.validateHeader = (grantedUserRoles) => async (req, res, next) => 
 
 class TokenExpiredError extends Error {
   constructor(message) {
-    super(message); 
-    this.name = "TokenExpiredError"; 
+    super(message);
+    this.name = 'TokenExpiredError';
   }
 }
 
@@ -91,6 +94,7 @@ class TokenExpiredError extends Error {
  */
 module.exports.validateBody = function (schema) {
   return (req, res, next) => {
+    //console.log('data--- ', req.body);
     const result = schema.validate(req.body);
 
     if (result.error) {

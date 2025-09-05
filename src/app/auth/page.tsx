@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Card,
   CardContent,
@@ -33,6 +34,7 @@ export default function AuthPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { login } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,8 +55,7 @@ export default function AuthPage() {
       const data = await res.json();
 
       if (res.ok && data.status) {
-        localStorage.setItem('token', data.token);
-        router.push('/');
+        login(data.token, data.data);
       } else {
         setErrorMessage(data.msg || 'Login failed');
       }
@@ -108,10 +109,7 @@ export default function AuthPage() {
 
       if (res.ok) {
         setSuccessMessage('Account created successfully!');
-        localStorage.setItem('token', data.token);
-        setTimeout(() => {
-          router.push('/');
-        }, 1000);
+        login(data.token, data.data);
       } else {
         setErrorMessage(data.msg || 'Signup failed');
       }

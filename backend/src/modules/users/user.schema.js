@@ -1,9 +1,58 @@
-const joi = require("joi");
-const { roles } = require("../../config/role.config")
+const joi = require('joi');
+const { roles } = require('../../config/role.config');
 
-const passwordValidation = joi.string().min(8).regex(/^\S+$/).required().messages({
-  "string.min": "Password must be at least 8 characters long",
-  "string.pattern.base": "Password must not contain spaces",
+const passwordValidation = joi
+  .string()
+  .min(8)
+  .regex(/^\S+$/)
+  .required()
+  .messages({
+    'string.min': 'Password must be at least 8 characters long',
+    'string.pattern.base': 'Password must not contain spaces',
+  });
+
+const contactDetailsSchema = joi.object({
+  address: joi.string(),
+  city: joi.string(),
+  postalCode: joi.string(),
+  country: joi.string(),
+});
+
+const payoutsSchema = joi.object({
+  paymentMethod: joi.string(),
+  accountNumber: joi.string(),
+  routingNumber: joi.string(),
+});
+
+const sellerInfoSchema = joi.object({
+  businessName: joi.string(),
+  phone: joi.string(),
+  businessType: joi.string(),
+  contactDetails: contactDetailsSchema.optional(),
+  payouts: payoutsSchema.optional(),
+});
+
+const notificationsSchema = joi.object({
+  orderUpdates: joi.boolean(),
+  productInquiries: joi.boolean(),
+  marketingEmails: joi.boolean(),
+});
+
+const privacySettingsSchema = joi.object({
+  twoFactorAuth: joi.boolean(),
+});
+
+const accountPreferencesSchema = joi.object({
+  language: joi.string(),
+  currency: joi.string(),
+});
+
+const addressSchema = joi.object({
+  label: joi.string().required(),
+  address: joi.string().required(),
+  city: joi.string().required(),
+  postalCode: joi.string().required(),
+  country: joi.string().required(),
 });
 
 module.exports.createUser = joi.object().keys({
@@ -13,7 +62,10 @@ module.exports.createUser = joi.object().keys({
     .email({ tlds: { allow: false } })
     .required(),
   password: passwordValidation,
-  role: joi.string().valid(...Object.values(roles)).required(),
+  role: joi
+    .string()
+    .valid(...Object.values(roles))
+    .required(),
 
   // seller-specific fields (conditionally required)
   businessName: joi.when('role', {
@@ -39,4 +91,38 @@ module.exports.login = joi.object().keys({
     .email({ tlds: { allow: false } })
     .required(),
   password: passwordValidation,
+});
+
+module.exports.updateUserProfile = joi.object({
+  name: joi.string(),
+  email: joi.string().email(),
+  role: joi.string().valid('seller', 'buyer'),
+  sellerInfo: sellerInfoSchema,
+  notifications: notificationsSchema,
+  privacySettings: privacySettingsSchema,
+  accountPreferences: accountPreferencesSchema,
+  savedAddresses: joi.array().items(addressSchema),
+  profilePicture: joi.string().uri(),
+});
+
+module.exports.changePassword = joi.object().keys({
+  currentPassword: passwordValidation,
+  newPassword: passwordValidation,
+});
+
+module.exports.deleteUser = joi.object().keys({
+  password: passwordValidation,
+});
+
+module.exports.updateUserRole = joi.object().keys({
+  role: joi
+    .string()
+    .valid(...Object.values(roles))
+    .required(),
+});
+
+module.exports.getAllUsers = joi.object().keys({
+  page: joi.number().integer().min(1).default(1),
+  limit: joi.number().integer().min(1).max(100).default(10),
+  search: joi.string().trim().min(1).optional(),
 });

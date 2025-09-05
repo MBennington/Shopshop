@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Card,
   CardContent,
@@ -35,6 +36,7 @@ export default function SellerAuthPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { login } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,8 +56,9 @@ export default function SellerAuthPage() {
       const data = await res.json();
 
       if (res.ok && data.status) {
-        localStorage.setItem('token', data.token);
-        router.push('/sell');
+        login(data.token, data.data);
+        // localStorage.setItem('token', data.token);
+        // router.push('/sell');
       } else {
         setErrorMessage(data.msg || 'Login failed');
         setTimeout(() => {
@@ -118,6 +121,7 @@ export default function SellerAuthPage() {
 
       if (res.ok) {
         setSuccessMessage('Seller account created successfully!');
+        login(data.token, data.data);
         setTimeout(() => {
           setSuccessMessage('');
         }, 3000);

@@ -99,3 +99,7 @@ module.exports.getProducts = joi.object({
   maxPrice: joi.number().min(0).optional(),
   seller_id: joi.string().optional(),
 });
+
+module.exports.getProductDetails = joi.object({
+  previewLimit: joi.number().integer().min(1).max(10).default(5),
+});

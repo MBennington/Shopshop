@@ -1,26 +1,27 @@
 const ProductModel = require('./product.model');
 const userService = require('../users/user.service');
+const reviewService = require('../reviews/review.service');
 const { roles } = require('../../config/role.config');
 const repository = require('../../services/repository.service');
+const {
+  uploadBufferToCloudinary,
+  deleteFromCloudinary,
+} = require('../../services/cloudinary.service');
 const mongoose = require('mongoose');
+const extractPublicIdFromUrl = require('../../utils/extractPublicIdFromUrl.util');
 
 /**
- * Create new product
+ * Process product data with image uploads
  * @param body
+ * @param files
+ * @param existingProduct - Optional, for updates
  * @returns {Promise<*>}
  */
-module.exports.createProduct = async (body, user_id) => {
-  const user = await userService.getUserById(user_id);
-
-  if (!user) {
-    throw new Error('User not found.');
-  }
-  if (user.role !== roles.seller) {
-    throw new Error(
-      'Only sellers are allowed to add products. Please log in with a seller account.'
-    );
-  }
-
+module.exports.processProductData = async (
+  body,
+  files,
+  existingProduct = null
+) => {
   const processedData = {
     name: body.name,
     category: body.category,
@@ -31,7 +32,9 @@ module.exports.createProduct = async (body, user_id) => {
   };
 
   if (body.colors && Array.isArray(body.colors)) {
-    body.colors.forEach((colorData, index) => {
+    // Process each color with its images
+    for (let colorIndex = 0; colorIndex < body.colors.length; colorIndex++) {
+      const colorData = body.colors[colorIndex];
       const color = {
         colorCode: colorData.colorCode,
         colorName: colorData.colorName,
@@ -40,7 +43,83 @@ module.exports.createProduct = async (body, user_id) => {
         quantity: 0,
       };
 
-      console.log(`Processing color ${index}:`, colorData);
+      // Get existing images for this color (for updates)
+      const existingImages =
+        existingProduct?.colors?.[colorIndex]?.images || [];
+      console.log(
+        `Color ${colorIndex} - Existing images:`,
+        existingImages.length
+      );
+
+      // Find images for this color from the files array
+      const colorImages = files
+        ? files.filter(
+            (file) =>
+              file.fieldname === `colors[${colorIndex}][images]` ||
+              file.fieldname.startsWith(`colors[${colorIndex}][images][`)
+          )
+        : [];
+
+      console.log(
+        `Color ${colorIndex} - Found ${colorImages.length} new images`
+      );
+
+      if (colorImages.length > 0) {
+        // If new images are uploaded, replace existing images (don't duplicate)
+        const uploadedImages = [];
+        for (const file of colorImages) {
+          try {
+            const uploadResult = await uploadBufferToCloudinary(
+              file.buffer,
+              file.originalname,
+              'products'
+            );
+            uploadedImages.push(uploadResult.url);
+            console.log(`Uploaded image: ${uploadResult.url}`);
+          } catch (error) {
+            console.error(
+              `Failed to upload image for color ${colorIndex}:`,
+              error
+            );
+            throw new Error(`Failed to upload image: ${error.message}`);
+          }
+        }
+
+        // Delete old images from Cloudinary if this is an update
+        if (existingProduct && existingImages.length > 0) {
+          console.log(
+            `Deleting ${existingImages.length} old images for color ${colorIndex}`
+          );
+          for (const oldImageUrl of existingImages) {
+            try {
+              const publicId = extractPublicIdFromUrl(oldImageUrl);
+              if (publicId) {
+                await deleteFromCloudinary(publicId);
+                console.log(`Deleted old image: ${publicId}`);
+              }
+            } catch (error) {
+              console.error(
+                `Failed to delete old image: ${oldImageUrl}`,
+                error
+              );
+              // Don't throw error for deletion failures
+            }
+          }
+        }
+
+        // Replace existing images with new ones (don't merge)
+        color.images = uploadedImages;
+        console.log(
+          `Color ${colorIndex} - Replaced with ${uploadedImages.length} new images`
+        );
+      } else {
+        // No new images, keep existing ones
+        color.images = existingImages;
+        console.log(
+          `Color ${colorIndex} - Keeping existing images:`,
+          color.images.length
+        );
+      }
 
       if (processedData.hasSizes) {
         if (colorData.sizes && Array.isArray(colorData.sizes)) {
@@ -54,8 +133,37 @@ module.exports.createProduct = async (body, user_id) => {
       }
 
       processedData.colors.push(color);
-    });
+    }
   }
+
+  console.log(
+    'Final processed data colors:',
+    processedData.colors.map((c) => ({
+      name: c.colorName,
+      imageCount: c.images.length,
+    }))
+  );
+  return processedData;
+};
+
+/**
+ * Create new product
+ * @param body
+ * @returns {Promise<*>}
+ */
+module.exports.createProduct = async (body, files, user_id) => {
+  const user = await userService.getUserById(user_id);
+
+  if (!user) {
+    throw new Error('User not found.');
+  }
+  if (user.role !== roles.seller) {
+    throw new Error(
+      'Only sellers are allowed to add products. Please log in with a seller account.'
+    );
+  }
+
+  const processedData = await this.processProductData(body, files);
 
   // Create new product
   let product = new ProductModel({
@@ -129,7 +237,7 @@ module.exports.getProductsBySeller = async (seller_id) => {
 
 /**
  * Update product
- * @param body
+ * @param body - This should be the processed data with images
  * @param product_id
  * @param user_id
  * @returns {Promise<*>}
@@ -157,47 +265,15 @@ module.exports.updateProduct = async (body, product_id, user_id) => {
     throw new Error('You can only update your own products');
   }
 
-  const processedData = {};
-
-  // Only include fields that are provided in the request
-  if (body.name !== undefined) processedData.name = body.name;
-  if (body.category !== undefined) processedData.category = body.category;
-  if (body.price !== undefined) processedData.price = Number(body.price);
-  if (body.description !== undefined)
-    processedData.description = body.description;
-  if (body.hasSizes !== undefined)
-    processedData.hasSizes = body.hasSizes === 'true' || body.hasSizes === true;
-
-  // Handle colors if provided
-  if (body.colors && Array.isArray(body.colors)) {
-    processedData.colors = [];
-    body.colors.forEach((colorData, index) => {
-      const color = {
-        colorCode: colorData.colorCode,
-        colorName: colorData.colorName,
-        images: existingProduct.colors?.[index]?.images || [], // Keep existing images
-        sizes: [],
-        quantity: 0,
-      };
-
-      if (
-        processedData.hasSizes !== undefined
-          ? processedData.hasSizes
-          : existingProduct.hasSizes
-      ) {
-        if (colorData.sizes && Array.isArray(colorData.sizes)) {
-          color.sizes = colorData.sizes.map((sizeData) => ({
-            size: sizeData.size,
-            quantity: Number(sizeData.quantity),
-          }));
-        }
-      } else {
-        color.quantity = Number(colorData.quantity || 0);
-      }
-
-      processedData.colors.push(color);
-    });
-  }
+  // Use the processed data directly (it already has images uploaded)
+  const processedData = {
+    name: body.name,
+    category: body.category,
+    price: body.price,
+    description: body.description,
+    hasSizes: body.hasSizes,
+    colors: body.colors,
+  };
 
   const updatedProduct = await repository.updateOne(
     ProductModel,
@@ -268,7 +344,7 @@ module.exports.deleteProduct = async (product_id, user_id) => {
 };
 
 /**
- * Get all products (legacy method - kept for backward compatibility)
+ * Get all products
  * @param body
  * @returns {Promise<*>}
  */
@@ -368,5 +444,44 @@ module.exports.getProducts = async (body) => {
     records,
     recordsTotal,
     recordsFiltered,
+  };
+};
+
+/**
+ * Get product details with seller info and review summary
+ * @param productId
+ * @returns {Promise<*>}
+ */
+module.exports.getProductDetails = async (productId) => {
+  // Get product with inventory calculation
+  const product = await repository.findOne(ProductModel, {
+    _id: new mongoose.Types.ObjectId(productId),
+  });
+
+  if (!product) {
+    throw new Error('Product not found');
+  }
+
+  const productObj = product.toObject();
+  productObj.totalInventory =
+    module.exports.calculateTotalInventory(productObj);
+
+  // Get seller information
+  const seller = await userService.getUserById(productObj.seller);
+
+  // Get review summary
+  const reviewSummary = await reviewService.getReviewSummary(productId, 5);
+
+  return {
+    product: productObj,
+    seller: {
+      _id: seller._id,
+      name: seller.name,
+      email: seller.email,
+      avatar: seller.avatar,
+      role: seller.role,
+      businessName: seller.businessName,
+    },
+    reviews: reviewSummary,
   };
 };

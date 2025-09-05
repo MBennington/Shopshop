@@ -14,9 +14,16 @@ const {
 module.exports.createProduct = async (req, res) => {
   try {
     const user_id = res.locals.user.id;
-    const data = await productService.createProduct(req.body, user_id);
+
+    const data = await productService.createProduct(
+      req.body,
+      req.files,
+      user_id
+    );
+
     return successWithData(data, res);
   } catch (error) {
+    console.error('Create product error:', error);
     return customError(`${error.message}`, res);
   }
 };
@@ -63,13 +70,25 @@ module.exports.updateProduct = async (req, res) => {
   try {
     const product_id = req.params.id;
     const user_id = res.locals.user.id;
-    const data = await productService.updateProduct(
+
+    // Get existing product for image merging
+    const existingProduct = await productService.getProductById(product_id);
+
+    // Process form data with images, merging with existing images
+    const processedData = await productService.processProductData(
       req.body,
+      req.files,
+      existingProduct
+    );
+    const data = await productService.updateProduct(
+      processedData,
       product_id,
       user_id
     );
+
     return successWithData(data, res);
   } catch (error) {
+    console.error('Update product error:', error);
     return customError(`${error.message}`, res);
   }
 };
@@ -103,5 +122,21 @@ module.exports.getProducts = async (req, res) => {
     return successWithData(data, res);
   } catch (error) {
     return customError(`${error}`, res);
+  }
+};
+
+/**
+ * Get product details with seller info and review summary
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.getProductDetails = async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const data = await productService.getProductDetails(productId);
+    return successWithData(data, res);
+  } catch (error) {
+    return customError(`${error.message}`, res);
   }
 };
