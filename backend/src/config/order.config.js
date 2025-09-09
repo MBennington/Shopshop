@@ -14,8 +14,8 @@ const paymentStatus = Object.freeze({
 });
 
 const paymentMethod = Object.freeze({
-  COD: 'CashOnDelivery',
-  CARD: 'Card',
+  COD: 'cod',
+  CARD: 'card',
   PAYPAL: 'PayPal',
   STRIPE: 'Stripe',
 });

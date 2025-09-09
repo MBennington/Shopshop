@@ -255,7 +255,29 @@ export default function CartPage() {
           </p>
         </div>
 
-        <button className="w-full py-4 rounded-full bg-[#1976d2] text-white font-bold text-lg shadow hover:bg-[#1565c0] transition-colors">
+        <button 
+          onClick={() => {
+            if (cart && cart.products_list.length > 0) {
+              // Transform cart items to match checkout format
+              const checkoutItems = cart.products_list.map(item => ({
+                id: item.product_id,
+                name: item.productName,
+                price: item.basePrice,
+                category: item.category,
+                image: item.images[0] || '/placeholder-image.jpg',
+                quantity: item.quantity,
+                size: item.size,
+                color: item.color,
+                subtotal: item.subtotal
+              }));
+              
+              // Navigate to checkout with cart data
+              const cartData = encodeURIComponent(JSON.stringify(checkoutItems));
+              window.location.href = `/checkout?cart=${cartData}`;
+            }
+          }}
+          className="w-full py-4 rounded-full bg-[#1976d2] text-white font-bold text-lg shadow hover:bg-[#1565c0] transition-colors"
+        >
           Proceed to Checkout
         </button>
       </div>
