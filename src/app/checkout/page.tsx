@@ -206,10 +206,10 @@ export default function CheckoutPage() {
           ? {}
           : {
               product: {
-                id: product?.id,
-                quantity: 1, // Single product checkout always has quantity 1
+                product_id: product?.id,
+                quantity: product?.quantity,
                 color: product?.color,
-                size: product?.size,
+                ...(product?.size ? { size: product.size } : {}),
               },
             }),
       };
@@ -537,11 +537,11 @@ export default function CheckoutPage() {
                           </p>
                           <div className="flex items-center justify-between mt-1">
                             <p className="text-sm text-gray-600">
-                              Qty: {item.quantity || 1} × $
+                              Qty: {item.quantity || 1} × LKR{' '}
                               {getPriceValue(item.price).toFixed(2)}
                             </p>
                             <p className="text-sm font-semibold text-blue-600">
-                              $
+                              LKR{' '}
                               {(
                                 getPriceValue(item.price) * (item.quantity || 1)
                               ).toFixed(2)}
@@ -568,7 +568,7 @@ export default function CheckoutPage() {
                         {product.category}
                       </p>
                       <p className="text-sm font-semibold text-blue-600">
-                        {product.price || 'Price not available'}
+                        {`LKR ${product.price}` || 'Price not available'}
                       </p>
                     </div>
                   </div>
@@ -580,18 +580,20 @@ export default function CheckoutPage() {
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Subtotal</span>
-                    <span className="font-medium">${subtotal.toFixed(2)}</span>
+                    <span className="font-medium">
+                      LKR {subtotal.toFixed(2)}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Shipping</span>
                     <span className="font-medium">
-                      ${shippingFee.toFixed(2)}
+                      LKR {shippingFee.toFixed(2)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Tax</span>
                     <span className="font-medium">
-                      ${(subtotal * 0.08).toFixed(2)}
+                      LKR {(subtotal * 0.08).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -602,7 +604,7 @@ export default function CheckoutPage() {
                 <div className="flex justify-between text-lg font-bold">
                   <span>Total</span>
                   <span className="text-blue-600">
-                    ${(total + subtotal * 0.08).toFixed(2)}
+                    LKR {(total + subtotal * 0.08).toFixed(2)}
                   </span>
                 </div>
 

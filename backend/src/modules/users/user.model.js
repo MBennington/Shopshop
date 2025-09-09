@@ -15,7 +15,7 @@ const userSchema = new Schema(
       unique: true,
     },
     password: { type: String, required: true },
-    role: { type: String, enum: ['buyer', 'seller'], default: 'buyer' },
+    role: { type: String, enum: Object.values(roles), default: roles.buyer },
     profilePicture: { type: String, default: null },
 
     // Buyer-specific

@@ -6,7 +6,7 @@ module.exports.createOrder = joi.object({
     .object({
       firstName: joi.string().required(),
       lastName: joi.string().required(),
-      label: joi.string().optional(),
+      label: joi.string().allow('').optional(),
       address: joi.string().required(),
       city: joi.string().required(),
       province: joi.string().required(),
@@ -28,7 +28,7 @@ module.exports.createOrder = joi.object({
       .object({
         product_id: joi.string().required(),
         quantity: joi.number().min(1),
-        size: joi.string().optional(),
+        size: joi.string().allow('').optional(),
         color: joi.string().required(),
       })
       .required(),

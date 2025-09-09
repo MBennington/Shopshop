@@ -10,7 +10,7 @@ const orderSchema = new Schema(
   {
     user_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'user',
       required: true,
     },
 
@@ -18,7 +18,7 @@ const orderSchema = new Schema(
       {
         product_id: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: 'Product',
+          ref: 'product',
           required: true,
         },
         qty: { type: Number, required: true },

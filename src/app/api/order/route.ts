@@ -17,19 +17,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Prepare order data for backend
-    const orderData = {
-      address,
-      paymentMethod,
-      fromCart,
-      // If not from cart, include product details
-      ...(fromCart ? {} : {
-        product_id: product?.id,
-        qty: product?.quantity || 1,
-        color: product?.color,
-        ...(product?.size && { size: product.size })
-      })
-    };
 //console.log("OrderData being sent to backend:", orderData);
     // Send order to backend
     const response = await fetch(`${BACKEND_URL}/api/order/`, {
@@ -38,7 +25,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify(orderData),
+      body: JSON.stringify(body),
     });
 
     const result = await response.json();

@@ -9,7 +9,7 @@ const {
 } = require('../../config/order.config');
 
 module.exports.createOrder = async (user_id, body) => {
-  const { address, paymentMethod, fromCart, selectedProduct } = body;
+  const { address, paymentMethod, fromCart, product } = body;
 
   let productsList = [];
   let total = 0;
@@ -41,22 +41,22 @@ module.exports.createOrder = async (user_id, body) => {
     await cart.save();
   } else {
     // Direct order for single product (Buy Now)
-    const product = await Product.findById(selectedProduct.id);
-    if (!product) throw new Error('Product not found');
+    const exsistingProduct = await Product.findById(product.product_id);
+    if (!exsistingProduct) throw new Error('Product not found');
 
-    const subtotal = product.price * selectedProduct.quantity;
+    const subtotal = exsistingProduct.price * product.quantity;
 
     const productData = {
-      product_id: product._id,
-      qty: selectedProduct.quantity,
-      color: selectedProduct.color,
+      product_id: exsistingProduct._id,
+      qty: product.quantity,
+      color: product.color,
       subtotal,
     };
 
-    if (selectedProduct.size && selectedProduct.size !== null) {
+    if (product.size && product.size !== null) {
       productData = {
         ...productData,
-        size: selectedProduct.size,
+        size: product.size,
       };
     }
 
