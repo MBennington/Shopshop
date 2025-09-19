@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 const { paymentStatus, paymentMethod } = require('../../config/order.config');
 
-const orderSchema = new Schema(
+const paymentSchema = new Schema(
   {
     user_id: {
       type: mongoose.Schema.Types.ObjectId,
@@ -10,9 +10,9 @@ const orderSchema = new Schema(
       required: true,
     },
 
-    oder_id: {
+    order_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'oder',
+      ref: 'order',
       required: true,
     },
 

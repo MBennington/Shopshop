@@ -7,6 +7,7 @@ const {
   paymentStatus,
   paymentMethod,
 } = require('../../config/order.config');
+const paymentService = require('../payment/payment.service');
 
 module.exports.createOrder = async (user_id, body) => {
   const { address, paymentMethod, fromCart, product } = body;
@@ -46,7 +47,7 @@ module.exports.createOrder = async (user_id, body) => {
 
     const subtotal = exsistingProduct.price * product.quantity;
 
-    const productData = {
+    let productData = {
       product_id: exsistingProduct._id,
       qty: product.quantity,
       color: product.color,
@@ -60,7 +61,7 @@ module.exports.createOrder = async (user_id, body) => {
       };
     }
 
-    console.log('product data: ', productData);
+    //console.log('product data: ', productData);
 
     productsList.push(productData);
 
@@ -76,6 +77,26 @@ module.exports.createOrder = async (user_id, body) => {
     paymentMethod,
   });
 
-  await repository.save(newOrder);
-  return newOrder.toObject();
+  const createdOrder = await repository.save(newOrder);
+  if (!createdOrder) {
+    throw new Error('Error initalizing order!');
+  }
+
+  const payment = await paymentService.createPayment({
+    user_id,
+    payment_method: paymentMethod,
+    order_id: createdOrder._id,
+    amount: total,
+  });
+
+  if (!payment) {
+    throw new Error('Error initializing payment process!');
+  }
+
+  return payment;
+};
+
+module.exports.findOrderById = async (order_id) => {
+  const order = repository.findOne(OrderModel, { _id: order_id });
+  return order;
 };
