@@ -67,6 +67,17 @@ interface ProductDetailsResponse {
   reviews: ReviewSummary;
 }
 
+interface CheckoutData {
+  id: string;
+  category: string;
+  name: string;
+  price: number;
+  image?: string | null;
+  color: string;
+  quantity: number;
+  size?: string;
+}
+
 export default function ProductDetails({ params }: ProductDetailsProps) {
   const { category, id } = use(params);
   const [productData, setProductData] = useState<ProductDetailsResponse | null>(
@@ -249,16 +260,20 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
     }
 
     if (action === 'buy') {
-      const checkoutData = {
+      const checkoutData: CheckoutData = {
         id,
         category,
         name: product.name,
         price: product.price,
+        quantity: quantity,
         image: productImages.length > 0 ? productImages[selectedImage] : null,
         color: product.colors[selectedColor]?.colorName,
-        size: selectedSize,
-        quantity: quantity,
       };
+
+      // Add size only if product has sizes and selectedSize is a non-empty string
+      if (product.hasSizes && selectedSize?.trim()) {
+        checkoutData.size = selectedSize.trim();
+      }
       window.location.href = `/checkout?product=${encodeURIComponent(
         JSON.stringify(checkoutData)
       )}`;

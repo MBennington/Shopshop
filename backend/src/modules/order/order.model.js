@@ -10,7 +10,7 @@ const orderSchema = new Schema(
   {
     user_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'user',
       required: true,
     },
 
@@ -18,7 +18,7 @@ const orderSchema = new Schema(
       {
         product_id: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: 'Product',
+          ref: 'product',
           required: true,
         },
         qty: { type: Number, required: true },
@@ -29,8 +29,15 @@ const orderSchema = new Schema(
     ],
 
     shippingAddress: {
-      type: String,
-      required: true,
+      firstName: { type: String },
+      lastName: { type: String },
+      label: { type: String },
+      address: { type: String },
+      city: { type: String },
+      postalCode: { type: String },
+      province: { type: String },
+      country: { type: String },
+      phone: { type: String },
     },
 
     paymentMethod: {

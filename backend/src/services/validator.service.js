@@ -98,6 +98,7 @@ module.exports.validateBody = function (schema) {
     const result = schema.validate(req.body);
 
     if (result.error) {
+      //console.log('error: ', result.error);
       return response.customError(result.error.details[0].message, res);
     }
     next();

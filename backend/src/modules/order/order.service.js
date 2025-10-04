@@ -7,17 +7,10 @@ const {
   paymentStatus,
   paymentMethod,
 } = require('../../config/order.config');
+const paymentService = require('../payment/payment.service');
 
 module.exports.createOrder = async (user_id, body) => {
-  const {
-    address,
-    paymentMethod,
-    fromCart,
-    product_id,
-    quantity,
-    color,
-    size,
-  } = body;
+  const { address, paymentMethod, fromCart, product } = body;
 
   let productsList = [];
   let total = 0;
@@ -49,18 +42,28 @@ module.exports.createOrder = async (user_id, body) => {
     await cart.save();
   } else {
     // Direct order for single product (Buy Now)
-    const product = await Product.findById(product_id);
-    if (!product) throw new Error('Product not found');
+    const exsistingProduct = await Product.findById(product.product_id);
+    if (!exsistingProduct) throw new Error('Product not found');
 
-    const subtotal = product.price * quantity;
+    const subtotal = exsistingProduct.price * product.quantity;
 
-    productsList.push({
-      product_id: product._id,
-      qty,
-      color,
-      size,
+    let productData = {
+      product_id: exsistingProduct._id,
+      qty: product.quantity,
+      color: product.color,
       subtotal,
-    });
+    };
+
+    if (product.size && product.size !== null) {
+      productData = {
+        ...productData,
+        size: product.size,
+      };
+    }
+
+    //console.log('product data: ', productData);
+
+    productsList.push(productData);
 
     total = subtotal;
   }
@@ -74,6 +77,26 @@ module.exports.createOrder = async (user_id, body) => {
     paymentMethod,
   });
 
-  await repository.save(newOrder);
-  return newOrder.toObject();
+  const createdOrder = await repository.save(newOrder);
+  if (!createdOrder) {
+    throw new Error('Error initalizing order!');
+  }
+
+  const payment = await paymentService.createPayment({
+    user_id,
+    payment_method: paymentMethod,
+    order_id: createdOrder._id,
+    amount: total,
+  });
+
+  if (!payment) {
+    throw new Error('Error initializing payment process!');
+  }
+
+  return payment;
+};
+
+module.exports.findOrderById = async (order_id) => {
+  const order = repository.findOne(OrderModel, { _id: order_id });
+  return order;
 };

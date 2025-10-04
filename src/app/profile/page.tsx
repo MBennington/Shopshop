@@ -296,19 +296,10 @@ export default function ProfilePage() {
 
   const handleDeleteAddress = (index: number) => {
     if (window.confirm('Are you sure you want to delete this address?')) {
-      setFormData((prev) => {
-        const newAddresses = prev.savedAddresses.filter((_, i) => i !== index);
-        
-        // Update user context immediately to prevent re-saving
-        if (user) {
-          updateUser({
-            ...user,
-            savedAddresses: newAddresses,
-          });
-        }
-        
-        return { ...prev, savedAddresses: newAddresses };
-      });
+      setFormData((prev) => ({
+        ...prev,
+        savedAddresses: prev.savedAddresses.filter((_, i) => i !== index),
+      }));
     }
   };
 
@@ -332,34 +323,22 @@ export default function ProfilePage() {
       return;
     }
 
-    let updatedAddresses;
-    
     if (editingIndex !== null) {
       // Update existing address
       setFormData((prev) => {
-        const newAddresses = [...prev.savedAddresses];
-        newAddresses[editingIndex] = { ...addressForm };
-        updatedAddresses = newAddresses;
-        return { ...prev, savedAddresses: newAddresses };
+        const updatedAddresses = [...prev.savedAddresses];
+        updatedAddresses[editingIndex] = { ...addressForm };
+        return { ...prev, savedAddresses: updatedAddresses };
       });
     } else {
       // Add new address
-      setFormData((prev) => {
-        const newAddresses = [...prev.savedAddresses, { ...addressForm }];
-        updatedAddresses = newAddresses;
-        return { ...prev, savedAddresses: newAddresses };
-      });
+      setFormData((prev) => ({
+        ...prev,
+        savedAddresses: [...prev.savedAddresses, { ...addressForm }],
+      }));
     }
 
-    // Update user context immediately to prevent re-saving
-    if (updatedAddresses && user) {
-      updateUser({
-        ...user,
-        savedAddresses: updatedAddresses,
-      });
-    }
-
-    // Reset form immediately after adding/editing
+    // Reset form
     setShowAddressForm(false);
     setEditingIndex(null);
     setAddressForm({
@@ -546,7 +525,7 @@ export default function ProfilePage() {
       updateUser(data.data);
       removeProfilePicture();
 
-      // Update form data with the response data to prevent re-saving
+      // Update form data with the response data
       setFormData((prev) => ({
         ...prev,
         name: data.data.name || prev.name,
@@ -564,18 +543,6 @@ export default function ProfilePage() {
           ...data.data.accountPreferences,
         },
       }));
-
-      // Always reset address form state after successful save
-      setShowAddressForm(false);
-      setEditingIndex(null);
-      setAddressForm({
-        label: '',
-        address: '',
-        city: '',
-        postalCode: '',
-        country: '',
-      });
-      setAddressErrors({});
     } catch (error: any) {
       console.error('Error updating profile:', error);
       setError(error.message || 'Failed to update profile');
