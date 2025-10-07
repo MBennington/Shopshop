@@ -32,6 +32,26 @@ const paymentSchema = new Schema(
       type: Number,
       required: true,
     },
+
+    payment_id: {
+      type: String,
+      default: null,
+    },
+
+    currency: {
+      type: String,
+      default: 'LKR',
+    },
+
+    method: {
+      type: String,
+      default: null,
+    },
+
+    status_message: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: {
