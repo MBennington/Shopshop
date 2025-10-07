@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const secret = process.env.JWT_SECRET;
+const secret = process.env.JWT_SECRET || 'your_default_jwt_secret_key_change_this_in_production';
 
 /**
  * Generate JSON web token

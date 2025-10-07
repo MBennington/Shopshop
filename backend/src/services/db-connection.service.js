@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 module.exports.createDBConnection = async () => {
     try {
-        await mongoose.connect(`mongodb+srv://${process.env.DATABASE_URL}`, {
+        await mongoose.connect(process.env.DATABASE_URL || 'mongodb://localhost:27017/shopshop', {
             // useNewUrlParser: true,
             // useUnifiedTopology: true,
         });

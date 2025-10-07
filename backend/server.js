@@ -6,7 +6,7 @@ const http = require("http");
 
 const { createDBConnection } = require("./src/services/db-connection.service");
 
-const httpPort = process.env.HTTP_PORT;
+const httpPort = process.env.HTTP_PORT || 5000;
 
 // Connect to database
 createDBConnection();
