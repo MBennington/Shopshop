@@ -60,6 +60,7 @@ export default function CheckoutPage() {
   const [selectedPayment, setSelectedPayment] = useState<string>('');
   const [shippingFee, setShippingFee] = useState(5.99);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [payHereReady, setPayHereReady] = useState(false);
 
   // Transform user's saved addresses to match our interface
   const savedAddresses: Address[] =
@@ -90,6 +91,24 @@ export default function CheckoutPage() {
     country: '',
     phone: '',
   });
+
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://www.payhere.lk/lib/payhere.js';
+    script.async = true;
+    script.onload = () => {
+      setPayHereReady(true);
+      console.log('PayHere script loaded');
+    };
+    script.onerror = () => {
+      console.error('Failed to load PayHere script');
+    };
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script); // ✅ cleanup
+    };
+  }, []);
 
   useEffect(() => {
     // Set default selections
@@ -184,6 +203,50 @@ export default function CheckoutPage() {
       : getPriceValue(product.price);
   const total = subtotal + shippingFee;
 
+  const initiatePayHerePayment = (data: any) => {
+    // Ensure PayHere library is loaded
+    const payhere = (window as any).payhere;
+    if (!payHereReady || typeof payhere === 'undefined') {
+      alert('Payment system is loading. Please try again in a moment.');
+      return;
+    }
+
+    const payHereData = {
+      sandbox: true, // set false in production
+      merchant_id: data.merchantId,
+      return_url: window.location.origin + '/order-success', // temporary success page
+      cancel_url: window.location.origin + '/cart', // temporary cancel page
+      notify_url: window.location.origin + '/api/payhere-notify', // placeholder, replace later
+      order_id: data.orderId,
+      items: 'Order Payment',
+      amount: Number(data.amount).toFixed(2),
+      currency: data.currency,
+      hash: data.hash,
+      first_name: newAddress.firstName || user?.name?.split(' ')[0] || '',
+      last_name:
+        newAddress.lastName || user?.name?.split(' ').slice(1).join(' ') || '',
+      email: user?.email || 'nuwanthikasadaruwani98@gmail.com',
+      phone: newAddress.phone || '0771234567',
+      address: newAddress.address || '',
+      city: newAddress.city || '',
+      country: newAddress.country || 'Sri Lanka',
+    };
+
+    // Optional: register event handlers
+    payhere.onCompleted = function onCompleted(orderId: string) {
+      console.log('Payment completed. OrderID:' + orderId);
+    };
+    payhere.onDismissed = function onDismissed() {
+      console.log('Payment dismissed');
+    };
+    payhere.onError = function onError(error: string) {
+      console.log('Error:' + error);
+    };
+
+    // Start PayHere payment
+    payhere.startPayment(payHereData);
+  };
+
   const handlePlaceOrder = async () => {
     try {
       setIsPlacingOrder(true);
@@ -235,6 +298,21 @@ export default function CheckoutPage() {
       alert('✅ Order placed successfully!');
       //payhere setup
       console.log('Order result:', result);
+
+      const orderDataFromServer = result.data;
+
+      if (
+        orderDataFromServer.payment_method === 'card' &&
+        orderDataFromServer.hash
+      ) {
+        // Trigger PayHere payment
+        initiatePayHerePayment(orderDataFromServer);
+      } else {
+        // Payment is not card (e.g., COD)
+        console.log('Cash on Delivery selected.');
+        // You can redirect to order confirmation page if needed
+        window.location.href = `/order-success?orderId=${orderDataFromServer.orderId}`;
+      }
 
       // TODO: Redirect to order confirmation page or clear cart
     } catch (error) {

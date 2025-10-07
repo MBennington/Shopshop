@@ -23,7 +23,7 @@ module.exports.createPayment = async (paymentInfo) => {
   }
 
   //if payment method is card, initiate payment
-  const initiatePayment = this.initiatePayment(order_id);
+  const initiatePayment = await this.initiatePayment(order_id);
 
   return initiatePayment;
 };
@@ -83,5 +83,27 @@ module.exports.initiatePayment = async (order_id) => {
 };
 
 module.exports.findPaymentByOrderId = async (order_id, payment_status) => {
-  repository.findOne(PaymentModel, { order_id, paymentStatus: payment_status });
+  return await repository.findOne(PaymentModel, { order_id, paymentStatus: payment_status });
+};
+
+module.exports.updatePaymentStatus = async (paymentData) => {
+  const { order_id, payment_id, status, amount, currency, method, status_message } = paymentData;
+
+  // Find the payment record by order_id
+  const payment = await repository.findOne(PaymentModel, { order_id });
+  
+  if (!payment) {
+    throw new Error('Payment record not found');
+  }
+
+  // Update payment status and additional data
+  payment.paymentStatus = status;
+  payment.payment_id = payment_id;
+  payment.amount = amount || payment.amount;
+  payment.currency = currency || 'LKR';
+  payment.method = method;
+  payment.status_message = status_message;
+
+  const updatedPayment = await repository.save(payment);
+  return updatedPayment;
 };
