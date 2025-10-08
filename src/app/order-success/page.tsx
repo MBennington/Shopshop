@@ -4,90 +4,6 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-
-export default function OrderSuccessPage() {
-  const searchParams = useSearchParams();
-  const orderId = searchParams.get('orderId');
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (!orderId) return;
-    // Optionally track success event here
-  }, [orderId]);
-
-  const copyOrderId = async () => {
-    if (!orderId) return;
-    try {
-      await navigator.clipboard.writeText(orderId);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {}
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4">
-      <div className="max-w-2xl mx-auto">
-        <Card className="border-0 shadow-lg">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-3 h-14 w-14 rounded-full bg-green-100 flex items-center justify-center">
-              <span className="text-green-600 text-2xl">✓</span>
-            </div>
-            <CardTitle className="text-2xl">Payment Successful</CardTitle>
-            <p className="text-sm text-gray-500 mt-2">Thank you for your purchase. Your order has been received.</p>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {orderId ? (
-              <div className="rounded-lg bg-gray-100 px-4 py-3 flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">Order ID</p>
-                  <p className="font-medium text-gray-900">{orderId}</p>
-                </div>
-                <Button variant="outline" onClick={copyOrderId}>
-                  {copied ? 'Copied' : 'Copy'}
-                </Button>
-              </div>
-            ) : null}
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-              <div className="rounded-lg border p-4 bg-white">
-                <p className="text-gray-500">Status</p>
-                <p className="font-semibold text-green-600">Paid</p>
-              </div>
-              <div className="rounded-lg border p-4 bg-white">
-                <p className="text-gray-500">Next Step</p>
-                <p className="font-semibold">Order Processing</p>
-              </div>
-              <div className="rounded-lg border p-4 bg-white">
-                <p className="text-gray-500">Delivery</p>
-                <p className="font-semibold">We will notify you</p>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button onClick={() => (window.location.href = '/profile')} className="px-6">
-                View My Orders
-              </Button>
-              <Button variant="outline" onClick={() => (window.location.href = '/')} className="px-6">
-                Continue Shopping
-              </Button>
-            </div>
-
-            <p className="text-xs text-center text-gray-500">
-              A confirmation email has been sent. If you don’t see it, check your spam folder.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { CheckCircle, Package, Truck, CreditCard } from 'lucide-react';
 
 export default function OrderSuccessPage() {
@@ -108,7 +24,7 @@ export default function OrderSuccessPage() {
   const fetchOrderDetails = async (orderId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/order/${orderId}`, {
+      const response = await fetch(`/api/order?orderId=${orderId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
