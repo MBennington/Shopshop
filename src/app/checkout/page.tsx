@@ -203,6 +203,29 @@ export default function CheckoutPage() {
       : getPriceValue(product.price);
   const total = subtotal + shippingFee;
 
+  // Address validation function
+  const isAddressComplete = (): boolean => {
+    // If a saved address is selected, it's complete
+    if (selectedAddress && selectedAddress !== '') {
+      return true;
+    }
+
+    // If no saved addresses exist, check if new address form is complete
+    if (savedAddresses.length === 0) {
+      return (
+        newAddress.firstName.trim() !== '' &&
+        newAddress.lastName.trim() !== '' &&
+        newAddress.address.trim() !== '' &&
+        newAddress.city.trim() !== '' &&
+        newAddress.postalCode.trim() !== '' &&
+        newAddress.country.trim() !== '' &&
+        newAddress.phone.trim() !== ''
+      );
+    }
+
+    return false;
+  };
+
   const initiatePayHerePayment = (data: any) => {
     // Ensure PayHere library is loaded
     const payhere = (window as any).payhere;
@@ -691,7 +714,7 @@ export default function CheckoutPage() {
                   onClick={handlePlaceOrder}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3"
                   disabled={
-                    !selectedAddress || !selectedPayment || isPlacingOrder
+                    !isAddressComplete() || !selectedPayment || isPlacingOrder
                   }
                 >
                   {isPlacingOrder ? (
