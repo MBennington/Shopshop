@@ -53,4 +53,8 @@ router
   .route(permissions.getProductDetails.path)
   .get(controller.getProductDetails);
 
+router
+  .route(permissions.getProductsBySellerId.path)
+  .get(controller.getProductsBySellerId);
+
 module.exports = router;

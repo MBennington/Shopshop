@@ -20,6 +20,8 @@ router
   .route(permissions.login.path)
   .post(validator.validateBody(schema.login), controller.login);
 
+router.route(permissions.getAllSellers.path).get(controller.getAllSellers);
+
 // Protected routes - require authentication
 router
   .route(permissions.getUserProfile.path)

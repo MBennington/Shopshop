@@ -226,6 +226,7 @@ module.exports.getProductsBySeller = async (seller_id) => {
   const products = await repository.findMany(ProductModel, {
     seller: seller_id,
   });
+  console.log('products ', products);
 
   return products.map((product) => {
     const productObj = product.toObject();

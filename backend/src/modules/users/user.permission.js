@@ -15,4 +15,7 @@ module.exports.permissions = {
     path: '/update-profile',
     grantedUserRoles: [roles.admin, roles.seller, roles.buyer],
   },
+  getAllSellers: {
+    path: '/get-all-sellers',
+  },
 };
