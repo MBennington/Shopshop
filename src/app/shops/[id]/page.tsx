@@ -51,12 +51,27 @@ export default function ShopDetailsPage({
   const [activeCategory, setActiveCategory] = useState('All');
   const [search, setSearch] = useState('');
   const [showTitle, setShowTitle] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+    new Set()
+  );
   const fetchingRef = useRef(false);
 
   // For animated title - moved before early returns
   useEffect(() => {
     setTimeout(() => setShowTitle(true), 100);
   }, []);
+
+  // Expand all categories by default - moved to top
+  useEffect(() => {
+    const productCategories = Array.from(
+      new Set(products.map((p) => p.category).filter(Boolean))
+    );
+    if (productCategories.length > 0) {
+      setExpandedCategories(
+        new Set(productCategories.filter((cat): cat is string => Boolean(cat)))
+      );
+    }
+  }, [products]);
 
   useEffect(() => {
     const fetchShopData = async () => {
@@ -149,28 +164,61 @@ export default function ShopDetailsPage({
   const shopWebsite = 'https://shopwebsite.com'; // Mock data
   const shopAbout = `Welcome to ${businessName}! We offer a curated selection of premium products, handpicked for quality and style. Our mission is to provide you with the best shopping experience.`;
 
-  // Product categories and price extraction
-  const categories = [
-    'All',
-    ...Array.from(new Set(products.map((p) => p.category).filter(Boolean))),
-  ];
-  const getProductPrice = (product: Product) => product.price;
-  const prices = products.map(getProductPrice);
-  const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-  const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
-
-  // UI categories for pills
-  const uiCategories = ['All', 'New Arrivals', 'Best Sellers', 'Sale'];
-
-  // Filtered products
-  const filteredProducts = products.filter(
-    (p) =>
-      (activeCategory === 'All' ||
-        activeCategory === 'New Arrivals' ||
-        activeCategory === 'Best Sellers' ||
-        activeCategory === 'Sale') &&
-      p.name.toLowerCase().includes(search.toLowerCase())
+  // Get actual product categories from the data
+  const productCategories = Array.from(
+    new Set(products.map((p) => p.category).filter(Boolean))
   );
+  
+  // Keep original UI categories
+  const allCategories = ['All', 'New Arrivals', 'Best Sellers', 'Sale'];
+
+  // Group products by category
+  const productsByCategory = products.reduce((acc, product) => {
+    const category = product.category || 'Uncategorized';
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(product);
+    return acc;
+  }, {} as Record<string, Product[]>);
+
+  // Filter products based on search and active category
+  const getFilteredProducts = (productList: Product[]) => {
+    return productList.filter((p) => {
+      const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+      let matchesCategory = false;
+      
+      if (activeCategory === 'All') {
+        matchesCategory = true;
+      } else if (activeCategory === 'New Arrivals') {
+        // Show products created in the last 30 days
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        matchesCategory = new Date(p.created_at) > thirtyDaysAgo;
+      } else if (activeCategory === 'Best Sellers') {
+        // Show products with high inventory (best sellers)
+        matchesCategory = p.totalInventory > 50;
+      } else if (activeCategory === 'Sale') {
+        // Show products on sale (you can add a sale field to products later)
+        matchesCategory = false; // No sale products for now
+      }
+      
+      return matchesSearch && matchesCategory;
+    });
+  };
+
+  // Toggle category expansion
+  const toggleCategory = (category: string) => {
+    setExpandedCategories((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(category)) {
+        newSet.delete(category);
+      } else {
+        newSet.add(category);
+      }
+      return newSet;
+    });
+  };
 
   return (
     <div
@@ -228,11 +276,38 @@ export default function ShopDetailsPage({
             <p className="text-[#131416] text-base font-normal leading-normal pb-3 pt-6 px-4 text-center">
               {shopAbout}
             </p>
-            <h3 className="text-[#131416] text-lg font-bold leading-tight tracking-[-0.015em] px-4 pb-2 pt-4">
-              Products
-            </h3>
+            <div className="flex items-center justify-between px-4 pb-2 pt-4">
+              <h3 className="text-[#131416] text-lg font-bold leading-tight tracking-[-0.015em]">
+                Products
+              </h3>
+              {activeCategory === 'All' && productCategories.length > 0 && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() =>
+                      setExpandedCategories(
+                        new Set(
+                          productCategories.filter((cat): cat is string =>
+                            Boolean(cat)
+                          )
+                        )
+                      )
+                    }
+                    className="text-sm text-[#1976d2] hover:text-[#1565c0] font-medium"
+                  >
+                    Expand All
+                  </button>
+                  <span className="text-gray-300">|</span>
+                  <button
+                    onClick={() => setExpandedCategories(new Set())}
+                    className="text-sm text-[#1976d2] hover:text-[#1565c0] font-medium"
+                  >
+                    Collapse All
+                  </button>
+                </div>
+              )}
+            </div>
             <div className="flex gap-3 p-3 flex-wrap pr-4">
-              {uiCategories.map((cat) => (
+              {allCategories.map((cat) => (
                 <button
                   key={cat}
                   className={`flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full px-5 shadow-sm transition-all duration-200 font-medium text-base
@@ -242,7 +317,7 @@ export default function ShopDetailsPage({
                         : 'bg-[#f1f2f3] text-[#131416] hover:bg-[#e3eaf6] hover:text-black'
                     }
                   `}
-                  onClick={() => setActiveCategory(cat)}
+                  onClick={() => setActiveCategory(cat || 'All')}
                 >
                   {cat}
                 </button>
@@ -271,61 +346,180 @@ export default function ShopDetailsPage({
                 </div>
               </label>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 p-6">
-              {filteredProducts.map((product) => {
-                // Get the first available image from colors array
-                const firstImage =
-                  product.colors?.[0]?.images?.[0] ||
-                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                    product.name
-                  )}&background=e0e0e0&color=666&size=400`;
+            <div className="px-6">
+              {activeCategory === 'All' ? (
+                // Show all categories with collapsible sections
+                productCategories.map((category) => {
+                  if (!category) return null;
+                  const categoryProducts = getFilteredProducts(
+                    productsByCategory[category] || []
+                  );
+                  if (categoryProducts.length === 0) return null;
+                  const isExpanded = expandedCategories.has(category);
 
-                return (
-                  <Link
-                    key={product._id}
-                    href={`/products/${
-                      product.category?.toLowerCase() || 'general'
-                    }/${product._id}`}
-                    className="block"
-                  >
+                  return (
                     <div
-                      className="bg-white rounded-2xl shadow-sm p-4 flex flex-col items-start transition-all duration-300 ease-out transform hover:shadow-2xl hover:scale-[1.035] group cursor-pointer"
-                      style={{ boxShadow: '0 1px 4px rgba(60,60,60,0.08)' }}
+                      key={category}
+                      className="mb-8 border border-gray-200 rounded-lg overflow-hidden"
                     >
-                      <div className="w-full aspect-square mb-4 flex items-center justify-center overflow-hidden rounded-xl bg-gray-100 relative">
-                        <img
-                          src={firstImage}
-                          alt={product.name}
-                          className="object-cover w-full h-full rounded-xl transition-transform duration-300 group-hover:scale-105"
-                        />
-                        <div
-                          className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#1976d2] text-white rounded-full px-4 py-2 shadow-lg text-xs font-semibold tracking-wide"
-                          style={{
-                            boxShadow: '0 2px 8px rgba(25, 118, 210, 0.15)',
-                          }}
-                        >
-                          View Details
+                      {/* Category Header - Clickable */}
+                      <div
+                        className="bg-gray-50 px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors duration-200 flex items-center justify-between"
+                        onClick={() => toggleCategory(category)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <svg
+                            className={`w-5 h-5 transition-transform duration-200 ${
+                              isExpanded ? 'rotate-90' : ''
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 5l7 7-7 7"
+                            />
+                          </svg>
+                          <h4 className="text-lg font-semibold text-[#131416]">
+                            {category}
+                          </h4>
+                          <span className="text-sm text-gray-500 bg-gray-200 px-2 py-1 rounded-full">
+                            {categoryProducts.length} items
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-500">
+                            {isExpanded ? 'Collapse' : 'Expand'}
+                          </span>
                         </div>
                       </div>
-                      <div className="w-full">
-                        <p className="text-[#131416] text-lg font-semibold leading-normal mb-1 text-left tracking-tight">
-                          {product.name}
-                        </p>
-                        <p className="text-[#6c757f] text-base font-medium leading-normal text-left">
-                          ${product.price.toFixed(2)}
-                        </p>
-                        {product.totalInventory > 0 && (
-                          <p className="text-[#6c757f] text-sm font-normal leading-normal text-left mt-1">
-                            {product.totalInventory} in stock
-                          </p>
-                        )}
-                      </div>
+
+                      {/* Category Content - Collapsible */}
+                      {isExpanded && (
+                        <div className="p-6 bg-white">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+                            {categoryProducts.map((product) => {
+                              const firstImage =
+                                product.colors?.[0]?.images?.[0] ||
+                                `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                  product.name
+                                )}&background=e0e0e0&color=666&size=400`;
+
+                              return (
+                                <Link
+                                  key={product._id}
+                                  href={`/products/${
+                                    product.category?.toLowerCase() || 'general'
+                                  }/${product._id}`}
+                                  className="block"
+                                >
+                                  <div
+                                    className="bg-white rounded-2xl shadow-sm p-4 flex flex-col items-start transition-all duration-300 ease-out transform hover:shadow-2xl hover:scale-[1.035] group cursor-pointer border border-gray-100"
+                                    style={{
+                                      boxShadow:
+                                        '0 1px 4px rgba(60,60,60,0.08)',
+                                    }}
+                                  >
+                                    <div className="w-full aspect-square mb-4 flex items-center justify-center overflow-hidden rounded-xl bg-gray-100 relative">
+                                      <img
+                                        src={firstImage}
+                                        alt={product.name}
+                                        className="object-cover w-full h-full rounded-xl transition-transform duration-300 group-hover:scale-105"
+                                      />
+                                      <div
+                                        className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#1976d2] text-white rounded-full px-4 py-2 shadow-lg text-xs font-semibold tracking-wide"
+                                        style={{
+                                          boxShadow:
+                                            '0 2px 8px rgba(25, 118, 210, 0.15)',
+                                        }}
+                                      >
+                                        View Details
+                                      </div>
+                                    </div>
+                                    <div className="w-full">
+                                      <p className="text-[#131416] text-lg font-semibold leading-normal mb-1 text-left tracking-tight">
+                                        {product.name}
+                                      </p>
+                                      <p className="text-[#6c757f] text-base font-medium leading-normal text-left">
+                                        LKR {product.price.toFixed(2)}
+                                      </p>
+                                      {product.totalInventory > 0 && (
+                                        <p className="text-[#6c757f] text-sm font-normal leading-normal text-left mt-1">
+                                          {product.totalInventory} in stock
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </Link>
-                );
-              })}
-              {filteredProducts.length === 0 && (
-                <div className="col-span-full text-center text-[#6c757f] py-8">
+                  );
+                })
+              ) : (
+                // Show filtered products for selected category
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
+                  {getFilteredProducts(products).map((product) => {
+                    const firstImage =
+                      product.colors?.[0]?.images?.[0] ||
+                      `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                        product.name
+                      )}&background=e0e0e0&color=666&size=400`;
+
+                    return (
+                      <Link
+                        key={product._id}
+                        href={`/products/${
+                          product.category?.toLowerCase() || 'general'
+                        }/${product._id}`}
+                        className="block"
+                      >
+                        <div
+                          className="bg-white rounded-2xl shadow-sm p-4 flex flex-col items-start transition-all duration-300 ease-out transform hover:shadow-2xl hover:scale-[1.035] group cursor-pointer"
+                          style={{ boxShadow: '0 1px 4px rgba(60,60,60,0.08)' }}
+                        >
+                          <div className="w-full aspect-square mb-4 flex items-center justify-center overflow-hidden rounded-xl bg-gray-100 relative">
+                            <img
+                              src={firstImage}
+                              alt={product.name}
+                              className="object-cover w-full h-full rounded-xl transition-transform duration-300 group-hover:scale-105"
+                            />
+                            <div
+                              className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#1976d2] text-white rounded-full px-4 py-2 shadow-lg text-xs font-semibold tracking-wide"
+                              style={{
+                                boxShadow: '0 2px 8px rgba(25, 118, 210, 0.15)',
+                              }}
+                            >
+                              View Details
+                            </div>
+                          </div>
+                          <div className="w-full">
+                            <p className="text-[#131416] text-lg font-semibold leading-normal mb-1 text-left tracking-tight">
+                              {product.name}
+                            </p>
+                            <p className="text-[#6c757f] text-base font-medium leading-normal text-left">
+                              LKR {product.price.toFixed(2)}
+                            </p>
+                            {product.totalInventory > 0 && (
+                              <p className="text-[#6c757f] text-sm font-normal leading-normal text-left mt-1">
+                                {product.totalInventory} in stock
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+              {getFilteredProducts(products).length === 0 && (
+                <div className="text-center text-[#6c757f] py-8">
                   No products found in this shop.
                 </div>
               )}
