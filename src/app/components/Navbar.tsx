@@ -79,7 +79,7 @@ export default function Navbar() {
               key={label}
               href={path}
               className={`px-4 py-2 rounded-full transition-all duration-200 text-sm font-medium leading-normal ${
-                pathname === path || pathname.startsWith(path)
+                pathname === path || (path !== '/' && pathname.startsWith(path))
                   ? 'bg-black text-white'
                   : 'bg-[#f1f2f3] text-[#0d141c] hover:bg-[#e3eaf6] hover:text-black'
               }`}
@@ -192,11 +192,12 @@ export default function Navbar() {
                       {user.name}
                     </p>
                     <p className="text-xs text-[#6a7581]">{user.email}</p>
-                    {user.role === 'seller' && user.businessName && (
-                      <p className="text-xs text-[#397fc5]">
-                        {user.businessName}
-                      </p>
-                    )}
+                    {user.role === 'seller' &&
+                      user.sellerInfo?.businessName && (
+                        <p className="text-xs text-[#397fc5]">
+                          {user.sellerInfo?.businessName}
+                        </p>
+                      )}
                   </div>
 
                   <button
