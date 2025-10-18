@@ -7,6 +7,7 @@ const {
 } = require('../../services/cloudinary.service');
 const extractPublicIdFromUrl = require('../../utils/extractPublicIdFromUrl.util');
 const { log } = require('console');
+const { roles } = require('../../config/role.config');
 
 /**
  * Process user data with profile picture upload
@@ -357,6 +358,20 @@ module.exports.changePassword = async (
 };
 
 /**
+ * Get all sellers
+ * @returns {Promise<*>}
+ */
+module.exports.getAllSellers = async () => {
+  const sellers = await repository.findMany(
+    UserModel,
+    { role: roles.seller },
+    '_id name profilePicture sellerInfo.businessName'
+  );
+
+  return sellers;
+};
+
+/**
  * Update user role (admin only)
  * @param userId
  * @param newRole
@@ -455,7 +470,7 @@ module.exports.getAllUsers = async (page = 1, limit = 10, search = '') => {
     };
   }
 
-  const users = await repository.find(UserModel, query, {
+  const users = await repository.findMany(UserModel, query, {
     skip,
     limit,
     sort: { created_at: -1 },

@@ -140,3 +140,21 @@ module.exports.getProductDetails = async (req, res) => {
     return customError(`${error.message}`, res);
   }
 };
+
+/**
+ * Get products by seller ID (public endpoint)
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.getProductsBySellerId = async (req, res) => {
+  try {
+    const sellerId = req.params.id;
+    console.log('seller id: ', sellerId);
+
+    const data = await productService.getProductsBySeller(sellerId);
+    return successWithData(data, res);
+  } catch (error) {
+    return customError(`${error.message}`, res);
+  }
+};

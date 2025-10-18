@@ -181,3 +181,19 @@ module.exports.getUserById = async (req, res) => {
     return customError(`${error.message}`, res);
   }
 };
+
+/**
+ * Get all sellers
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.getAllSellers = async (req, res) => {
+  try {
+    const data = await userService.getAllSellers();
+
+    return successWithData(data, res);
+  } catch (error) {
+    return customError(`${error.message}`, res);
+  }
+};
