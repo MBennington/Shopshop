@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 interface Product {
@@ -29,9 +28,19 @@ interface Product {
 interface Seller {
   _id: string;
   name: string;
+  email: string;
   profilePicture?: string;
   sellerInfo?: {
     businessName?: string;
+    businessDescription?: string;
+    phone?: string;
+    businessType?: string;
+    contactDetails?: {
+      address?: string;
+      city?: string;
+      postalCode?: string;
+      country?: string;
+    };
   };
 }
 
@@ -40,10 +49,9 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 export default function ShopDetailsPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ id: string; businessName: string }>;
 }) {
-  const { id } = React.use(params);
-  const searchParams = useSearchParams();
+  const { id, businessName } = React.use(params);
   const [seller, setSeller] = useState<Seller | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,25 +90,20 @@ export default function ShopDetailsPage({
       try {
         setLoading(true);
 
-        // Get seller info from URL parameters (much more efficient!)
-        const name = searchParams.get('name');
-        const businessName = searchParams.get('businessName');
-        const profilePicture = searchParams.get('profilePicture');
-
-        if (name) {
-          setSeller({
-            _id: id,
-            name: decodeURIComponent(name),
-            profilePicture: profilePicture
-              ? decodeURIComponent(profilePicture)
-              : undefined,
-            sellerInfo: businessName
-              ? { businessName: decodeURIComponent(businessName) }
-              : undefined,
-          });
+        // Fetch seller data from API
+        const sellerResponse = await fetch(`/api/get-seller-data-for-shop?sellerId=${id}`);
+        
+        if (!sellerResponse.ok) {
+          const errorText = await sellerResponse.text();
+          throw new Error(
+            `Failed to fetch seller data: ${sellerResponse.status} ${errorText}`
+          );
         }
 
-        // Only fetch products (no need to fetch all sellers!)
+        const sellerData = await sellerResponse.json();
+        setSeller(sellerData.data);
+
+        // Fetch products
         const productsResponse = await fetch(
           `${API_BASE_URL}/api/products/products-by-seller-id/${id}`
         );
@@ -115,10 +118,6 @@ export default function ShopDetailsPage({
         const productsData = await productsResponse.json();
         setProducts(productsData.data || []);
 
-        // If no seller info from URL, show error
-        if (!name) {
-          throw new Error('Shop information not available');
-        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -128,7 +127,7 @@ export default function ShopDetailsPage({
     };
 
     fetchShopData();
-  }, [id]); // Remove searchParams dependency to prevent re-renders
+  }, [id]);
 
   if (loading) {
     return (
@@ -147,22 +146,18 @@ export default function ShopDetailsPage({
   }
 
   // Shop data from API
-  const businessName = seller.sellerInfo?.businessName || seller.name;
+  const displayBusinessName = seller.sellerInfo?.businessName || seller.name;
   const shopLogo =
     seller.profilePicture ||
     `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      businessName
+      displayBusinessName
     )}&background=1976d2&color=fff&size=128`;
   const shopImage =
     seller.profilePicture ||
     `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      businessName
+      displayBusinessName
     )}&background=397fc5&color=fff&size=800`;
-  const shopRating = 4.7; // Mock data - could be fetched from reviews API
-  const shopReviewCount = 128; // Mock data
-  const shopLocation = 'New York, NY'; // Mock data
-  const shopWebsite = 'https://shopwebsite.com'; // Mock data
-  const shopAbout = `Welcome to ${businessName}! We offer a curated selection of premium products, handpicked for quality and style. Our mission is to provide you with the best shopping experience.`;
+  const shopAbout = seller.sellerInfo?.businessDescription || `Welcome to ${displayBusinessName}! We offer a curated selection of premium products, handpicked for quality and style. Our mission is to provide you with the best shopping experience.`;
 
   // Get actual product categories from the data
   const productCategories = Array.from(
@@ -229,7 +224,7 @@ export default function ShopDetailsPage({
       <div className="relative w-full aspect-[16/5] min-h-[220px] max-h-[340px] flex items-center justify-center overflow-hidden">
         <img
           src={shopImage}
-          alt={businessName}
+          alt={displayBusinessName}
           className="w-full h-full object-cover object-center"
         />
         {/* Gradient and blur overlays */}
@@ -251,7 +246,7 @@ export default function ShopDetailsPage({
                   : 'opacity-0 translate-y-8'
               }`}
             >
-              {businessName}
+              {displayBusinessName}
             </h1>
             {/* Tagline */}
             <p className="text-white/90 text-lg font-medium mt-2 mb-4 text-center">
@@ -259,7 +254,7 @@ export default function ShopDetailsPage({
             </p>
             {/* Modern button */}
             <a
-              href={`mailto:contact@${businessName
+              href={`mailto:contact@${displayBusinessName
                 .replace(/\s+/g, '')
                 .toLowerCase()}.com`}
               className="inline-block px-6 py-2 rounded-full bg-white/90 text-[#1976d2] font-semibold shadow hover:bg-white transition-colors"
@@ -603,7 +598,7 @@ export default function ShopDetailsPage({
                 </a>
               </div>
               <p className="text-[#6c757f] text-base font-normal leading-normal">
-                @2024 {businessName}. All rights reserved.
+                @2024 {displayBusinessName}. All rights reserved.
               </p>
             </footer>
           </div>

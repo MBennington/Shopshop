@@ -103,12 +103,8 @@ export default function ShopsPage() {
             return (
               <Link
                 key={seller._id}
-                href={`/shops/${seller._id}?name=${encodeURIComponent(
-                  seller.name
-                )}&businessName=${encodeURIComponent(
-                  seller.sellerInfo?.businessName || ''
-                )}&profilePicture=${encodeURIComponent(
-                  seller.profilePicture || ''
+                href={`/shops/${seller._id}/${encodeURIComponent(
+                  seller.sellerInfo?.businessName || seller.name
                 )}`}
                 className="group"
               >

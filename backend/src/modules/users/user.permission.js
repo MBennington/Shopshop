@@ -18,4 +18,7 @@ module.exports.permissions = {
   getAllSellers: {
     path: '/get-all-sellers',
   },
+  getSellerDataForShop: {
+    path: '/get-seller-data-for-shop/:id',
+  },
 };

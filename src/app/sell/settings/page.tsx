@@ -35,6 +35,7 @@ interface FormData {
     businessName?: string;
     phone?: string;
     businessType?: string;
+    businessDescription?: string;
     contactDetails?: {
       address?: string;
       city?: string;
@@ -68,6 +69,7 @@ export default function SettingsPage() {
       businessName: '',
       phone: '',
       businessType: '',
+      businessDescription: '',
       contactDetails: {
         address: '',
         city: '',
@@ -121,6 +123,7 @@ export default function SettingsPage() {
           businessName: user.sellerInfo?.businessName || '',
           phone: user.sellerInfo?.phone || '',
           businessType: user.sellerInfo?.businessType || '',
+          businessDescription: user.sellerInfo?.businessDescription || '',
           contactDetails: {
             address: user.sellerInfo?.contactDetails?.address || '',
             city: user.sellerInfo?.contactDetails?.city || '',
@@ -159,7 +162,8 @@ export default function SettingsPage() {
     if (
       name === 'businessName' ||
       name === 'phone' ||
-      name === 'businessType'
+      name === 'businessType' ||
+      name === 'businessDescription'
     ) {
       setFormData((prev) => ({
         ...prev,
@@ -330,6 +334,14 @@ export default function SettingsPage() {
         )
       ) {
         sellerInfoDiff.businessType = formData.sellerInfo?.businessType;
+      }
+      if (
+        isChangedNonEmpty(
+          formData.sellerInfo?.businessDescription,
+          user?.sellerInfo?.businessDescription
+        )
+      ) {
+        sellerInfoDiff.businessDescription = formData.sellerInfo?.businessDescription;
       }
 
       const contact = formData.sellerInfo?.contactDetails || {};
@@ -789,6 +801,33 @@ export default function SettingsPage() {
                             {formErrors.businessType}
                           </p>
                         )}
+                      </label>
+                    </div>
+                    <div className="flex max-w-[480px] flex-wrap items-end gap-4 px-4 py-3">
+                      <label className="flex flex-col min-w-40 flex-1">
+                        <p className="text-[#121416] text-base font-medium leading-normal pb-2">
+                          Business Description
+                        </p>
+                        <textarea
+                          name="businessDescription"
+                          value={formData.sellerInfo?.businessDescription || ''}
+                          onChange={handleInputChange}
+                          placeholder="Tell customers about your business, products, and what makes you unique..."
+                          rows={4}
+                          className={`form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#6a7581] focus:outline-0 focus:ring-0 border bg-[#f8f9fa] focus:bg-white focus:border-[#397fc5] focus:text-[#121416] placeholder:text-[#9ca3af] p-[15px] text-base font-normal leading-normal transition-all duration-200 ${
+                            formErrors.businessDescription
+                              ? 'border-red-300 focus:ring-red-500'
+                              : 'border-[#e5e7eb]'
+                          }`}
+                        />
+                        {formErrors.businessDescription && (
+                          <p className="mt-1 text-sm text-red-600">
+                            {formErrors.businessDescription}
+                          </p>
+                        )}
+                        <p className="mt-1 text-xs text-[#6a7581]">
+                          This description will be displayed on your shop page to help customers understand your business.
+                        </p>
                       </label>
                     </div>
                   </div>

@@ -29,6 +29,7 @@ const sellerInfoSchema = joi.object({
   phone: joi.string(),
   businessType: joi.string(),
   contactDetails: contactDetailsSchema.optional(),
+  businessDescription: joi.string().optional(),
   payouts: payoutsSchema.optional(),
 });
 

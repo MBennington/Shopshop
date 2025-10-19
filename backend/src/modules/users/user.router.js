@@ -22,6 +22,10 @@ router
 
 router.route(permissions.getAllSellers.path).get(controller.getAllSellers);
 
+router
+  .route(permissions.getSellerDataForShop.path)
+  .get(controller.getSellerDataForShop);
+
 // Protected routes - require authentication
 router
   .route(permissions.getUserProfile.path)

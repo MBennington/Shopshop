@@ -38,6 +38,7 @@ interface User {
     businessName?: string;
     phone?: string;
     businessType?: string;
+    businessDescription?: string;
     contactDetails?: {
       address?: string;
       city?: string;

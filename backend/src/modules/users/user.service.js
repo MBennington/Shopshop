@@ -372,6 +372,25 @@ module.exports.getAllSellers = async () => {
 };
 
 /**
+ * Get seller data for shop
+ * @returns {Promise<*>}
+ */
+module.exports.getSellerDataForShop = async (seller_id) => {
+  const seller = await repository.findOne(
+    UserModel,
+    { _id: seller_id },
+    '_id name profilePicture sellerInfo.businessName sellerInfo.businessDescription'
+  );
+
+  if (!seller) {
+    throw new Error('Cannot find the Shop!');
+  }
+  console.log('shop data: ', seller);
+
+  return seller;
+};
+
+/**
  * Update user role (admin only)
  * @param userId
  * @param newRole

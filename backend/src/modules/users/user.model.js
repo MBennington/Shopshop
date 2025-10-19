@@ -51,6 +51,10 @@ const userSchema = new Schema(
       businessName: { type: String },
       phone: { type: String },
       businessType: { type: String },
+      businessDescription: {
+        type: String,
+        default: null,
+      },
       contactDetails: {
         address: { type: String },
         city: { type: String },
@@ -82,6 +86,18 @@ userSchema.pre('save', async function (next) {
   } catch (error) {
     next(error);
   }
+});
+
+userSchema.pre('save', function (next) {
+  if (
+    this.role === roles.seller &&
+    (!this.sellerInfo.businessDescription ||
+      this.sellerInfo.businessDescription.trim() === '')
+  ) {
+    const name = this.sellerInfo.businessName || 'Our Store';
+    this.sellerInfo.businessDescription = `Welcome to ${name}! We offer a curated selection of premium products, handpicked for quality and style. Our mission is to provide you with the best shopping experience.`;
+  }
+  next();
 });
 
 userSchema.index({ email: 1 });
