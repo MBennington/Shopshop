@@ -10,6 +10,7 @@ export default function OrderSuccessPage() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
   const [orderDetails, setOrderDetails] = useState<any>(null);
+  const [subOrders, setSubOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,15 +25,29 @@ export default function OrderSuccessPage() {
   const fetchOrderDetails = async (orderId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/order?orderId=${orderId}`, {
+      
+      // Fetch main order details
+      const orderResponse = await fetch(`/api/order?orderId=${orderId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setOrderDetails(data.data);
+      if (orderResponse.ok) {
+        const orderData = await orderResponse.json();
+        setOrderDetails(orderData.data);
+        
+        // Fetch sub-orders
+        const subOrdersResponse = await fetch(`/api/suborder/main-order/${orderId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (subOrdersResponse.ok) {
+          const subOrdersData = await subOrdersResponse.json();
+          setSubOrders(subOrdersData.data || []);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch order details:', error);
@@ -109,6 +124,96 @@ export default function OrderSuccessPage() {
                     </div>
                   </>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Sub-Orders */}
+        {subOrders.length > 0 && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Order Breakdown by Seller
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {subOrders.map((subOrder, index) => (
+                  <div key={subOrder._id} className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-blue-600 font-semibold text-sm">
+                            {index + 1}
+                          </span>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-900">
+                            Seller Order #{index + 1}
+                          </h4>
+                          <p className="text-sm text-gray-600">
+                            Order ID: {subOrder._id}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-600">Status</p>
+                        <p className="font-semibold capitalize">
+                          {subOrder.orderStatus}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Products in this sub-order */}
+                    <div className="space-y-2 mb-3">
+                      {subOrder.products_list?.map((product: any, productIndex: number) => (
+                        <div key={productIndex} className="flex items-center gap-3 p-2 bg-white rounded-lg">
+                          <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <Package className="h-6 w-6 text-gray-400" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900 text-sm">
+                              Product ID: {product.product_id}
+                            </p>
+                            <p className="text-xs text-gray-600">
+                              Qty: {product.qty} | Color: {product.color}
+                              {product.size && ` | Size: ${product.size}`}
+                            </p>
+                          </div>
+                          <p className="text-sm font-semibold text-blue-600">
+                            LKR {product.subtotal?.toFixed(2)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Sub-order summary */}
+                    <div className="flex justify-between items-center pt-3 border-t border-gray-200">
+                      <div className="text-sm text-gray-600">
+                        <p>Items: {subOrder.products_list?.length || 0}</p>
+                        <p>Shipping: LKR {subOrder.shipping_fee?.toFixed(2) || '0.00'}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-600">Sub-order Total</p>
+                        <p className="font-bold text-lg text-blue-600">
+                          LKR {subOrder.finalTotal?.toFixed(2) || '0.00'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Tracking info if available */}
+                    {subOrder.tracking_number && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <p className="text-sm text-gray-600">Tracking Number:</p>
+                        <p className="font-semibold text-blue-600">
+                          {subOrder.tracking_number}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>

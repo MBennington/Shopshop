@@ -1,32 +1,177 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
+import { useAuth } from '@/contexts/AuthContext';
 
-interface Order {
-  id: string;
-  customerName: string;
-  date: string;
-  status: 'Pending' | 'Processing' | 'Shipped' | 'Completed';
-  total: number;
+interface SubOrder {
+  _id: string;
+  main_order_id: string;
+  seller_id: string;
+  buyer_id: string;
+  products_list: Array<{
+    product_id: string;
+    qty: number;
+    color: string;
+    size?: string;
+    subtotal: number;
+  }>;
+  shippingAddress: {
+    firstName: string;
+    lastName: string;
+    address: string;
+    city: string;
+    postalCode: string;
+    province: string;
+    country: string;
+    phone: string;
+  };
+  shipping_fee: number;
+  tracking_number?: string;
+  subtotal: number;
+  platformCharges: {
+    transactionFee: number;
+    platformFee: number;
+  };
+  finalTotal: number;
+  orderStatus: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  seller_payment_status: 'pending' | 'held' | 'released' | 'refunded';
+  delivery_status: 'pending' | 'confirmed' | 'disputed';
+  delivery_confirmed: boolean;
+  delivery_confirmed_at?: string;
+  created_at: string;
+  updated_at: string;
 }
 
-const orders: Order[] = [
-  { id: '#12345', customerName: 'Sophia Clark', date: '2024-01-15', status: 'Pending', total: 50.00 },
-  { id: '#12346', customerName: 'Ethan Bennett', date: '2024-01-16', status: 'Processing', total: 75.00 },
-  { id: '#12347', customerName: 'Olivia Carter', date: '2024-01-17', status: 'Shipped', total: 100.00 },
-  { id: '#12348', customerName: 'Liam Davis', date: '2024-01-18', status: 'Completed', total: 125.00 },
-  { id: '#12349', customerName: 'Ava Evans', date: '2024-01-19', status: 'Pending', total: 60.00 },
-  { id: '#12350', customerName: 'Noah Foster', date: '2024-01-20', status: 'Processing', total: 85.00 },
-  { id: '#12351', customerName: 'Isabella Green', date: '2024-01-21', status: 'Shipped', total: 110.00 },
-  { id: '#12352', customerName: 'Jackson Hayes', date: '2024-01-22', status: 'Completed', total: 135.00 },
-  { id: '#12353', customerName: 'Mia Ingram', date: '2024-01-23', status: 'Pending', total: 70.00 },
-  { id: '#12354', customerName: 'Lucas Jenkins', date: '2024-01-24', status: 'Processing', total: 95.00 },
-];
-
 export default function OrdersPage() {
+  const { user } = useAuth();
+  const [subOrders, setSubOrders] = useState<SubOrder[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
+  const [selectedOrder, setSelectedOrder] = useState<SubOrder | null>(null);
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [isUpdatingTracking, setIsUpdatingTracking] = useState(false);
+
+  useEffect(() => {
+    if (user?._id) {
+      fetchSubOrders();
+    }
+  }, [user]);
+
+  const fetchSubOrders = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/suborder?sellerId=${user?._id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSubOrders(data.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch sub-orders:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateOrderStatus = async (subOrderId: string, newStatus: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/suborder?subOrderId=${subOrderId}&action=status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ orderStatus: newStatus }),
+      });
+
+      if (response.ok) {
+        await fetchSubOrders(); // Refresh the list
+        setSelectedOrder(null);
+      }
+    } catch (error) {
+      console.error('Failed to update order status:', error);
+    }
+  };
+
+  const updateTrackingNumber = async (subOrderId: string) => {
+    if (!trackingNumber.trim()) return;
+
+    setIsUpdatingTracking(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/suborder?subOrderId=${subOrderId}&action=tracking`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ tracking_number: trackingNumber }),
+      });
+
+      if (response.ok) {
+        await fetchSubOrders(); // Refresh the list
+        setTrackingNumber('');
+        setSelectedOrder(null);
+      }
+    } catch (error) {
+      console.error('Failed to update tracking number:', error);
+    } finally {
+      setIsUpdatingTracking(false);
+    }
+  };
+
+  const filteredOrders = subOrders.filter(order => {
+    const matchesSearch = order._id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         order.main_order_id.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter = activeFilter === 'All' || order.orderStatus === activeFilter.toLowerCase();
+    return matchesSearch && matchesFilter;
+  });
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'processing': return 'bg-blue-100 text-blue-800';
+      case 'shipped': return 'bg-purple-100 text-purple-800';
+      case 'delivered': return 'bg-green-100 text-green-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPaymentStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'held': return 'bg-orange-100 text-orange-800';
+      case 'released': return 'bg-green-100 text-green-800';
+      case 'refunded': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Sidebar />
+        <div className="ml-64 p-8">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-20 bg-gray-200 rounded"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||

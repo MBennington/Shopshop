@@ -1,19 +1,24 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
-const {
-  orderStatus,
-  paymentStatus,
-  paymentMethod,
-} = require('../../config/order.config');
+const { subOrderStatus, sellerPaymentStatus, deliveryStatus } = require('../../config/suborder.config');
 
-const orderSchema = new Schema(
+const subOrderSchema = new Schema(
   {
-    user_id: {
+    main_order_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'order',
+      required: true,
+    },
+    seller_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'user',
       required: true,
     },
-
+    buyer_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'user',
+      required: true,
+    },
     products_list: [
       {
         product_id: {
@@ -27,7 +32,6 @@ const orderSchema = new Schema(
         subtotal: { type: Number, required: true },
       },
     ],
-
     shippingAddress: {
       firstName: { type: String },
       lastName: { type: String },
@@ -39,31 +43,18 @@ const orderSchema = new Schema(
       country: { type: String },
       phone: { type: String },
     },
-
-    paymentMethod: {
-      type: String,
-      enum: Object.values(paymentMethod),
-      required: true,
+    shipping_fee: {
+      type: Number,
+      default: 0,
     },
-
-    paymentStatus: {
+    tracking_number: {
       type: String,
-      enum: Object.values(paymentStatus),
-      default: paymentStatus.PENDING,
+      default: null,
     },
-
-    orderStatus: {
-      type: String,
-      enum: Object.values(orderStatus),
-      default: orderStatus.PENDING,
-    },
-
-    totalPrice: {
+    subtotal: {
       type: Number,
       required: true,
     },
-
-    // Platform charges breakdown
     platformCharges: {
       transactionFee: {
         type: Number,
@@ -74,18 +65,33 @@ const orderSchema = new Schema(
         default: 0,
       },
     },
-
-    // Final total including all charges
     finalTotal: {
       type: Number,
       required: true,
     },
-
-    // Sub-orders for multi-seller orders
-    sub_orders: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'suborder',
-    }],
+    orderStatus: {
+      type: String,
+      enum: Object.values(subOrderStatus),
+      default: subOrderStatus.PENDING,
+    },
+    seller_payment_status: {
+      type: String,
+      enum: Object.values(sellerPaymentStatus),
+      default: sellerPaymentStatus.PENDING,
+    },
+    delivery_status: {
+      type: String,
+      enum: Object.values(deliveryStatus),
+      default: deliveryStatus.PENDING,
+    },
+    delivery_confirmed: {
+      type: Boolean,
+      default: false,
+    },
+    delivery_confirmed_at: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: {
@@ -95,4 +101,4 @@ const orderSchema = new Schema(
   }
 );
 
-module.exports = mongoose.model('order', orderSchema);
+module.exports = mongoose.model('suborder', subOrderSchema);
