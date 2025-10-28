@@ -49,14 +49,14 @@ module.exports.createOrder = async (user_id, body) => {
     const exsistingProduct = await Product.findById(product.product_id);
     if (!exsistingProduct) throw new Error('Product not found');
 
-    const subtotal = exsistingProduct.price * product.quantity;
+    const itemSubtotal = exsistingProduct.price * product.quantity;
 
     let productData = {
       product_id: exsistingProduct._id,
       seller_id: exsistingProduct.seller,
       qty: product.quantity,
       color: product.color,
-      subtotal,
+      subtotal: itemSubtotal,
     };
 
     if (product.size && product.size !== null) {
@@ -69,8 +69,8 @@ module.exports.createOrder = async (user_id, body) => {
     //console.log('product data: ', productData);
 
     productsList.push(productData);
-
-    subtotal = subtotal;
+    // Set main order subtotal for Buy Now flow
+    subtotal = itemSubtotal;
   }
 
   // Group products by seller
