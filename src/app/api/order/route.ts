@@ -53,9 +53,6 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const orderId = searchParams.get('order_id') || searchParams.get('orderId');
-    
-    console.log('Frontend API - Received orderId:', orderId);
-    console.log('Frontend API - All search params:', Object.fromEntries(searchParams.entries()));
 
     if (!orderId || orderId === 'undefined') {
       return NextResponse.json(

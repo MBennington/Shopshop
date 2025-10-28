@@ -110,7 +110,6 @@ module.exports.createOrder = async (user_id, body) => {
 
   // Create sub-orders for each seller
   const subOrders = [];
-  console.log('Creating sub-orders for sellers:', Object.keys(productsBySeller));
   
   for (const [sellerId, sellerProducts] of Object.entries(productsBySeller)) {
     const sellerSubtotal = sellerProducts.reduce(
@@ -135,9 +134,7 @@ module.exports.createOrder = async (user_id, body) => {
       finalTotal: sellerFinalTotal,
     };
 
-    console.log('Creating sub-order for seller', sellerId, ':', subOrderData);
     const subOrder = await subOrderService.createSubOrder(subOrderData);
-    console.log('Created sub-order:', subOrder);
     subOrders.push(subOrder);
   }
 
@@ -172,12 +169,13 @@ module.exports.findOrderById = async (order_id) => {
 
   // Populate sub-orders with detailed data
   const subOrders = await subOrderService.getSubOrdersByMainOrder(order_id);
-  console.log('Found sub-orders for order', order_id, ':', subOrders.length);
 
   // Convert to plain object and add sub-orders
   const orderObj = order.toObject();
   orderObj.sub_orders_details = subOrders;
-  console.log('Order object with sub-orders:', orderObj);
+  
+  // Remove redundant products_list since we only display sub-orders
+  delete orderObj.products_list;
 
   return orderObj;
 };
