@@ -26,6 +26,12 @@ module.exports.createOrUpdateCart = async (body, user_id) => {
     throw new Error('Product not found!');
   }
 
+  // Fetch seller information
+  const seller = await userService.getUserById(product.seller);
+  if (!seller) {
+    throw new Error('Seller not found!');
+  }
+
   const subTotal = newProduct.qty * product.price;
   //console.log('subtotal: ', subTotal);
 
@@ -37,6 +43,8 @@ module.exports.createOrUpdateCart = async (body, user_id) => {
       products_list: [
         {
           product_id: newProduct.product_id,
+          seller_id: product.seller,
+          business_name: seller.sellerInfo.businessName,
           quantity: newProduct.qty,
           color: newProduct.color,
           size: newProduct.size,
@@ -70,6 +78,8 @@ module.exports.createOrUpdateCart = async (body, user_id) => {
     // Add new product to list
     updatedList.push({
       product_id: newProduct.product_id,
+      seller_id: product.seller,
+      business_name: seller.sellerInfo.businessName,
       quantity: newProduct.qty,
       color: newProduct.color,
       size: newProduct.size,
@@ -111,6 +121,15 @@ module.exports.getCartByUserId = async (userId) => {
     },
     { $unwind: '$product' },
     {
+      $lookup: {
+        from: 'users',
+        localField: 'products_list.seller_id',
+        foreignField: '_id',
+        as: 'seller',
+      },
+    },
+    { $unwind: '$seller' },
+    {
       $addFields: {
         selectedColor: {
           $first: {
@@ -129,6 +148,9 @@ module.exports.getCartByUserId = async (userId) => {
         'products_list.basePrice': '$product.price',
         'products_list.category': '$product.category',
         'products_list.images': '$selectedColor.images',
+        'products_list.seller_id': '$products_list.seller_id',
+        'products_list.business_name': '$products_list.business_name',
+        'products_list.seller_profile_picture': '$seller.profilePicture',
       },
     },
     {
@@ -144,6 +166,9 @@ module.exports.getCartByUserId = async (userId) => {
         'products_list.basePrice': 1,
         'products_list.category': 1,
         'products_list.images': 1,
+        'products_list.seller_id': 1,
+        'products_list.business_name': 1,
+        'products_list.seller_profile_picture': 1,
       },
     },
     {
@@ -158,7 +183,43 @@ module.exports.getCartByUserId = async (userId) => {
     },
   ]);
 
-  return cart[0] || null;
+  const cartData = cart[0];
+  if (!cartData) {
+    return null;
+  }
+
+  // Group products by seller
+  const sellers = {};
+  cartData.products_list.forEach((item) => {
+    const sellerId = item.seller_id.toString();
+    
+    if (!sellers[sellerId]) {
+      sellers[sellerId] = {
+        seller_info: {
+          _id: sellerId,
+          name: 'Seller', // Default name since we removed seller_name
+          businessName: item.business_name || 'Unknown Business',
+          profilePicture: item.seller_profile_picture || null
+        },
+        products: [],
+        subtotal: 0,
+        shipping_fee: 100 // Default shipping fee
+      };
+    }
+    
+    sellers[sellerId].products.push(item);
+    sellers[sellerId].subtotal += item.subtotal;
+  });
+
+  // Return only the grouped data, remove redundant products_list
+  return {
+    _id: cartData._id,
+    user_id: cartData.user_id,
+    total: cartData.total,
+    sellers: sellers,
+    created_at: cartData.created_at,
+    updated_at: cartData.updated_at,
+  };
 };
 
 /**
@@ -180,7 +241,8 @@ module.exports.removeFromCart = async (user_id, body) => {
     throw new Error('Product not found!');
   }
 
-  const cart = await this.getCartByUserId(user_id);
+  // Get the raw cart data from database (not the grouped version)
+  const cart = await CartModel.findOne({ user_id });
   if (!cart) {
     throw new Error('Cart not found!');
   }
@@ -210,9 +272,8 @@ module.exports.removeFromCart = async (user_id, body) => {
     { new: true }
   );
 
-  const updatedCart = this.getCartByUserId(user_id);
-
-  return updatedCart;
+  // Return the grouped cart data
+  return await this.getCartByUserId(user_id);
 };
 
 /**
@@ -270,7 +331,6 @@ module.exports.updateQuantity = async (body, user_id) => {
     { new: true }
   );
 
-  const updatedCart = this.getCartByUserId(user_id);
-
-  return updatedCart;
+  // Return the grouped cart data
+  return await this.getCartByUserId(user_id);
 };

@@ -5,6 +5,8 @@ router.use('/products', require('./src/modules/products/product.router'));
 router.use('/reviews', require('./src/modules/reviews/review.router'));
 router.use('/cart', require('./src/modules/cart/cart.router'));
 router.use('/order', require('./src/modules/order/order.router'));
+router.use('/suborder', require('./src/modules/subOrder/suborder.router'));
 router.use('/payment', require('./src/modules/payment/payment.router'));
+router.use('/config/platform-charges', require('./src/modules/platformCharges/platformCharges.router'));
 
 module.exports = router;

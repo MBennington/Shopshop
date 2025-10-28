@@ -5,4 +5,8 @@ module.exports.permissions = {
     path: '/',
     grantedUserRoles: [roles.admin, roles.seller, roles.buyer],
   },
+  findOrderById: {
+    path: '/find-order-by-id',
+    grantedUserRoles: [roles.admin, roles.seller, roles.buyer],
+  },
 };

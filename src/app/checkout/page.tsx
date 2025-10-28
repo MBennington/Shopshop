@@ -24,12 +24,36 @@ interface Address {
   isDefault: boolean;
 }
 
-interface UserAddress {
-  label: string;
-  address: string;
-  city: string;
-  postalCode: string;
-  country: string;
+interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+  image: string;
+  quantity: number;
+  size?: string;
+  color: string;
+  subtotal: number;
+  seller_id?: string;
+  business_name?: string;
+  seller_profile_picture?: string;
+  seller_info?: {
+    _id: string;
+    name: string;
+    businessName: string;
+  };
+}
+
+interface SellerGroup {
+  seller_info: {
+    _id: string;
+    name: string;
+    businessName: string;
+    profilePicture?: string | null;
+  };
+  products: CartItem[];
+  subtotal: number;
+  shipping_fee: number;
 }
 
 export default function CheckoutPage() {
@@ -61,14 +85,18 @@ export default function CheckoutPage() {
   const [shippingFee, setShippingFee] = useState(5.99);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [payHereReady, setPayHereReady] = useState(false);
+  const [platformCharges, setPlatformCharges] = useState<any>(null);
+  const [sellerGroups, setSellerGroups] = useState<{
+    [sellerId: string]: SellerGroup;
+  }>({});
 
   // Transform user's saved addresses to match our interface
-  const savedAddresses: Address[] =
-    user?.savedAddresses?.map((addr: UserAddress, index: number) => ({
+  const savedAddresses: Address[] = (user?.savedAddresses ?? []).map(
+    (addr, index: number) => ({
       id: `addr-${index}`,
       label: addr.label,
-      firstName: user.name?.split(' ')[0] || '',
-      lastName: user.name?.split(' ').slice(1).join(' ') || '',
+      firstName: user?.name?.split(' ')[0] || '',
+      lastName: user?.name?.split(' ').slice(1).join(' ') || '',
       address: addr.address,
       city: addr.city,
       province: '', // Add if available in your DB
@@ -76,7 +104,8 @@ export default function CheckoutPage() {
       country: addr.country,
       phone: '', // Add if available in your DB
       isDefault: index === 0, // First address as default
-    })) || [];
+    })
+  );
 
   const [newAddress, setNewAddress] = useState<
     Omit<Address, 'id' | 'isDefault'>
@@ -109,6 +138,36 @@ export default function CheckoutPage() {
       document.body.removeChild(script); // ✅ cleanup
     };
   }, []);
+
+  // Group cart items by seller
+  useEffect(() => {
+    if (fromCart && cartItems) {
+      const grouped: { [sellerId: string]: SellerGroup } = {};
+
+      cartItems.forEach((item: CartItem) => {
+        const sellerId = item.seller_id || 'unknown';
+
+        if (!grouped[sellerId]) {
+          grouped[sellerId] = {
+            seller_info: {
+              _id: sellerId,
+              name: 'Seller', // Default name since we removed seller_name
+              businessName: item.business_name || 'Unknown Business',
+              profilePicture: item.seller_profile_picture ?? undefined,
+            },
+            products: [],
+            subtotal: 0,
+            shipping_fee: 100, // Default shipping fee
+          };
+        }
+
+        grouped[sellerId].products.push(item);
+        grouped[sellerId].subtotal += item.subtotal;
+      });
+
+      setSellerGroups(grouped);
+    }
+  }, [fromCart, cartItems]);
 
   useEffect(() => {
     // Set default selections
@@ -237,7 +296,7 @@ export default function CheckoutPage() {
     const payHereData = {
       sandbox: true, // set false in production
       merchant_id: data.merchantId,
-      return_url: window.location.origin + '/order-success', // temporary success page
+      return_url: window.location.origin + `/order-success?orderId=${data.orderId}`, // success page with order ID
       cancel_url: window.location.origin + '/cart', // temporary cancel page
       notify_url: window.location.origin + '/api/payhere-notify', // placeholder, replace later
       order_id: data.orderId,
@@ -258,12 +317,16 @@ export default function CheckoutPage() {
     // Optional: register event handlers
     payhere.onCompleted = function onCompleted(orderId: string) {
       console.log('Payment completed. OrderID:' + orderId);
+      // Redirect to success page with order ID
+      window.location.href = `/order-success?orderId=${orderId}`;
     };
     payhere.onDismissed = function onDismissed() {
       console.log('Payment dismissed');
+      // Stay on checkout page if payment is dismissed
     };
     payhere.onError = function onError(error: string) {
       console.log('Error:' + error);
+      alert('Payment failed. Please try again.');
     };
 
     // Start PayHere payment
@@ -333,8 +396,11 @@ export default function CheckoutPage() {
       } else {
         // Payment is not card (e.g., COD)
         console.log('Cash on Delivery selected.');
-        // You can redirect to order confirmation page if needed
-        window.location.href = `/order-success?orderId=${orderDataFromServer.orderId}`;
+        // Get order ID from the response (different field names for different payment methods)
+        const orderId = orderDataFromServer.orderId || orderDataFromServer.order_id;
+        console.log('Order ID for COD:', orderId);
+        // Redirect to order confirmation page
+        window.location.href = `/order-success?orderId=${orderId}`;
       }
 
       // TODO: Redirect to order confirmation page or clear cart
@@ -613,44 +679,157 @@ export default function CheckoutPage() {
               <CardContent className="space-y-4">
                 {/* Product Details */}
                 {fromCart && cartItems ? (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <h4 className="font-medium text-gray-900">
-                      Cart Items ({cartItems.length})
+                      Order Summary ({cartItems.length} items)
                     </h4>
-                    {cartItems.map((item: any, index: number) => (
-                      <div
-                        key={index}
-                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
-                      >
-                        <div className="w-16 h-16 relative rounded-lg overflow-hidden bg-white">
-                          <img
-                            src={item.image}
-                            alt={item.name}
-                            className="object-cover w-full h-full"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900 text-sm">
-                            {item.name}
-                          </h4>
-                          <p className="text-xs text-gray-600">
-                            {item.category}
-                          </p>
-                          <div className="flex items-center justify-between mt-1">
-                            <p className="text-sm text-gray-600">
-                              Qty: {item.quantity || 1} × LKR{' '}
-                              {getPriceValue(item.price).toFixed(2)}
-                            </p>
-                            <p className="text-sm font-semibold text-blue-600">
-                              LKR{' '}
-                              {(
-                                getPriceValue(item.price) * (item.quantity || 1)
-                              ).toFixed(2)}
-                            </p>
-                          </div>
-                        </div>
+
+                    {/* Seller Groups */}
+                    {Object.keys(sellerGroups).length > 0 ? (
+                      <div className="space-y-4">
+                        {Object.entries(sellerGroups).map(
+                          ([sellerId, sellerGroup]) => (
+                            <div
+                              key={sellerId}
+                              className="bg-gray-50 rounded-lg p-4"
+                            >
+                              {/* Seller Header */}
+                              <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
+                                    {sellerGroup.seller_info.profilePicture ? (
+                                      <img
+                                        src={
+                                          sellerGroup.seller_info.profilePicture
+                                        }
+                                        alt={
+                                          sellerGroup.seller_info.businessName
+                                        }
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <span className="text-blue-600 font-semibold text-xs">
+                                        {sellerGroup.seller_info.businessName.charAt(
+                                          0
+                                        )}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <h5 className="font-semibold text-gray-900 text-sm">
+                                      {sellerGroup.seller_info.businessName}
+                                    </h5>
+                                    <p className="text-xs text-gray-600">
+                                      {sellerGroup.seller_info.name}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-xs text-gray-600">
+                                    Subtotal
+                                  </p>
+                                  <p className="font-semibold text-sm">
+                                    LKR {sellerGroup.subtotal.toFixed(2)}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Products */}
+                              <div className="space-y-2">
+                                {sellerGroup.products.map((item, index) => (
+                                  <div
+                                    key={`${sellerId}-${index}`}
+                                    className="flex items-center gap-3 p-2 bg-white rounded-lg"
+                                  >
+                                    <div className="w-12 h-12 relative rounded-lg overflow-hidden bg-gray-100">
+                                      <img
+                                        src={item.image}
+                                        alt={item.name}
+                                        className="object-cover w-full h-full"
+                                      />
+                                    </div>
+                                    <div className="flex-1">
+                                      <h6 className="font-medium text-gray-900 text-xs">
+                                        {item.name}
+                                      </h6>
+                                      <p className="text-xs text-gray-600">
+                                        Qty: {item.quantity} × LKR{' '}
+                                        {getPriceValue(item.price).toFixed(2)}
+                                      </p>
+                                    </div>
+                                    <p className="text-xs font-semibold text-blue-600">
+                                      LKR {item.subtotal.toFixed(2)}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Seller Summary */}
+                              <div className="mt-3 pt-2 border-t border-gray-200 flex justify-between items-center">
+                                <div className="text-xs text-gray-600">
+                                  <p>Items: {sellerGroup.products.length}</p>
+                                  <p>
+                                    Shipping: LKR{' '}
+                                    {sellerGroup.shipping_fee.toFixed(2)}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-xs text-gray-600">
+                                    Seller Total
+                                  </p>
+                                  <p className="font-bold text-sm text-blue-600">
+                                    LKR{' '}
+                                    {(
+                                      sellerGroup.subtotal +
+                                      sellerGroup.shipping_fee
+                                    ).toFixed(2)}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        )}
                       </div>
-                    ))}
+                    ) : (
+                      /* Fallback to old display */
+                      <div className="space-y-3">
+                        {cartItems.map((item: any, index: number) => (
+                          <div
+                            key={index}
+                            className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                          >
+                            <div className="w-16 h-16 relative rounded-lg overflow-hidden bg-white">
+                              <img
+                                src={item.image}
+                                alt={item.name}
+                                className="object-cover w-full h-full"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900 text-sm">
+                                {item.name}
+                              </h4>
+                              <p className="text-xs text-gray-600">
+                                {item.category}
+                              </p>
+                              <div className="flex items-center justify-between mt-1">
+                                <p className="text-sm text-gray-600">
+                                  Qty: {item.quantity || 1} × LKR{' '}
+                                  {getPriceValue(item.price).toFixed(2)}
+                                </p>
+                                <p className="text-sm font-semibold text-blue-600">
+                                  LKR{' '}
+                                  {(
+                                    getPriceValue(item.price) *
+                                    (item.quantity || 1)
+                                  ).toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
@@ -685,16 +864,48 @@ export default function CheckoutPage() {
                       LKR {subtotal.toFixed(2)}
                     </span>
                   </div>
+
+                  {/* Seller-specific shipping */}
+                  {Object.keys(sellerGroups).length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="text-sm text-gray-600">
+                        Shipping by Seller:
+                      </div>
+                      {Object.entries(sellerGroups).map(
+                        ([sellerId, sellerGroup]) => (
+                          <div
+                            key={sellerId}
+                            className="flex justify-between text-xs ml-4"
+                          >
+                            <span className="text-gray-500">
+                              {sellerGroup.seller_info.businessName}
+                            </span>
+                            <span className="font-medium">
+                              LKR {sellerGroup.shipping_fee.toFixed(2)}
+                            </span>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Shipping</span>
+                      <span className="font-medium">
+                        LKR {shippingFee.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Shipping</span>
+                    <span className="text-gray-600">Transaction Fee</span>
                     <span className="font-medium">
-                      LKR {shippingFee.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Tax</span>
-                    <span className="font-medium">
-                      LKR {(subtotal * 0.08).toFixed(2)}
+                      LKR{' '}
+                      {platformCharges
+                        ? (
+                            subtotal *
+                            (platformCharges.transaction_fee.buyer / 100)
+                          ).toFixed(2)
+                        : '0.00'}
                     </span>
                   </div>
                 </div>
@@ -705,7 +916,25 @@ export default function CheckoutPage() {
                 <div className="flex justify-between text-lg font-bold">
                   <span>Total</span>
                   <span className="text-blue-600">
-                    LKR {(total + subtotal * 0.08).toFixed(2)}
+                    LKR{' '}
+                    {(() => {
+                      const totalShipping =
+                        Object.keys(sellerGroups).length > 0
+                          ? Object.values(sellerGroups).reduce(
+                              (sum, group) => sum + group.shipping_fee,
+                              0
+                            )
+                          : shippingFee;
+                      const transactionFee = platformCharges
+                        ? subtotal *
+                          (platformCharges.transaction_fee.buyer / 100)
+                        : 0;
+                      return (
+                        subtotal +
+                        totalShipping +
+                        transactionFee
+                      ).toFixed(2);
+                    })()}
                   </span>
                 </div>
 

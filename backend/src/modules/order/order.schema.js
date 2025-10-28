@@ -35,3 +35,7 @@ module.exports.createOrder = joi.object({
     otherwise: joi.forbidden(),
   }),
 });
+
+module.exports.findOrderById = joi.object({
+  order_id: joi.string().required(),
+});
