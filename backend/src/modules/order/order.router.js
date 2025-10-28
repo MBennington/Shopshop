@@ -15,4 +15,12 @@ router
     controller.createOrder
   );
 
+router
+  .route(permissions.findOrderById.path)
+  .get(
+    validator.validateHeader(permissions.findOrderById.grantedUserRoles),
+    validator.validateQueryParameters(schema.findOrderById),
+    controller.findOrderById
+  );
+
 module.exports = router;

@@ -296,7 +296,7 @@ export default function CheckoutPage() {
     const payHereData = {
       sandbox: true, // set false in production
       merchant_id: data.merchantId,
-      return_url: window.location.origin + '/order-success', // temporary success page
+      return_url: window.location.origin + `/order-success?orderId=${data.orderId}`, // success page with order ID
       cancel_url: window.location.origin + '/cart', // temporary cancel page
       notify_url: window.location.origin + '/api/payhere-notify', // placeholder, replace later
       order_id: data.orderId,
@@ -317,12 +317,16 @@ export default function CheckoutPage() {
     // Optional: register event handlers
     payhere.onCompleted = function onCompleted(orderId: string) {
       console.log('Payment completed. OrderID:' + orderId);
+      // Redirect to success page with order ID
+      window.location.href = `/order-success?orderId=${orderId}`;
     };
     payhere.onDismissed = function onDismissed() {
       console.log('Payment dismissed');
+      // Stay on checkout page if payment is dismissed
     };
     payhere.onError = function onError(error: string) {
       console.log('Error:' + error);
+      alert('Payment failed. Please try again.');
     };
 
     // Start PayHere payment
@@ -392,8 +396,11 @@ export default function CheckoutPage() {
       } else {
         // Payment is not card (e.g., COD)
         console.log('Cash on Delivery selected.');
-        // You can redirect to order confirmation page if needed
-        window.location.href = `/order-success?orderId=${orderDataFromServer.orderId}`;
+        // Get order ID from the response (different field names for different payment methods)
+        const orderId = orderDataFromServer.orderId || orderDataFromServer.order_id;
+        console.log('Order ID for COD:', orderId);
+        // Redirect to order confirmation page
+        window.location.href = `/order-success?orderId=${orderId}`;
       }
 
       // TODO: Redirect to order confirmation page or clear cart

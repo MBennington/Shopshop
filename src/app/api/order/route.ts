@@ -52,9 +52,12 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const orderId = searchParams.get('orderId');
+    const orderId = searchParams.get('order_id') || searchParams.get('orderId');
+    
+    console.log('Frontend API - Received orderId:', orderId);
+    console.log('Frontend API - All search params:', Object.fromEntries(searchParams.entries()));
 
-    if (!orderId) {
+    if (!orderId || orderId === 'undefined') {
       return NextResponse.json(
         { error: 'Order ID is required' },
         { status: 400 }
@@ -72,7 +75,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch order details from backend
-    const response = await fetch(`${BACKEND_URL}/api/order/${orderId}`, {
+    const response = await fetch(`${BACKEND_URL}/api/order/find-order-by-id?order_id=${orderId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,

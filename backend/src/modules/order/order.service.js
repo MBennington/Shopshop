@@ -16,7 +16,8 @@ module.exports.createOrder = async (user_id, body) => {
 
   let productsList = [];
   let subtotal = 0;
-  const buyer_transaction_fee_percentage = platformCharges.transaction_fee.buyer;
+  const buyer_transaction_fee_percentage =
+    platformCharges.transaction_fee.buyer;
 
   if (fromCart) {
     // Order from Cart
@@ -84,7 +85,7 @@ module.exports.createOrder = async (user_id, body) => {
   }, {});
 
   // Calculate platform charges
-  const transactionFee = (subtotal * buyer_transaction_fee_percentage);
+  const transactionFee = subtotal * buyer_transaction_fee_percentage;
   const platformFee = 0; // Currently no platform fee for buyers
   const finalTotal = subtotal + transactionFee + platformFee;
 
@@ -109,9 +110,15 @@ module.exports.createOrder = async (user_id, body) => {
 
   // Create sub-orders for each seller
   const subOrders = [];
+  console.log('Creating sub-orders for sellers:', Object.keys(productsBySeller));
+  
   for (const [sellerId, sellerProducts] of Object.entries(productsBySeller)) {
-    const sellerSubtotal = sellerProducts.reduce((sum, item) => sum + item.subtotal, 0);
-    const sellerTransactionFee = sellerSubtotal * buyer_transaction_fee_percentage;
+    const sellerSubtotal = sellerProducts.reduce(
+      (sum, item) => sum + item.subtotal,
+      0
+    );
+    const sellerTransactionFee =
+      sellerSubtotal * buyer_transaction_fee_percentage;
     const sellerFinalTotal = sellerSubtotal + sellerTransactionFee;
 
     const subOrderData = {
@@ -128,7 +135,9 @@ module.exports.createOrder = async (user_id, body) => {
       finalTotal: sellerFinalTotal,
     };
 
+    console.log('Creating sub-order for seller', sellerId, ':', subOrderData);
     const subOrder = await subOrderService.createSubOrder(subOrderData);
+    console.log('Created sub-order:', subOrder);
     subOrders.push(subOrder);
   }
 
@@ -136,7 +145,7 @@ module.exports.createOrder = async (user_id, body) => {
   await repository.updateOne(
     OrderModel,
     { _id: createdOrder._id },
-    { sub_orders: subOrders.map(so => so._id) },
+    { sub_orders: subOrders.map((so) => so._id) },
     { new: true }
   );
 
@@ -155,6 +164,20 @@ module.exports.createOrder = async (user_id, body) => {
 };
 
 module.exports.findOrderById = async (order_id) => {
-  const order = repository.findOne(OrderModel, { _id: order_id });
-  return order;
+  const order = await repository.findOne(OrderModel, { _id: order_id });
+
+  if (!order) {
+    return null;
+  }
+
+  // Populate sub-orders with detailed data
+  const subOrders = await subOrderService.getSubOrdersByMainOrder(order_id);
+  console.log('Found sub-orders for order', order_id, ':', subOrders.length);
+
+  // Convert to plain object and add sub-orders
+  const orderObj = order.toObject();
+  orderObj.sub_orders_details = subOrders;
+  console.log('Order object with sub-orders:', orderObj);
+
+  return orderObj;
 };

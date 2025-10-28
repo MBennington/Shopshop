@@ -24,10 +24,28 @@ export default function OrderSuccessPage() {
 
   const fetchOrderDetails = async (orderId: string) => {
     try {
+      console.log('Order Success Page - Fetching details for orderId:', orderId);
+      
+      // Check if orderId is valid
+      if (!orderId || orderId === 'undefined') {
+        console.error('Invalid order ID:', orderId);
+        setLoading(false);
+        return;
+      }
+
       const token = localStorage.getItem('token');
       
-      // Fetch main order details
-      const orderResponse = await fetch(`/api/order?orderId=${orderId}`, {
+      if (!token) {
+        console.error('No authentication token found');
+        setLoading(false);
+        return;
+      }
+      
+      // Fetch order details with sub-orders included
+      const apiUrl = `/api/order?order_id=${orderId}`;
+      console.log('Order Success Page - Making API call to:', apiUrl);
+      
+      const orderResponse = await fetch(apiUrl, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -35,19 +53,18 @@ export default function OrderSuccessPage() {
 
       if (orderResponse.ok) {
         const orderData = await orderResponse.json();
+        console.log('Order data received:', orderData);
+        console.log('Order details:', orderData.data);
+        console.log('Sub-orders:', orderData.data.sub_orders_details);
+        
         setOrderDetails(orderData.data);
         
-        // Fetch sub-orders
-        const subOrdersResponse = await fetch(`/api/suborder/main-order/${orderId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-
-        if (subOrdersResponse.ok) {
-          const subOrdersData = await subOrdersResponse.json();
-          setSubOrders(subOrdersData.data || []);
-        }
+        // Sub-orders are now included in the order response
+        setSubOrders(orderData.data.sub_orders_details || []);
+      } else {
+        console.error('Failed to fetch order details:', orderResponse.status, orderResponse.statusText);
+        const errorData = await orderResponse.json();
+        console.error('Error data:', errorData);
       }
     } catch (error) {
       console.error('Failed to fetch order details:', error);
@@ -63,6 +80,26 @@ export default function OrderSuccessPage() {
           <CardContent className="p-8 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
             <p className="text-gray-600">Loading order details...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!orderId || orderId === 'undefined') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Card className="max-w-lg w-full">
+          <CardContent className="p-8 text-center">
+            <h1 className="text-2xl font-bold mb-4 text-gray-900">
+              Invalid Order
+            </h1>
+            <p className="text-gray-600 mb-6">
+              No valid order ID provided. Please check your order confirmation email or try again.
+            </p>
+            <Button onClick={() => (window.location.href = '/profile')}>
+              View My Orders
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -103,23 +140,48 @@ export default function OrderSuccessPage() {
                 <div>
                   <p className="text-sm text-gray-600">Order Date</p>
                   <p className="font-semibold">
-                    {new Date().toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
+                    {orderDetails?.created_at 
+                      ? new Date(orderDetails.created_at).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })
+                      : new Date().toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })
+                    }
                   </p>
                 </div>
                 {orderDetails && (
                   <>
                     <div>
-                      <p className="text-sm text-gray-600">Total Amount</p>
+                      <p className="text-sm text-gray-600">Subtotal</p>
                       <p className="font-semibold">LKR {orderDetails.totalPrice?.toFixed(2)}</p>
                     </div>
                     <div>
+                      <p className="text-sm text-gray-600">Transaction Fee</p>
+                      <p className="font-semibold">LKR {orderDetails.platformCharges?.transactionFee?.toFixed(2) || '0.00'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Total Amount</p>
+                      <p className="font-semibold text-lg text-green-600">LKR {orderDetails.finalTotal?.toFixed(2)}</p>
+                    </div>
+                    <div>
                       <p className="text-sm text-gray-600">Payment Method</p>
-                      <p className="font-semibold capitalize">
-                        {orderDetails.paymentMethod === 'card' ? 'Credit/Debit Card' : 'Cash on Delivery'}
+                      <p className="font-semibold capitalize flex items-center gap-2">
+                        {orderDetails.paymentMethod === 'card' ? (
+                          <>
+                            <CreditCard className="h-4 w-4" />
+                            Credit/Debit Card
+                          </>
+                        ) : (
+                          <>
+                            <Truck className="h-4 w-4" />
+                            Cash on Delivery
+                          </>
+                        )}
                       </p>
                     </div>
                   </>
@@ -129,19 +191,22 @@ export default function OrderSuccessPage() {
           </Card>
         )}
 
-        {/* Sub-Orders */}
-        {subOrders.length > 0 && (
+        {/* Package Information */}
+        {subOrders.length > 0 ? (
           <Card className="mb-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Package className="h-5 w-5" />
-                Order Breakdown by Seller
+                Package Information
               </CardTitle>
+              <p className="text-sm text-gray-600">
+                You will receive {subOrders.length} package{subOrders.length > 1 ? 's' : ''} from different sellers
+              </p>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {subOrders.map((subOrder, index) => (
-                  <div key={subOrder._id} className="bg-gray-50 rounded-lg p-4">
+                  <div key={subOrder._id} className="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-500">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -151,10 +216,10 @@ export default function OrderSuccessPage() {
                         </div>
                         <div>
                           <h4 className="font-semibold text-gray-900">
-                            Seller Order #{index + 1}
+                            Package #{index + 1}
                           </h4>
                           <p className="text-sm text-gray-600">
-                            Order ID: {subOrder._id}
+                            Seller ID: {subOrder.seller_id}
                           </p>
                         </div>
                       </div>
@@ -166,7 +231,7 @@ export default function OrderSuccessPage() {
                       </div>
                     </div>
 
-                    {/* Products in this sub-order */}
+                    {/* Products in this package */}
                     <div className="space-y-2 mb-3">
                       {subOrder.products_list?.map((product: any, productIndex: number) => (
                         <div key={productIndex} className="flex items-center gap-3 p-2 bg-white rounded-lg">
@@ -189,14 +254,14 @@ export default function OrderSuccessPage() {
                       ))}
                     </div>
 
-                    {/* Sub-order summary */}
+                    {/* Package summary */}
                     <div className="flex justify-between items-center pt-3 border-t border-gray-200">
                       <div className="text-sm text-gray-600">
                         <p>Items: {subOrder.products_list?.length || 0}</p>
                         <p>Shipping: LKR {subOrder.shipping_fee?.toFixed(2) || '0.00'}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-gray-600">Sub-order Total</p>
+                        <p className="text-sm text-gray-600">Package Total</p>
                         <p className="font-bold text-lg text-blue-600">
                           LKR {subOrder.finalTotal?.toFixed(2) || '0.00'}
                         </p>
@@ -204,16 +269,57 @@ export default function OrderSuccessPage() {
                     </div>
 
                     {/* Tracking info if available */}
-                    {subOrder.tracking_number && (
+                    {subOrder.tracking_number ? (
                       <div className="mt-3 pt-3 border-t border-gray-200">
                         <p className="text-sm text-gray-600">Tracking Number:</p>
                         <p className="font-semibold text-blue-600">
                           {subOrder.tracking_number}
                         </p>
                       </div>
+                    ) : (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <p className="text-sm text-gray-600">Tracking Number:</p>
+                        <p className="text-sm text-gray-500 italic">
+                          Will be provided when package is shipped
+                        </p>
+                      </div>
+                    )}
+
+                    {/* COD Payment Instructions */}
+                    {orderDetails?.paymentMethod === 'cod' && (
+                      <div className="mt-3 pt-3 border-t border-gray-200 bg-yellow-50 p-3 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <Truck className="h-5 w-5 text-yellow-600 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-semibold text-yellow-800">
+                              Cash on Delivery Payment
+                            </p>
+                            <p className="text-xs text-yellow-700 mt-1">
+                              You will need to pay LKR {subOrder.finalTotal?.toFixed(2)} when this package arrives.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Package Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <p className="text-gray-600 mb-4">Loading package details...</p>
+                <p className="text-sm text-gray-500">
+                  If this message persists, please check the console for debugging information.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -236,7 +342,7 @@ export default function OrderSuccessPage() {
                 <div>
                   <h4 className="font-semibold text-gray-900">Order Confirmation</h4>
                   <p className="text-gray-600 text-sm">
-                    You'll receive an email confirmation with your order details.
+                    You'll receive an email confirmation with your order details and package breakdown.
                   </p>
                 </div>
               </div>
@@ -246,9 +352,9 @@ export default function OrderSuccessPage() {
                   <span className="text-blue-600 font-semibold text-sm">2</span>
                 </div>
                 <div>
-                  <h4 className="font-semibold text-gray-900">Processing</h4>
+                  <h4 className="font-semibold text-gray-900">Processing by Sellers</h4>
                   <p className="text-gray-600 text-sm">
-                    We'll prepare your order and notify you when it's ready to ship.
+                    Each seller will prepare their portion of your order independently. You may receive packages at different times.
                   </p>
                 </div>
               </div>
@@ -258,12 +364,26 @@ export default function OrderSuccessPage() {
                   <span className="text-blue-600 font-semibold text-sm">3</span>
                 </div>
                 <div>
-                  <h4 className="font-semibold text-gray-900">Shipping</h4>
+                  <h4 className="font-semibold text-gray-900">Shipping & Tracking</h4>
                   <p className="text-gray-600 text-sm">
-                    Your order will be shipped and you'll receive tracking information.
+                    Each seller will ship their package separately. You'll receive individual tracking numbers for each package.
                   </p>
                 </div>
               </div>
+
+              {orderDetails?.paymentMethod === 'cod' && (
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Truck className="h-4 w-4 text-yellow-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900">Cash on Delivery</h4>
+                    <p className="text-gray-600 text-sm">
+                      You'll pay for each package when it arrives. Each package will have its own payment amount as shown above.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
