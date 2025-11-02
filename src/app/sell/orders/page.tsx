@@ -29,10 +29,18 @@ interface SubOrder {
   shipping_fee: number;
   tracking_number?: string;
   subtotal: number;
-  platformCharges: {
-    transactionFee: number;
-    platformFee: number;
+  platformCharges?: {
+    transactionFee?: number;
+    platformFee?: number;
   };
+  platformChargesObject?: { [key: string]: number };
+  platformChargesBreakdown?: Array<{
+    name: string;
+    amount: number;
+    description: string;
+    type: string;
+    value: any;
+  }>;
   finalTotal: number;
   orderStatus: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   seller_payment_status: 'pending' | 'held' | 'released' | 'refunded';

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -62,30 +62,40 @@ export default function CheckoutPage() {
   const cartParam = searchParams.get('cart');
   const { user, loading } = useAuth();
 
-  let product = null;
-  let cartItems = null;
-  let fromCart = false;
+  // Memoize parsed product and cartItems to prevent recreation on each render
+  const { product, cartItems, fromCart } = useMemo(() => {
+    let parsedProduct = null;
+    let parsedCartItems = null;
+    let isFromCart = false;
 
-  try {
-    if (productParam) {
-      product = JSON.parse(decodeURIComponent(productParam));
-      fromCart = false;
-    } else if (cartParam) {
-      cartItems = JSON.parse(decodeURIComponent(cartParam));
-      fromCart = true;
-      // For cart checkout, we'll use the first item as reference for now
-      product = cartItems[0];
+    try {
+      if (productParam) {
+        parsedProduct = JSON.parse(decodeURIComponent(productParam));
+        isFromCart = false;
+      } else if (cartParam) {
+        parsedCartItems = JSON.parse(decodeURIComponent(cartParam));
+        isFromCart = true;
+        // For cart checkout, we'll use the first item as reference for now
+        parsedProduct = parsedCartItems[0];
+      }
+    } catch (error) {
+      console.error('Error parsing data:', error);
     }
-  } catch (error) {
-    console.error('Error parsing data:', error);
-  }
+
+    return {
+      product: parsedProduct,
+      cartItems: parsedCartItems,
+      fromCart: isFromCart,
+    };
+  }, [productParam, cartParam]);
 
   const [selectedAddress, setSelectedAddress] = useState<string>('');
   const [selectedPayment, setSelectedPayment] = useState<string>('');
   const [shippingFee, setShippingFee] = useState(5.99);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [payHereReady, setPayHereReady] = useState(false);
-  const [platformCharges, setPlatformCharges] = useState<any>(null);
+  const [platformChargesConfig, setPlatformChargesConfig] = useState<any>(null);
+  const [calculatedCharges, setCalculatedCharges] = useState<any>(null);
   const [sellerGroups, setSellerGroups] = useState<{
     [sellerId: string]: SellerGroup;
   }>({});
@@ -139,13 +149,27 @@ export default function CheckoutPage() {
     };
   }, []);
 
+  // Use ref to track if we've already fetched cart data for current cart
+  const cartDataFetched = useRef<string | null>(null);
+  const currentCartKey = useMemo(() => {
+    // Create a unique key for the current cart based on items
+    if (cartItems && Array.isArray(cartItems)) {
+      return cartItems.map(item => `${item.id}-${item.quantity}`).join(',');
+    }
+    return null;
+  }, [cartItems]);
+
   // Fetch cart data from backend to get shipping fees per seller
   useEffect(() => {
-    if (fromCart) {
+    if (fromCart && currentCartKey && cartDataFetched.current !== currentCartKey) {
+      cartDataFetched.current = currentCartKey;
       const fetchCartData = async () => {
         try {
           const token = localStorage.getItem('token');
-          if (!token) return;
+          if (!token) {
+            cartDataFetched.current = null; // Reset on failure
+            return;
+          }
 
           const res = await fetch(`http://localhost:5000/api/cart/`, {
             method: 'GET',
@@ -159,39 +183,48 @@ export default function CheckoutPage() {
           if (res.ok && json.data && json.data.sellers) {
             // Transform backend data to match UI expectations
             const transformedSellers: { [sellerId: string]: SellerGroup } = {};
-            Object.entries(json.data.sellers).forEach(([sellerId, sellerGroup]: [string, any]) => {
-              // Get seller profile picture from seller_info or fallback to first product's seller_profile_picture
-              const profilePicture = sellerGroup.seller_info?.profilePicture || 
-                                     sellerGroup.products[0]?.seller_profile_picture || 
-                                     null;
-              
-              transformedSellers[sellerId] = {
-                seller_info: {
-                  ...sellerGroup.seller_info,
-                  profilePicture: profilePicture,
-                },
-                products: sellerGroup.products.map((item: any) => ({
-                  id: item.product_id,
-                  name: item.productName,
-                  price: item.basePrice,
-                  category: item.category,
-                  image: item.images && item.images.length > 0 ? item.images[0] : '/placeholder.png',
-                  quantity: item.quantity,
-                  size: item.size,
-                  color: item.color,
-                  subtotal: item.subtotal,
-                  seller_id: item.seller_id,
-                  business_name: item.business_name,
-                  seller_profile_picture: item.seller_profile_picture,
-                })),
-                subtotal: sellerGroup.subtotal,
-                shipping_fee: sellerGroup.shipping_fee,
-              };
-            });
+            Object.entries(json.data.sellers).forEach(
+              ([sellerId, sellerGroup]: [string, any]) => {
+                // Get seller profile picture from seller_info or fallback to first product's seller_profile_picture
+                const profilePicture =
+                  sellerGroup.seller_info?.profilePicture ||
+                  sellerGroup.products[0]?.seller_profile_picture ||
+                  null;
+
+                transformedSellers[sellerId] = {
+                  seller_info: {
+                    ...sellerGroup.seller_info,
+                    profilePicture: profilePicture,
+                  },
+                  products: sellerGroup.products.map((item: any) => ({
+                    id: item.product_id,
+                    name: item.productName,
+                    price: item.basePrice,
+                    category: item.category,
+                    image:
+                      item.images && item.images.length > 0
+                        ? item.images[0]
+                        : '/placeholder.png',
+                    quantity: item.quantity,
+                    size: item.size,
+                    color: item.color,
+                    subtotal: item.subtotal,
+                    seller_id: item.seller_id,
+                    business_name: item.business_name,
+                    seller_profile_picture: item.seller_profile_picture,
+                  })),
+                  subtotal: sellerGroup.subtotal,
+                  shipping_fee: sellerGroup.shipping_fee,
+                };
+              }
+            );
             setSellerGroups(transformedSellers);
+          } else {
+            cartDataFetched.current = null; // Reset on error
           }
         } catch (error) {
           console.error('Failed to fetch cart data:', error);
+          cartDataFetched.current = null; // Reset on error
           // Fallback to manual grouping if fetch fails
           if (cartItems) {
             const grouped: { [sellerId: string]: SellerGroup } = {};
@@ -219,21 +252,107 @@ export default function CheckoutPage() {
       };
 
       fetchCartData();
-    } else if (product && !fromCart) {
-      // Buy Now flow - need to fetch seller shipping fee
-      const fetchSellerShipping = async () => {
-        try {
-          // For Buy Now, we'll need seller_id from product
-          // Assuming product has seller info or we need to fetch it
-          // For now, use default - we can enhance this later
-          const grouped: { [sellerId: string]: SellerGroup } = {};
-          // This will be handled when we have seller_id in product data
-        } catch (error) {
-          console.error('Failed to fetch seller shipping:', error);
-        }
-      };
     }
-  }, [fromCart, cartItems, product]);
+    // Reset ref if we're no longer in cart mode
+    if (!fromCart) {
+      cartDataFetched.current = null;
+    }
+  }, [fromCart, currentCartKey]);
+
+  // Fetch platform charges configuration
+  useEffect(() => {
+    const fetchPlatformCharges = async () => {
+      try {
+        const res = await fetch('/api/config/platform-charges');
+        const json = await res.json();
+        if (res.ok && json.data) {
+          setPlatformChargesConfig(json.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch platform charges:', error);
+      }
+    };
+    fetchPlatformCharges();
+  }, []);
+
+  // Helper function to get price value
+  const getPriceValue = (price: any): number => {
+    if (typeof price === 'string') {
+      const cleanPrice = price.replace(/[$,]/g, '');
+      return parseFloat(cleanPrice) || 0;
+    } else if (typeof price === 'number') {
+      return price;
+    }
+    return 0;
+  };
+
+  // Calculate subtotal - memoized to prevent recalculation loops
+  const currentSubtotal = useMemo(() => {
+    if (fromCart && cartItems) {
+      // If we have seller groups, calculate from them (more accurate)
+      if (Object.keys(sellerGroups).length > 0) {
+        return Object.values(sellerGroups).reduce(
+          (sum, group) => sum + group.subtotal,
+          0
+        );
+      }
+      // Fallback to cart items
+      return cartItems.reduce(
+        (sum: number, item: any) =>
+          sum + getPriceValue(item.price) * (item.quantity || 1),
+        0
+      );
+    } else if (product) {
+      return getPriceValue(product.price);
+    }
+    return 0;
+  }, [fromCart, cartItems, sellerGroups, product]);
+
+  // Calculate charges when subtotal or seller groups change
+  useEffect(() => {
+    if (platformChargesConfig && platformChargesConfig.buyerFees) {
+      const totalShipping =
+        Object.keys(sellerGroups).length > 0
+          ? Object.values(sellerGroups).reduce(
+              (sum, group) => sum + group.shipping_fee,
+              0
+            )
+          : shippingFee;
+
+      // Calculate all buyer fees dynamically
+      const charges: { [key: string]: number } = {};
+      let totalCharges = 0;
+
+      platformChargesConfig.buyerFees.forEach((fee: any) => {
+        if (fee.value > 0) {
+          let feeAmount = 0;
+          if (fee.type === 'percentage') {
+            feeAmount = currentSubtotal * fee.value;
+          } else if (fee.type === 'fixed') {
+            feeAmount = fee.value;
+          }
+
+          if (feeAmount > 0) {
+            charges[fee.name] = Math.round(feeAmount * 100) / 100;
+            totalCharges += charges[fee.name];
+          }
+        }
+      });
+
+      setCalculatedCharges({
+        charges,
+        totalCharges,
+        subtotal: currentSubtotal,
+        shipping: totalShipping,
+        finalTotal: currentSubtotal + totalShipping + totalCharges,
+      });
+    }
+  }, [
+    currentSubtotal,
+    sellerGroups,
+    platformChargesConfig,
+    shippingFee,
+  ]);
 
   useEffect(() => {
     // Set default selections
@@ -306,26 +425,8 @@ export default function CheckoutPage() {
     );
   }
 
-  // Handle different price formats safely
-  const getPriceValue = (price: any): number => {
-    if (typeof price === 'string') {
-      // Remove currency symbols and convert to number
-      const cleanPrice = price.replace(/[$,]/g, '');
-      return parseFloat(cleanPrice) || 0;
-    } else if (typeof price === 'number') {
-      return price;
-    }
-    return 0;
-  };
-
-  const subtotal =
-    fromCart && cartItems
-      ? cartItems.reduce(
-          (sum: number, item: any) =>
-            sum + getPriceValue(item.price) * (item.quantity || 1),
-          0
-        )
-      : getPriceValue(product.price);
+  // subtotal is now calculated above, reuse it here
+  const subtotal = currentSubtotal;
   const total = subtotal + shippingFee;
 
   // Address validation function
@@ -362,7 +463,8 @@ export default function CheckoutPage() {
     const payHereData = {
       sandbox: true, // set false in production
       merchant_id: data.merchantId,
-      return_url: window.location.origin + `/order-success?orderId=${data.orderId}`, // success page with order ID
+      return_url:
+        window.location.origin + `/order-success?orderId=${data.orderId}`, // success page with order ID
       cancel_url: window.location.origin + '/cart', // temporary cancel page
       notify_url: window.location.origin + '/api/payhere-notify', // placeholder, replace later
       order_id: data.orderId,
@@ -463,7 +565,8 @@ export default function CheckoutPage() {
         // Payment is not card (e.g., COD)
         console.log('Cash on Delivery selected.');
         // Get order ID from the response (different field names for different payment methods)
-        const orderId = orderDataFromServer.orderId || orderDataFromServer.order_id;
+        const orderId =
+          orderDataFromServer.orderId || orderDataFromServer.order_id;
         console.log('Order ID for COD:', orderId);
         // Redirect to order confirmation page
         window.location.href = `/order-success?orderId=${orderId}`;
@@ -962,15 +1065,13 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
+                  {/* Platform Fee (combined all charges) */}
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Transaction Fee</span>
+                    <span className="text-gray-600">Platform Fee</span>
                     <span className="font-medium">
                       LKR{' '}
-                      {platformCharges
-                        ? (
-                            subtotal *
-                            (platformCharges.transaction_fee.buyer / 100)
-                          ).toFixed(2)
+                      {calculatedCharges && calculatedCharges.totalCharges
+                        ? calculatedCharges.totalCharges.toFixed(2)
                         : '0.00'}
                     </span>
                   </div>
@@ -983,24 +1084,17 @@ export default function CheckoutPage() {
                   <span>Total</span>
                   <span className="text-blue-600">
                     LKR{' '}
-                    {(() => {
-                      const totalShipping =
-                        Object.keys(sellerGroups).length > 0
-                          ? Object.values(sellerGroups).reduce(
-                              (sum, group) => sum + group.shipping_fee,
-                              0
-                            )
-                          : shippingFee;
-                      const transactionFee = platformCharges
-                        ? subtotal *
-                          (platformCharges.transaction_fee.buyer / 100)
-                        : 0;
-                      return (
-                        subtotal +
-                        totalShipping +
-                        transactionFee
-                      ).toFixed(2);
-                    })()}
+                    {calculatedCharges
+                      ? calculatedCharges.finalTotal.toFixed(2)
+                      : (
+                          subtotal +
+                          (Object.keys(sellerGroups).length > 0
+                            ? Object.values(sellerGroups).reduce(
+                                (sum, group) => sum + group.shipping_fee,
+                                0
+                              )
+                            : shippingFee)
+                        ).toFixed(2)}
                   </span>
                 </div>
 

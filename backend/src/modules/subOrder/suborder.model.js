@@ -55,15 +55,30 @@ const subOrderSchema = new Schema(
       type: Number,
       required: true,
     },
+    // Platform charges breakdown (dynamic structure)
+    // Stores all fee types as key-value pairs for extensibility
     platformCharges: {
-      transactionFee: {
-        type: Number,
-        default: 0,
-      },
-      platformFee: {
-        type: Number,
-        default: 0,
-      },
+      type: Map,
+      of: Number,
+      default: new Map(),
+    },
+    // Also store as object for easier querying and compatibility
+    platformChargesObject: {
+      type: Schema.Types.Mixed,
+      default: {},
+    },
+    // Detailed breakdown for transparency
+    platformChargesBreakdown: {
+      type: [
+        {
+          name: { type: String, required: true },
+          amount: { type: Number, required: true },
+          description: { type: String, required: true },
+          type: { type: String, required: true }, // 'percentage' or 'fixed'
+          value: { type: Schema.Types.Mixed }, // The original value from config
+        },
+      ],
+      default: [],
     },
     finalTotal: {
       type: Number,

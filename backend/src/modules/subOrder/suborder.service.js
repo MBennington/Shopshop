@@ -47,17 +47,35 @@ module.exports.getSubOrdersByMainOrder = async (mainOrderId) => {
   console.log('Populated sub-orders:', JSON.stringify(subOrders, null, 2));
 
   // Transform the data to match expected structure
-  const transformedSubOrders = subOrders.map((subOrder) => ({
-    ...subOrder,
-    seller_info: {
-      ...subOrder.seller_id,
-      businessName: subOrder.seller_id?.sellerInfo?.businessName,
-    },
-    products_list: subOrder.products_list.map((product) => ({
-      ...product,
-      product_name: product.product_id?.name || 'Product Name Not Available',
-    })),
-  }));
+  const transformedSubOrders = subOrders.map((subOrder) => {
+    // Convert platformCharges Map to object if it exists
+    let platformChargesObj = {};
+    if (subOrder.platformCharges) {
+      if (subOrder.platformCharges instanceof Map) {
+        platformChargesObj = Object.fromEntries(subOrder.platformCharges);
+      } else if (typeof subOrder.platformCharges === 'object') {
+        platformChargesObj = subOrder.platformCharges;
+      }
+    }
+    // Use platformChargesObject if available, otherwise use converted Map
+    const finalPlatformCharges = subOrder.platformChargesObject || platformChargesObj;
+    
+    return {
+      ...subOrder,
+      seller_info: {
+        ...subOrder.seller_id,
+        businessName: subOrder.seller_id?.sellerInfo?.businessName,
+      },
+      products_list: subOrder.products_list.map((product) => ({
+        ...product,
+        product_name: product.product_id?.name || 'Product Name Not Available',
+      })),
+      // Ensure platformChargesObject is available for frontend
+      platformChargesObject: finalPlatformCharges,
+      // Keep backward compatibility
+      platformCharges: finalPlatformCharges,
+    };
+  });
 
   // console.log(
   //   'Transformed sub-orders:',

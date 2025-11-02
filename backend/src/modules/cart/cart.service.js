@@ -202,6 +202,9 @@ module.exports.getCartByUserId = async (userId) => {
     const sellerId = item.seller_id.toString();
     
     if (!sellers[sellerId]) {
+      // Use the shipping fee from the first item for this seller
+      // All items from the same seller should have the same shipping fee
+      const shippingFee = item.seller_baseShippingFee ?? platformCharges.shipping_fee.default;
       sellers[sellerId] = {
         seller_info: {
           _id: sellerId,
@@ -211,7 +214,7 @@ module.exports.getCartByUserId = async (userId) => {
         },
         products: [],
         subtotal: 0,
-        shipping_fee: item.seller_baseShippingFee || platformCharges.shipping_fee.default
+        shipping_fee: shippingFee
       };
     }
     

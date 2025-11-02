@@ -11,14 +11,13 @@ const { platformCharges } = require('../../config/platform-charges.config');
 const paymentService = require('../payment/payment.service');
 const subOrderService = require('../subOrder/suborder.service');
 const userService = require('../users/user.service');
+const { calculatePlatformCharges } = require('../../services/platform-charges.service');
 
 module.exports.createOrder = async (user_id, body) => {
   const { address, paymentMethod, fromCart, product } = body;
 
   let productsList = [];
   let subtotal = 0;
-  const buyer_transaction_fee_percentage =
-    platformCharges.transaction_fee.buyer;
 
   if (fromCart) {
     // Order from Cart
@@ -85,20 +84,32 @@ module.exports.createOrder = async (user_id, body) => {
     return acc;
   }, {});
 
-  // Calculate platform charges
-  const transactionFee = subtotal * buyer_transaction_fee_percentage;
-  const platformFee = 0; // Currently no platform fee for buyers
+  // Calculate shipping fees for all sellers first
+  let totalShippingFee = 0;
+  const sellerShippingFees = {};
+  
+  for (const [sellerId] of Object.entries(productsBySeller)) {
+    const seller = await userService.getUserById(sellerId);
+    const shippingFee = seller?.sellerInfo?.baseShippingFee ?? platformCharges.shipping_fee.default;
+    sellerShippingFees[sellerId] = shippingFee;
+    totalShippingFee += shippingFee;
+  }
 
-  // Create main order (finalTotal will be updated after calculating shipping)
+  // Calculate platform charges for buyer (main order level)
+  // Note: Shipping is handled per seller, not in main order charges
+  const buyerCharges = calculatePlatformCharges(subtotal, 'buyer', {
+    shippingFee: 0, // Shipping handled separately per seller
+  });
+
+  // Create main order with dynamic platform charges
   const newOrder = new OrderModel({
     user_id: user_id,
     products_list: productsList,
     totalPrice: subtotal,
-    platformCharges: {
-      transactionFee: transactionFee,
-      platformFee: platformFee,
-    },
-    finalTotal: subtotal + transactionFee + platformFee, // Will be updated with shipping
+    platformCharges: new Map(Object.entries(buyerCharges.charges)),
+    platformChargesObject: buyerCharges.charges,
+    platformChargesBreakdown: buyerCharges.chargesBreakdown,
+    finalTotal: buyerCharges.finalTotal + totalShippingFee, // Will include shipping in update
     shippingAddress: address,
     paymentMethod,
   });
@@ -110,22 +121,22 @@ module.exports.createOrder = async (user_id, body) => {
 
   // Create sub-orders for each seller
   const subOrders = [];
-  let totalShippingFee = 0;
   
   for (const [sellerId, sellerProducts] of Object.entries(productsBySeller)) {
-    // Fetch seller to get baseShippingFee
-    const seller = await userService.getUserById(sellerId);
-    const shippingFee = seller?.sellerInfo?.baseShippingFee ?? platformCharges.shipping_fee.default;
-    
     const sellerSubtotal = sellerProducts.reduce(
       (sum, item) => sum + item.subtotal,
       0
     );
-    const sellerTransactionFee =
-      sellerSubtotal * buyer_transaction_fee_percentage;
-    const sellerFinalTotal = sellerSubtotal + shippingFee + sellerTransactionFee;
     
-    totalShippingFee += shippingFee;
+    // Get shipping fee from pre-calculated values
+    const shippingFee = sellerShippingFees[sellerId];
+    
+    // Calculate platform charges for buyer at sub-order level (based on seller subtotal)
+    const subOrderBuyerCharges = calculatePlatformCharges(sellerSubtotal, 'buyer', {
+      shippingFee: 0, // Shipping handled separately
+    });
+
+    const sellerFinalTotal = sellerSubtotal + shippingFee + subOrderBuyerCharges.totalCharges;
 
     const subOrderData = {
       main_order_id: createdOrder._id,
@@ -135,10 +146,9 @@ module.exports.createOrder = async (user_id, body) => {
       shippingAddress: address,
       subtotal: sellerSubtotal,
       shipping_fee: shippingFee,
-      platformCharges: {
-        transactionFee: sellerTransactionFee,
-        platformFee: 0,
-      },
+      platformCharges: new Map(Object.entries(subOrderBuyerCharges.charges)),
+      platformChargesObject: subOrderBuyerCharges.charges,
+      platformChargesBreakdown: subOrderBuyerCharges.chargesBreakdown,
       finalTotal: sellerFinalTotal,
     };
 
@@ -147,7 +157,7 @@ module.exports.createOrder = async (user_id, body) => {
   }
 
   // Update main order with shipping included in finalTotal
-  const finalTotal = subtotal + totalShippingFee + transactionFee + platformFee;
+  const finalTotal = buyerCharges.finalTotal + totalShippingFee;
   await repository.updateOne(
     OrderModel,
     { _id: createdOrder._id },
