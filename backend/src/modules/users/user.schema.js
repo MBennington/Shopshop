@@ -31,6 +31,7 @@ const sellerInfoSchema = joi.object({
   contactDetails: contactDetailsSchema.optional(),
   businessDescription: joi.string().optional(),
   payouts: payoutsSchema.optional(),
+  baseShippingFee: joi.number().min(0).optional().allow(null),
 });
 
 const notificationsSchema = joi.object({

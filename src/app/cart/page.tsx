@@ -331,9 +331,26 @@ export default function CartPage() {
             ))}
           </div>
 
-        <div className="text-right mb-6">
+        <div className="text-right mb-6 space-y-2">
+          <div className="text-sm text-gray-600">
+            <p>Subtotal: LKR {cart.total.toFixed(2)}</p>
+            <p>
+              Shipping: LKR{' '}
+              {Object.values(cart.sellers).reduce(
+                (sum, seller) => sum + seller.shipping_fee,
+                0
+              ).toFixed(2)}
+            </p>
+          </div>
           <p className="text-xl font-bold">
-            Total: LKR {cart.total.toFixed(2)}
+            Grand Total: LKR{' '}
+            {(
+              cart.total +
+              Object.values(cart.sellers).reduce(
+                (sum, seller) => sum + seller.shipping_fee,
+                0
+              )
+            ).toFixed(2)}
           </p>
         </div>
 

@@ -139,35 +139,101 @@ export default function CheckoutPage() {
     };
   }, []);
 
-  // Group cart items by seller
+  // Fetch cart data from backend to get shipping fees per seller
   useEffect(() => {
-    if (fromCart && cartItems) {
-      const grouped: { [sellerId: string]: SellerGroup } = {};
+    if (fromCart) {
+      const fetchCartData = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          if (!token) return;
 
-      cartItems.forEach((item: CartItem) => {
-        const sellerId = item.seller_id || 'unknown';
-
-        if (!grouped[sellerId]) {
-          grouped[sellerId] = {
-            seller_info: {
-              _id: sellerId,
-              name: 'Seller', // Default name since we removed seller_name
-              businessName: item.business_name || 'Unknown Business',
-              profilePicture: item.seller_profile_picture ?? undefined,
+          const res = await fetch(`http://localhost:5000/api/cart/`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
             },
-            products: [],
-            subtotal: 0,
-            shipping_fee: 100, // Default shipping fee
-          };
+          });
+
+          const json = await res.json();
+          if (res.ok && json.data && json.data.sellers) {
+            // Transform backend data to match UI expectations
+            const transformedSellers: { [sellerId: string]: SellerGroup } = {};
+            Object.entries(json.data.sellers).forEach(([sellerId, sellerGroup]: [string, any]) => {
+              // Get seller profile picture from seller_info or fallback to first product's seller_profile_picture
+              const profilePicture = sellerGroup.seller_info?.profilePicture || 
+                                     sellerGroup.products[0]?.seller_profile_picture || 
+                                     null;
+              
+              transformedSellers[sellerId] = {
+                seller_info: {
+                  ...sellerGroup.seller_info,
+                  profilePicture: profilePicture,
+                },
+                products: sellerGroup.products.map((item: any) => ({
+                  id: item.product_id,
+                  name: item.productName,
+                  price: item.basePrice,
+                  category: item.category,
+                  image: item.images && item.images.length > 0 ? item.images[0] : '/placeholder.png',
+                  quantity: item.quantity,
+                  size: item.size,
+                  color: item.color,
+                  subtotal: item.subtotal,
+                  seller_id: item.seller_id,
+                  business_name: item.business_name,
+                  seller_profile_picture: item.seller_profile_picture,
+                })),
+                subtotal: sellerGroup.subtotal,
+                shipping_fee: sellerGroup.shipping_fee,
+              };
+            });
+            setSellerGroups(transformedSellers);
+          }
+        } catch (error) {
+          console.error('Failed to fetch cart data:', error);
+          // Fallback to manual grouping if fetch fails
+          if (cartItems) {
+            const grouped: { [sellerId: string]: SellerGroup } = {};
+            cartItems.forEach((item: CartItem) => {
+              const sellerId = item.seller_id || 'unknown';
+              if (!grouped[sellerId]) {
+                grouped[sellerId] = {
+                  seller_info: {
+                    _id: sellerId,
+                    name: 'Seller',
+                    businessName: item.business_name || 'Unknown Business',
+                    profilePicture: item.seller_profile_picture ?? undefined,
+                  },
+                  products: [],
+                  subtotal: 0,
+                  shipping_fee: 100, // Default fallback
+                };
+              }
+              grouped[sellerId].products.push(item);
+              grouped[sellerId].subtotal += item.subtotal;
+            });
+            setSellerGroups(grouped);
+          }
         }
+      };
 
-        grouped[sellerId].products.push(item);
-        grouped[sellerId].subtotal += item.subtotal;
-      });
-
-      setSellerGroups(grouped);
+      fetchCartData();
+    } else if (product && !fromCart) {
+      // Buy Now flow - need to fetch seller shipping fee
+      const fetchSellerShipping = async () => {
+        try {
+          // For Buy Now, we'll need seller_id from product
+          // Assuming product has seller info or we need to fetch it
+          // For now, use default - we can enhance this later
+          const grouped: { [sellerId: string]: SellerGroup } = {};
+          // This will be handled when we have seller_id in product data
+        } catch (error) {
+          console.error('Failed to fetch seller shipping:', error);
+        }
+      };
     }
-  }, [fromCart, cartItems]);
+  }, [fromCart, cartItems, product]);
 
   useEffect(() => {
     // Set default selections

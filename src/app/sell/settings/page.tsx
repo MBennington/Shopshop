@@ -47,6 +47,7 @@ interface FormData {
       accountNumber?: string;
       routingNumber?: string;
     };
+    baseShippingFee?: number | null;
   };
 }
 
@@ -81,6 +82,7 @@ export default function SettingsPage() {
         accountNumber: '',
         routingNumber: '',
       },
+      baseShippingFee: null,
     },
     notifications: {
       orderUpdates: true,
@@ -135,6 +137,7 @@ export default function SettingsPage() {
             accountNumber: user.sellerInfo?.payouts?.accountNumber || '',
             routingNumber: user.sellerInfo?.payouts?.routingNumber || '',
           },
+          baseShippingFee: user.sellerInfo?.baseShippingFee ?? null,
         },
         notifications: {
           orderUpdates: user.notifications?.orderUpdates ?? true,
@@ -163,15 +166,18 @@ export default function SettingsPage() {
       name === 'businessName' ||
       name === 'phone' ||
       name === 'businessType' ||
-      name === 'businessDescription'
+      name === 'businessDescription' ||
+      name === 'baseShippingFee'
     ) {
-      setFormData((prev) => ({
-        ...prev,
-        sellerInfo: {
-          ...prev.sellerInfo,
-          [name]: value,
-        },
-      }));
+        setFormData((prev) => ({
+          ...prev,
+          sellerInfo: {
+            ...prev.sellerInfo,
+            [name]: name === 'baseShippingFee' 
+              ? (value === '' ? null : parseFloat(value) || null)
+              : value,
+          },
+        }));
     } else if (
       name === 'address' ||
       name === 'city' ||
@@ -334,6 +340,11 @@ export default function SettingsPage() {
         )
       ) {
         sellerInfoDiff.businessType = formData.sellerInfo?.businessType;
+      }
+      if (
+        formData.sellerInfo?.baseShippingFee !== user?.sellerInfo?.baseShippingFee
+      ) {
+        sellerInfoDiff.baseShippingFee = formData.sellerInfo?.baseShippingFee;
       }
       if (
         isChangedNonEmpty(
@@ -801,6 +812,26 @@ export default function SettingsPage() {
                             {formErrors.businessType}
                           </p>
                         )}
+                      </label>
+                    </div>
+                    <div className="flex max-w-[480px] flex-wrap items-end gap-4 px-4 py-3">
+                      <label className="flex flex-col min-w-40 flex-1">
+                        <p className="text-[#121416] text-base font-medium leading-normal pb-2">
+                          Base Shipping Fee (LKR)
+                        </p>
+                        <input
+                          name="baseShippingFee"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={formData.sellerInfo?.baseShippingFee ?? ''}
+                          onChange={handleInputChange}
+                          placeholder="e.g., 100.00"
+                          className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#121416] focus:outline-0 focus:ring-0 border bg-white focus:border-[#dde0e3] h-14 placeholder:text-[#6a7581] p-[15px] text-base font-normal leading-normal border-[#dde0e3]"
+                        />
+                        <p className="mt-1 text-xs text-[#6a7581]">
+                          Leave empty to use platform default (LKR 100.00)
+                        </p>
                       </label>
                     </div>
                     <div className="flex max-w-[480px] flex-wrap items-end gap-4 px-4 py-3">
