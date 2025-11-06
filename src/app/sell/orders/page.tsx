@@ -29,11 +29,9 @@ interface SubOrder {
   shipping_fee: number;
   tracking_number?: string;
   subtotal: number;
-  platformCharges: {
-    transactionFee: number;
-    platformFee: number;
-  };
-  finalTotal: number;
+  // Platform charges are buyer fees only, not relevant to sellers
+  // Sub-orders only contain seller totals (products + shipping)
+  finalTotal: number; // Seller total = subtotal + shipping_fee
   orderStatus: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   seller_payment_status: 'pending' | 'held' | 'released' | 'refunded';
   delivery_status: 'pending' | 'confirmed' | 'disputed';

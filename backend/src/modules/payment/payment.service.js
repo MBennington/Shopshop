@@ -58,7 +58,7 @@ module.exports.initiatePayment = async (order_id) => {
     throw new Error('Order not found!');
   }
 
-  const amount = order.totalPrice;
+  const amount = order.finalTotal;
   const currency = 'LKR';
 
   // Generate PayHere hash
@@ -83,15 +83,26 @@ module.exports.initiatePayment = async (order_id) => {
 };
 
 module.exports.findPaymentByOrderId = async (order_id, payment_status) => {
-  return await repository.findOne(PaymentModel, { order_id, paymentStatus: payment_status });
+  return await repository.findOne(PaymentModel, {
+    order_id,
+    paymentStatus: payment_status,
+  });
 };
 
 module.exports.updatePaymentStatus = async (paymentData) => {
-  const { order_id, payment_id, status, amount, currency, method, status_message } = paymentData;
+  const {
+    order_id,
+    payment_id,
+    status,
+    amount,
+    currency,
+    method,
+    status_message,
+  } = paymentData;
 
   // Find the payment record by order_id
   const payment = await repository.findOne(PaymentModel, { order_id });
-  
+
   if (!payment) {
     throw new Error('Payment record not found');
   }

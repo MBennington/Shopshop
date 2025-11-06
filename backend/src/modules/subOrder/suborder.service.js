@@ -47,17 +47,21 @@ module.exports.getSubOrdersByMainOrder = async (mainOrderId) => {
   console.log('Populated sub-orders:', JSON.stringify(subOrders, null, 2));
 
   // Transform the data to match expected structure
-  const transformedSubOrders = subOrders.map((subOrder) => ({
-    ...subOrder,
-    seller_info: {
-      ...subOrder.seller_id,
-      businessName: subOrder.seller_id?.sellerInfo?.businessName,
-    },
-    products_list: subOrder.products_list.map((product) => ({
-      ...product,
-      product_name: product.product_id?.name || 'Product Name Not Available',
-    })),
-  }));
+  const transformedSubOrders = subOrders.map((subOrder) => {
+    return {
+      ...subOrder,
+      seller_info: {
+        ...subOrder.seller_id,
+        businessName: subOrder.seller_id?.sellerInfo?.businessName,
+      },
+      products_list: subOrder.products_list.map((product) => ({
+        ...product,
+        product_name: product.product_id?.name || 'Product Name Not Available',
+      })),
+      // Platform charges are buyer fees only, not stored in sub-orders
+      // Sub-orders only contain seller totals (products + shipping)
+    };
+  });
 
   // console.log(
   //   'Transformed sub-orders:',

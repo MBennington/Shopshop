@@ -4,6 +4,7 @@ const userService = require('../users/user.service');
 const mongoose = require('mongoose');
 const repository = require('../../services/repository.service');
 const productService = require('../products/product.service');
+const { platformCharges } = require('../../config/platform-charges.config');
 
 /**
  * Add or Update Cart
@@ -151,6 +152,12 @@ module.exports.getCartByUserId = async (userId) => {
         'products_list.seller_id': '$products_list.seller_id',
         'products_list.business_name': '$products_list.business_name',
         'products_list.seller_profile_picture': '$seller.profilePicture',
+        'products_list.seller_baseShippingFee': {
+          $ifNull: [
+            '$seller.sellerInfo.baseShippingFee',
+            100
+          ]
+        },
       },
     },
     {
@@ -169,6 +176,7 @@ module.exports.getCartByUserId = async (userId) => {
         'products_list.seller_id': 1,
         'products_list.business_name': 1,
         'products_list.seller_profile_picture': 1,
+        'products_list.seller_baseShippingFee': 1,
       },
     },
     {
@@ -194,6 +202,9 @@ module.exports.getCartByUserId = async (userId) => {
     const sellerId = item.seller_id.toString();
     
     if (!sellers[sellerId]) {
+      // Use the shipping fee from the first item for this seller
+      // All items from the same seller should have the same shipping fee
+      const shippingFee = item.seller_baseShippingFee ?? platformCharges.shipping_fee.default;
       sellers[sellerId] = {
         seller_info: {
           _id: sellerId,
@@ -203,7 +214,7 @@ module.exports.getCartByUserId = async (userId) => {
         },
         products: [],
         subtotal: 0,
-        shipping_fee: 100 // Default shipping fee
+        shipping_fee: shippingFee
       };
     }
     

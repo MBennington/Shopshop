@@ -66,6 +66,11 @@ const userSchema = new Schema(
         accountNumber: { type: String },
         routingNumber: { type: String },
       },
+      baseShippingFee: {
+        type: Number,
+        default: null,
+        min: 0,
+      },
     },
   },
   {

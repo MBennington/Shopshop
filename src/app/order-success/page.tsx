@@ -163,13 +163,44 @@ export default function OrderSuccessPage() {
                         LKR {orderDetails.totalPrice?.toFixed(2)}
                       </p>
                     </div>
+                    {/* Calculate total shipping from sub-orders */}
+                    {subOrders.length > 0 && (
+                      <div>
+                        <p className="text-sm text-gray-600">Shipping</p>
+                        <p className="font-semibold">
+                          LKR{' '}
+                          {subOrders
+                            .reduce(
+                              (sum, subOrder) =>
+                                sum + (subOrder.shipping_fee || 0),
+                              0
+                            )
+                            .toFixed(2)}
+                        </p>
+                      </div>
+                    )}
+                    {/* Platform Fee - use new structure */}
                     <div>
-                      <p className="text-sm text-gray-600">Transaction Fee</p>
+                      <p className="text-sm text-gray-600">Platform Fee</p>
                       <p className="font-semibold">
                         LKR{' '}
-                        {orderDetails.platformCharges?.transactionFee?.toFixed(
-                          2
-                        ) || '0.00'}
+                        {(() => {
+                          // Try new structure first
+                          if (orderDetails.platformChargesObject) {
+                            const total = Object.values(
+                              orderDetails.platformChargesObject
+                            ).reduce((sum: number, fee: any) => sum + (fee || 0), 0);
+                            return total.toFixed(2);
+                          }
+                          // Fallback to old structure for backward compatibility
+                          if (orderDetails.platformCharges) {
+                            const oldTotal =
+                              (orderDetails.platformCharges.transactionFee || 0) +
+                              (orderDetails.platformCharges.platformFee || 0);
+                            return oldTotal.toFixed(2);
+                          }
+                          return '0.00';
+                        })()}
                       </p>
                     </div>
                     <div>
