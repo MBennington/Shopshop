@@ -154,14 +154,18 @@ export default function CheckoutPage() {
   const currentCartKey = useMemo(() => {
     // Create a unique key for the current cart based on items
     if (cartItems && Array.isArray(cartItems)) {
-      return cartItems.map(item => `${item.id}-${item.quantity}`).join(',');
+      return cartItems.map((item) => `${item.id}-${item.quantity}`).join(',');
     }
     return null;
   }, [cartItems]);
 
   // Fetch cart data from backend to get shipping fees per seller
   useEffect(() => {
-    if (fromCart && currentCartKey && cartDataFetched.current !== currentCartKey) {
+    if (
+      fromCart &&
+      currentCartKey &&
+      cartDataFetched.current !== currentCartKey
+    ) {
       cartDataFetched.current = currentCartKey;
       const fetchCartData = async () => {
         try {
@@ -286,8 +290,8 @@ export default function CheckoutPage() {
     return 0;
   };
 
-  // Calculate subtotal - memoized to prevent recalculation loops
-  const currentSubtotal = useMemo(() => {
+  // Calculate product subtotal (products only, no shipping) - for platform fee calculation
+  const productSubtotal = useMemo(() => {
     if (fromCart && cartItems) {
       // If we have seller groups, calculate from them (more accurate)
       if (Object.keys(sellerGroups).length > 0) {
@@ -308,7 +312,34 @@ export default function CheckoutPage() {
     return 0;
   }, [fromCart, cartItems, sellerGroups, product]);
 
-  // Calculate charges when subtotal or seller groups change
+  // Calculate display subtotal (products + shipping) - sum of all seller totals
+  const displaySubtotal = useMemo(() => {
+    if (fromCart && cartItems) {
+      // If we have seller groups, calculate sum of seller totals (products + shipping)
+      if (Object.keys(sellerGroups).length > 0) {
+        return Object.values(sellerGroups).reduce(
+          (sum, group) => sum + group.subtotal + group.shipping_fee,
+          0
+        );
+      }
+      // Fallback: product subtotal + shipping (when seller groups not available)
+      return productSubtotal + shippingFee;
+    } else if (product) {
+      // Single product: product price + shipping
+      return productSubtotal + shippingFee;
+    }
+    return 0;
+  }, [
+    fromCart,
+    cartItems,
+    sellerGroups,
+    product,
+    productSubtotal,
+    shippingFee,
+  ]);
+
+  // Calculate charges when product subtotal or seller groups change
+  // Note: Platform fees are calculated on product prices only (not including shipping)
   useEffect(() => {
     if (platformChargesConfig && platformChargesConfig.buyerFees) {
       const totalShipping =
@@ -319,7 +350,7 @@ export default function CheckoutPage() {
             )
           : shippingFee;
 
-      // Calculate all buyer fees dynamically
+      // Calculate all buyer fees dynamically based on product prices only
       const charges: { [key: string]: number } = {};
       let totalCharges = 0;
 
@@ -327,7 +358,8 @@ export default function CheckoutPage() {
         if (fee.value > 0) {
           let feeAmount = 0;
           if (fee.type === 'percentage') {
-            feeAmount = currentSubtotal * fee.value;
+            // Platform fees calculated on product prices only (not shipping)
+            feeAmount = productSubtotal * fee.value;
           } else if (fee.type === 'fixed') {
             feeAmount = fee.value;
           }
@@ -339,16 +371,19 @@ export default function CheckoutPage() {
         }
       });
 
+      // Final total = display subtotal (products + shipping) + platform fees
       setCalculatedCharges({
         charges,
         totalCharges,
-        subtotal: currentSubtotal,
+        subtotal: displaySubtotal, // Display subtotal includes shipping
+        productSubtotal, // Keep product subtotal for reference
         shipping: totalShipping,
-        finalTotal: currentSubtotal + totalShipping + totalCharges,
+        finalTotal: displaySubtotal + totalCharges,
       });
     }
   }, [
-    currentSubtotal,
+    productSubtotal,
+    displaySubtotal,
     sellerGroups,
     platformChargesConfig,
     shippingFee,
@@ -425,9 +460,8 @@ export default function CheckoutPage() {
     );
   }
 
-  // subtotal is now calculated above, reuse it here
-  const subtotal = currentSubtotal;
-  const total = subtotal + shippingFee;
+  // Use display subtotal (includes shipping) for display
+  const subtotal = displaySubtotal;
 
   // Address validation function
   const isAddressComplete = (): boolean => {
@@ -893,14 +927,14 @@ export default function CheckoutPage() {
                                     </p>
                                   </div>
                                 </div>
-                                <div className="text-right">
+                                {/* <div className="text-right">
                                   <p className="text-xs text-gray-600">
                                     Subtotal
                                   </p>
                                   <p className="font-semibold text-sm">
                                     LKR {sellerGroup.subtotal.toFixed(2)}
                                   </p>
-                                </div>
+                                </div> */}
                               </div>
 
                               {/* Products */}
@@ -1034,7 +1068,7 @@ export default function CheckoutPage() {
                     </span>
                   </div>
 
-                  {/* Seller-specific shipping */}
+                  {/* Seller-specific shipping
                   {Object.keys(sellerGroups).length > 0 ? (
                     <div className="space-y-2">
                       <div className="text-sm text-gray-600">
@@ -1063,7 +1097,7 @@ export default function CheckoutPage() {
                         LKR {shippingFee.toFixed(2)}
                       </span>
                     </div>
-                  )}
+                  )} */}
 
                   {/* Platform Fee (combined all charges) */}
                   <div className="flex justify-between text-sm">
@@ -1087,13 +1121,7 @@ export default function CheckoutPage() {
                     {calculatedCharges
                       ? calculatedCharges.finalTotal.toFixed(2)
                       : (
-                          subtotal +
-                          (Object.keys(sellerGroups).length > 0
-                            ? Object.values(sellerGroups).reduce(
-                                (sum, group) => sum + group.shipping_fee,
-                                0
-                              )
-                            : shippingFee)
+                          subtotal + (calculatedCharges?.totalCharges || 0)
                         ).toFixed(2)}
                   </span>
                 </div>

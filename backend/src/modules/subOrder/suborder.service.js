@@ -48,18 +48,6 @@ module.exports.getSubOrdersByMainOrder = async (mainOrderId) => {
 
   // Transform the data to match expected structure
   const transformedSubOrders = subOrders.map((subOrder) => {
-    // Convert platformCharges Map to object if it exists
-    let platformChargesObj = {};
-    if (subOrder.platformCharges) {
-      if (subOrder.platformCharges instanceof Map) {
-        platformChargesObj = Object.fromEntries(subOrder.platformCharges);
-      } else if (typeof subOrder.platformCharges === 'object') {
-        platformChargesObj = subOrder.platformCharges;
-      }
-    }
-    // Use platformChargesObject if available, otherwise use converted Map
-    const finalPlatformCharges = subOrder.platformChargesObject || platformChargesObj;
-    
     return {
       ...subOrder,
       seller_info: {
@@ -70,10 +58,8 @@ module.exports.getSubOrdersByMainOrder = async (mainOrderId) => {
         ...product,
         product_name: product.product_id?.name || 'Product Name Not Available',
       })),
-      // Ensure platformChargesObject is available for frontend
-      platformChargesObject: finalPlatformCharges,
-      // Keep backward compatibility
-      platformCharges: finalPlatformCharges,
+      // Platform charges are buyer fees only, not stored in sub-orders
+      // Sub-orders only contain seller totals (products + shipping)
     };
   });
 
