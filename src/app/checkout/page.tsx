@@ -91,7 +91,7 @@ export default function CheckoutPage() {
 
   const [selectedAddress, setSelectedAddress] = useState<string>('');
   const [selectedPayment, setSelectedPayment] = useState<string>('');
-  const [shippingFee, setShippingFee] = useState(5.99);
+  const [shippingFee, setShippingFee] = useState(100); // Platform default, will be updated from seller data
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [payHereReady, setPayHereReady] = useState(false);
   const [platformChargesConfig, setPlatformChargesConfig] = useState<any>(null);
@@ -99,6 +99,11 @@ export default function CheckoutPage() {
   const [sellerGroups, setSellerGroups] = useState<{
     [sellerId: string]: SellerGroup;
   }>({});
+  const [buyNowSellerInfo, setBuyNowSellerInfo] = useState<{
+    businessName: string;
+    name: string;
+    profilePicture?: string | null;
+  } | null>(null);
 
   // Transform user's saved addresses to match our interface
   const savedAddresses: Address[] = (user?.savedAddresses ?? []).map(
@@ -263,6 +268,54 @@ export default function CheckoutPage() {
     }
   }, [fromCart, currentCartKey]);
 
+  // Fetch product details for Buy Now flow to get shipping fee and seller info
+  useEffect(() => {
+    if (!fromCart && product?.id) {
+      const fetchProductDetails = async () => {
+        try {
+          const res = await fetch(
+            `http://localhost:5000/api/products/details/${product.id}`
+          );
+          const json = await res.json();
+          if (res.ok && json.data && json.data.seller) {
+            // Update shipping fee from seller's baseShippingFee or use platform default
+            // Handle null, undefined, or 0 values
+            const sellerShippingFee =
+              json.data.seller.baseShippingFee != null &&
+              json.data.seller.baseShippingFee !== undefined
+                ? json.data.seller.baseShippingFee
+                : 100; // Platform default
+            setShippingFee(sellerShippingFee);
+            
+            // Store seller info for display
+            setBuyNowSellerInfo({
+              businessName: json.data.seller.businessName || json.data.seller.name,
+              name: json.data.seller.name,
+              profilePicture: json.data.seller.profilePicture || json.data.seller.avatar || null,
+            });
+          } else {
+            // If fetch fails, use platform default
+            setShippingFee(100);
+            setBuyNowSellerInfo(null);
+          }
+        } catch (error) {
+          console.error('Failed to fetch product details:', error);
+          // Use platform default on error
+          setShippingFee(100);
+          setBuyNowSellerInfo(null);
+        }
+      };
+      fetchProductDetails();
+    } else if (!fromCart) {
+      // If no product ID, use platform default
+      setShippingFee(100);
+      setBuyNowSellerInfo(null);
+    } else {
+      // Reset when switching to cart mode
+      setBuyNowSellerInfo(null);
+    }
+  }, [fromCart, product?.id]);
+
   // Fetch platform charges configuration
   useEffect(() => {
     const fetchPlatformCharges = async () => {
@@ -307,7 +360,8 @@ export default function CheckoutPage() {
         0
       );
     } else if (product) {
-      return getPriceValue(product.price);
+      // For Buy Now: multiply price by quantity
+      return getPriceValue(product.price) * (product.quantity || 1);
     }
     return 0;
   }, [fromCart, cartItems, sellerGroups, product]);
@@ -1035,24 +1089,92 @@ export default function CheckoutPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <div className="w-16 h-16 relative rounded-lg overflow-hidden bg-white">
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="object-cover w-full h-full"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-900 text-sm">
-                        {product.name}
-                      </h4>
-                      <p className="text-xs text-gray-600">
-                        {product.category}
-                      </p>
-                      <p className="text-sm font-semibold text-blue-600">
-                        {`LKR ${product.price}` || 'Price not available'}
-                      </p>
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-gray-900">
+                      Order Summary (1 item)
+                    </h4>
+                    {/* Seller Group for Buy Now */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      {/* Seller Header */}
+                      {buyNowSellerInfo && (
+                        <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
+                              {buyNowSellerInfo.profilePicture ? (
+                                <img
+                                  src={buyNowSellerInfo.profilePicture}
+                                  alt={buyNowSellerInfo.businessName}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-blue-600 font-semibold text-xs">
+                                  {buyNowSellerInfo.businessName.charAt(0)}
+                                </span>
+                              )}
+                            </div>
+                            <div>
+                              <h5 className="font-semibold text-gray-900 text-sm">
+                                {buyNowSellerInfo.businessName}
+                              </h5>
+                              <p className="text-xs text-gray-600">
+                                {buyNowSellerInfo.name}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Product */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-3 p-2 bg-white rounded-lg">
+                          <div className="w-12 h-12 relative rounded-lg overflow-hidden bg-gray-100">
+                            <img
+                              src={product.image || '/placeholder.png'}
+                              alt={product.name}
+                              className="object-cover w-full h-full"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <h6 className="font-medium text-gray-900 text-xs">
+                              {product.name}
+                            </h6>
+                            <p className="text-xs text-gray-600">
+                              Qty: {product.quantity || 1} × LKR{' '}
+                              {getPriceValue(product.price).toFixed(2)}
+                            </p>
+                          </div>
+                          <p className="text-xs font-semibold text-blue-600">
+                            LKR{' '}
+                            {(
+                              getPriceValue(product.price) *
+                              (product.quantity || 1)
+                            ).toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Seller Summary */}
+                      <div className="mt-3 pt-2 border-t border-gray-200 flex justify-between items-center">
+                        <div className="text-xs text-gray-600">
+                          <p>Items: 1</p>
+                          <p>
+                            Shipping: LKR {shippingFee.toFixed(2)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-600">
+                            Seller Total
+                          </p>
+                          <p className="font-bold text-sm text-blue-600">
+                            LKR{' '}
+                            {(
+                              getPriceValue(product.price) *
+                                (product.quantity || 1) +
+                              shippingFee
+                            ).toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
