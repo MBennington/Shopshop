@@ -481,7 +481,8 @@ module.exports.getProductDetails = async (productId) => {
       email: seller.email,
       avatar: seller.avatar,
       role: seller.role,
-      businessName: seller.businessName,
+      businessName: seller.sellerInfo.businessName,
+      baseShippingFee: seller.sellerInfo.baseShippingFee,
     },
     reviews: reviewSummary,
   };

@@ -36,6 +36,7 @@ interface Seller {
   _id: string;
   name: string;
   businessName: string;
+  baseShippingFee?: number;
 }
 
 interface Review {
@@ -600,6 +601,14 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                   </p>
                   <p className="text-[#121416] text-sm font-normal leading-normal">
                     {product.totalInventory} units
+                  </p>
+                </div>
+                <div className="col-span-2 grid grid-cols-subgrid border-t border-t-[#dde0e3] py-5">
+                  <p className="text-[#6a7581] text-sm font-normal leading-normal">
+                    Shipping Fee
+                  </p>
+                  <p className="text-[#121416] text-sm font-normal leading-normal">
+                    LKR {seller.baseShippingFee?.toFixed(2) || '100.00'}
                   </p>
                 </div>
               </div>
