@@ -1,10 +1,10 @@
-require("dotenv").config();
+require('dotenv').config();
 
-const express = require("express");
-const cors = require("cors");
-const http = require("http");
+const express = require('express');
+const cors = require('cors');
+const http = require('http');
 
-const { createDBConnection } = require("./src/services/db-connection.service");
+const { createDBConnection } = require('./src/services/db-connection.service');
 
 const httpPort = process.env.HTTP_PORT || 5000;
 
@@ -15,16 +15,20 @@ createDBConnection();
 const server = express();
 
 // Enable CORS with config
-server.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
-  credentials: true
-}));
+server.use(
+  cors({
+    origin: process.env.FRONTEND_URL || '*',
+    credentials: true,
+  })
+);
 
 // Body parser middleware
 server.use(express.json());
 
+server.use(express.urlencoded({ extended: true }));
+
 // Load routes
-server.use("/api", require("./routes"));
+server.use('/api', require('./routes'));
 
 // Create http server
 const httpServer = http.createServer(server);

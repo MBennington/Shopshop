@@ -286,12 +286,16 @@ export default function CheckoutPage() {
                 ? json.data.seller.baseShippingFee
                 : 100; // Platform default
             setShippingFee(sellerShippingFee);
-            
+
             // Store seller info for display
             setBuyNowSellerInfo({
-              businessName: json.data.seller.businessName || json.data.seller.name,
+              businessName:
+                json.data.seller.businessName || json.data.seller.name,
               name: json.data.seller.name,
-              profilePicture: json.data.seller.profilePicture || json.data.seller.avatar || null,
+              profilePicture:
+                json.data.seller.profilePicture ||
+                json.data.seller.avatar ||
+                null,
             });
           } else {
             // If fetch fails, use platform default
@@ -554,7 +558,8 @@ export default function CheckoutPage() {
       return_url:
         window.location.origin + `/order-success?orderId=${data.orderId}`, // success page with order ID
       cancel_url: window.location.origin + '/cart', // temporary cancel page
-      notify_url: window.location.origin + '/api/payhere-notify', // placeholder, replace later
+      notify_url:
+        'https://isothiocyano-edmund-isentropic.ngrok-free.dev/api/payment/webhook', // placeholder, replace later
       order_id: data.orderId,
       items: 'Order Payment',
       amount: Number(data.amount).toFixed(2),
@@ -1157,14 +1162,10 @@ export default function CheckoutPage() {
                       <div className="mt-3 pt-2 border-t border-gray-200 flex justify-between items-center">
                         <div className="text-xs text-gray-600">
                           <p>Items: 1</p>
-                          <p>
-                            Shipping: LKR {shippingFee.toFixed(2)}
-                          </p>
+                          <p>Shipping: LKR {shippingFee.toFixed(2)}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-xs text-gray-600">
-                            Seller Total
-                          </p>
+                          <p className="text-xs text-gray-600">Seller Total</p>
                           <p className="font-bold text-sm text-blue-600">
                             LKR{' '}
                             {(

@@ -1,11 +1,13 @@
 const express = require('express');
-const router = express.Router();
-const paymentController = require('./payment.controller');
 
-// Update payment status endpoint
-router.post('/update-status', paymentController.updatePaymentStatus);
+const router = express.Router();
+
+const { permissions } = require('./payment.permission');
+const controller = require('./payment.controller');
+const schema = require('./payment.schema');
+
+router
+  .route(permissions.updatePaymentStatus.path)
+  .post(controller.updatePaymentStatus);
 
 module.exports = router;
-
-
-

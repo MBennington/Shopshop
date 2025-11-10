@@ -23,7 +23,7 @@ module.exports.createSubOrder = async (subOrderData) => {
  * @returns {Promise<Array>}
  */
 module.exports.getSubOrdersByMainOrder = async (mainOrderId) => {
-  console.log('Getting sub-orders for main order:', mainOrderId);
+  //console.log('Getting sub-orders for main order:', mainOrderId);
 
   // Check if mainOrderId is a valid ObjectId
   if (!mongoose.Types.ObjectId.isValid(mainOrderId)) {
@@ -35,8 +35,8 @@ module.exports.getSubOrdersByMainOrder = async (mainOrderId) => {
   const rawSubOrders = await SubOrderModel.find({
     main_order_id: mainOrderId,
   }).lean();
-  console.log('Raw sub-orders found:', rawSubOrders.length);
-  console.log('Raw sub-orders data:', JSON.stringify(rawSubOrders, null, 2));
+  //console.log('Raw sub-orders found:', rawSubOrders.length);
+  //console.log('Raw sub-orders data:', JSON.stringify(rawSubOrders, null, 2));
 
   // Now try with populate
   const subOrders = await SubOrderModel.find({ main_order_id: mainOrderId })
@@ -44,7 +44,7 @@ module.exports.getSubOrdersByMainOrder = async (mainOrderId) => {
     .populate('products_list.product_id', 'name')
     .lean();
 
-  console.log('Populated sub-orders:', JSON.stringify(subOrders, null, 2));
+  //console.log('Populated sub-orders:', JSON.stringify(subOrders, null, 2));
 
   // Transform the data to match expected structure
   const transformedSubOrders = subOrders.map((subOrder) => {

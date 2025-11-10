@@ -3,6 +3,7 @@ const repository = require('../../services/repository.service');
 const { paymentStatus, paymentMethod } = require('../../config/order.config');
 const orderService = require('../order/order.service');
 const md5 = require('crypto-js/md5');
+const mongoose = require('mongoose');
 
 module.exports.createPayment = async (paymentInfo) => {
   const { user_id, payment_method, order_id, amount } = paymentInfo;
@@ -89,32 +90,25 @@ module.exports.findPaymentByOrderId = async (order_id, payment_status) => {
   });
 };
 
-module.exports.updatePaymentStatus = async (paymentData) => {
-  const {
-    order_id,
-    payment_id,
-    status,
-    amount,
-    currency,
-    method,
-    status_message,
-  } = paymentData;
+module.exports.updatePaymentStatus = async (data) => {
+  const { order_id, status_code, payment_id, status_message, method } = data;
 
-  // Find the payment record by order_id
-  const payment = await repository.findOne(PaymentModel, { order_id });
+  let status;
+  if (status_code == 2) status = paymentStatus.PAID;
+  else if (status_code == -2) status = paymentStatus.FAILED;
+  else status = paymentStatus.PENDING;
 
-  if (!payment) {
-    throw new Error('Payment record not found');
-  }
+  const updatedPayment = await repository.updateOne(
+    PaymentModel,
+    { order_id: new mongoose.Types.ObjectId(order_id) },
+    {
+      paymentStatus: status,
+      payhere_payment_id: payment_id,
+      method,
+      status_message,
+    },
+    { new: true }
+  );
 
-  // Update payment status and additional data
-  payment.paymentStatus = status;
-  payment.payment_id = payment_id;
-  payment.amount = amount || payment.amount;
-  payment.currency = currency || 'LKR';
-  payment.method = method;
-  payment.status_message = status_message;
-
-  const updatedPayment = await repository.save(payment);
   return updatedPayment;
 };
