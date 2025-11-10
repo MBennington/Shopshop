@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 const SubOrderModel = require('./suborder.model');
+const OrderModel = require('../order/order.model');
+const PaymentModel = require('../payment/payment.model');
 const repository = require('../../services/repository.service');
 const {
   subOrderStatus,
@@ -79,17 +81,75 @@ module.exports.getSubOrdersByMainOrder = async (mainOrderId) => {
 module.exports.getSubOrdersBySeller = async (sellerId, queryParams) => {
   const { page = 1, limit = 10, status } = queryParams;
 
-  const filter = { seller_id: sellerId };
+  const filter = { seller_id: new mongoose.Types.ObjectId(sellerId) };
   if (status) {
     filter.orderStatus = status;
   }
 
   const skip = (page - 1) * limit;
 
-  return await repository.findMany(SubOrderModel, filter, null, {
-    skip,
-    limit: parseInt(limit),
+  // Find sub-orders with populated buyer, product, and main order information
+  const subOrders = await SubOrderModel.find(filter)
+    .populate('buyer_id', 'name email profilePicture')
+    .populate('main_order_id', 'paymentMethod paymentStatus orderStatus')
+    .populate('products_list.product_id', 'name images price')
+    .sort({ created_at: -1 })
+    .skip(skip)
+    .limit(parseInt(limit))
+    .lean();
+
+  // Get payment information for each main order
+  const mainOrderIds = [...new Set(subOrders.map(so => so.main_order_id?._id || so.main_order_id))];
+  const payments = await PaymentModel.find({
+    order_id: { $in: mainOrderIds }
+  }).lean();
+
+  // Create a map of order_id to payment
+  const paymentMap = {};
+  payments.forEach(payment => {
+    const orderId = payment.order_id?.toString() || payment.order_id;
+    paymentMap[orderId] = payment;
   });
+
+  // Transform the data to match expected structure
+  const transformedSubOrders = subOrders.map((subOrder) => {
+    const mainOrderId = subOrder.main_order_id?._id?.toString() || subOrder.main_order_id?.toString() || subOrder.main_order_id;
+    const payment = paymentMap[mainOrderId];
+
+    return {
+      ...subOrder,
+      buyer_info: {
+        _id: subOrder.buyer_id?._id,
+        name: subOrder.buyer_id?.name,
+        email: subOrder.buyer_id?.email,
+        profilePicture: subOrder.buyer_id?.profilePicture,
+      },
+      main_order_info: {
+        _id: subOrder.main_order_id?._id || subOrder.main_order_id,
+        paymentMethod: subOrder.main_order_id?.paymentMethod,
+        paymentStatus: subOrder.main_order_id?.paymentStatus,
+        orderStatus: subOrder.main_order_id?.orderStatus,
+      },
+      payment_info: payment ? {
+        paymentMethod: payment.paymentMethod,
+        paymentStatus: payment.paymentStatus,
+        amount: payment.amount,
+        payhere_payment_id: payment.payhere_payment_id,
+        method: payment.method,
+        status_message: payment.status_message,
+        created_at: payment.created_at,
+        updated_at: payment.updated_at,
+      } : null,
+      products_list: subOrder.products_list.map((product) => ({
+        ...product,
+        product_name: product.product_id?.name || 'Product Name Not Available',
+        product_price: product.product_id?.price || 0,
+        product_images: product.product_id?.images || [],
+      })),
+    };
+  });
+
+  return transformedSubOrders;
 };
 
 /**

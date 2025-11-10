@@ -189,13 +189,17 @@ export default function OrderSuccessPage() {
                           if (orderDetails.platformChargesObject) {
                             const total = Object.values(
                               orderDetails.platformChargesObject
-                            ).reduce((sum: number, fee: any) => sum + (fee || 0), 0);
+                            ).reduce(
+                              (sum: number, fee: any) => sum + (fee || 0),
+                              0
+                            );
                             return total.toFixed(2);
                           }
                           // Fallback to old structure for backward compatibility
                           if (orderDetails.platformCharges) {
                             const oldTotal =
-                              (orderDetails.platformCharges.transactionFee || 0) +
+                              (orderDetails.platformCharges.transactionFee ||
+                                0) +
                               (orderDetails.platformCharges.platformFee || 0);
                             return oldTotal.toFixed(2);
                           }
