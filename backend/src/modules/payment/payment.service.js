@@ -1,8 +1,12 @@
 const PaymentModel = require('./payment.model');
 const repository = require('../../services/repository.service');
-const { paymentStatus, paymentMethod } = require('../../config/order.config');
+const { paymentStatus, paymentMethod, orderStatus } = require('../../config/order.config');
+const { subOrderStatus, sellerPaymentStatus } = require('../../config/suborder.config');
 const orderService = require('../order/order.service');
+const OrderModel = require('../order/order.model');
+const SubOrderModel = require('../subOrder/suborder.model');
 const md5 = require('crypto-js/md5');
+const mongoose = require('mongoose');
 
 module.exports.createPayment = async (paymentInfo) => {
   const { user_id, payment_method, order_id, amount } = paymentInfo;
@@ -89,32 +93,66 @@ module.exports.findPaymentByOrderId = async (order_id, payment_status) => {
   });
 };
 
-module.exports.updatePaymentStatus = async (paymentData) => {
-  const {
-    order_id,
-    payment_id,
-    status,
-    amount,
-    currency,
-    method,
-    status_message,
-  } = paymentData;
+module.exports.updatePaymentStatus = async (data) => {
+  const { order_id, status_code, payment_id, status_message, method } = data;
 
-  // Find the payment record by order_id
-  const payment = await repository.findOne(PaymentModel, { order_id });
+  let status;
+  if (status_code == 2) status = paymentStatus.PAID;
+  else if (status_code == -2) status = paymentStatus.FAILED;
+  else status = paymentStatus.PENDING;
 
-  if (!payment) {
-    throw new Error('Payment record not found');
+  // Update payment record
+  const updatedPayment = await repository.updateOne(
+    PaymentModel,
+    { order_id: new mongoose.Types.ObjectId(order_id) },
+    {
+      paymentStatus: status,
+      payhere_payment_id: payment_id,
+      method,
+      status_message,
+    },
+    { new: true }
+  );
+
+  // Update main order
+  const orderUpdateData = {
+    paymentStatus: status,
+  };
+
+  // If payment failed, cancel the order
+  if (status === paymentStatus.FAILED) {
+    orderUpdateData.orderStatus = orderStatus.CANCELLED;
   }
 
-  // Update payment status and additional data
-  payment.paymentStatus = status;
-  payment.payment_id = payment_id;
-  payment.amount = amount || payment.amount;
-  payment.currency = currency || 'LKR';
-  payment.method = method;
-  payment.status_message = status_message;
+  await repository.updateOne(
+    OrderModel,
+    { _id: new mongoose.Types.ObjectId(order_id) },
+    orderUpdateData,
+    { new: true }
+  );
 
-  const updatedPayment = await repository.save(payment);
+  // Update all sub orders
+  const subOrderUpdateData = {};
+  
+  if (status === paymentStatus.PAID) {
+    // Payment successful: set sub orders to processing and seller payment to held
+    subOrderUpdateData.orderStatus = subOrderStatus.PROCESSING;
+    subOrderUpdateData.seller_payment_status = sellerPaymentStatus.HELD;
+  } else if (status === paymentStatus.FAILED) {
+    // Payment failed: cancel sub orders, keep seller payment as pending
+    subOrderUpdateData.orderStatus = subOrderStatus.CANCELLED;
+    // seller_payment_status remains pending (no update needed)
+  }
+
+  // Only update sub orders if we have data to update
+  if (Object.keys(subOrderUpdateData).length > 0) {
+    await repository.updateMany(
+      SubOrderModel,
+      { main_order_id: new mongoose.Types.ObjectId(order_id) },
+      subOrderUpdateData,
+      { new: true }
+    );
+  }
+
   return updatedPayment;
 };

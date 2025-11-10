@@ -1,8 +1,9 @@
 // Following the same pattern as order.config.js
 const subOrderStatus = Object.freeze({
   PENDING: 'pending',
-  PROCESSING: 'processing', 
-  SHIPPED: 'shipped',
+  PROCESSING: 'processing',
+  PACKED: 'packed',
+  DISPATCHED: 'dispatched',
   DELIVERED: 'delivered',
   CANCELLED: 'cancelled',
 });

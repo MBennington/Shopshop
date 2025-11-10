@@ -33,7 +33,7 @@ const paymentSchema = new Schema(
       required: true,
     },
 
-    payment_id: {
+    payhere_payment_id: {
       type: String,
       default: null,
     },
