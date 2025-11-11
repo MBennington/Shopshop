@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const OrderModel = require('./order.model');
 const Cart = require('../cart/cart.model');
 const Product = require('../products/product.model');
@@ -205,4 +206,52 @@ module.exports.findOrderById = async (order_id) => {
   delete orderObj.products_list;
 
   return orderObj;
+};
+
+module.exports.getOrdersByUser = async (user_id, queryParams = {}) => {
+  const { page = 1, limit = 10, status } = queryParams;
+  const skip = (page - 1) * limit;
+
+  const filter = { user_id: new mongoose.Types.ObjectId(user_id) };
+  
+  if (status) {
+    filter.orderStatus = status;
+  }
+
+  // Find orders with pagination
+  const orders = await OrderModel.find(filter)
+    .sort({ created_at: -1 })
+    .skip(skip)
+    .limit(parseInt(limit))
+    .lean();
+
+  // Get total count for pagination
+  const total = await OrderModel.countDocuments(filter);
+
+  // For each order, get a summary of sub-orders (just count and status)
+  const ordersWithSummary = await Promise.all(
+    orders.map(async (order) => {
+      const subOrders = await subOrderService.getSubOrdersByMainOrder(order._id.toString());
+      
+      return {
+        ...order,
+        sub_orders_count: subOrders.length,
+        sub_orders_summary: subOrders.map(so => ({
+          _id: so._id,
+          orderStatus: so.orderStatus,
+          seller_name: so.seller_info?.businessName || so.seller_info?.name || 'Unknown Seller',
+        })),
+      };
+    })
+  );
+
+  return {
+    orders: ordersWithSummary,
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 };

@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   FiUser,
-  FiShoppingBag,
   FiMapPin,
   FiEdit2,
   FiSettings,
@@ -673,17 +672,6 @@ export default function ProfilePage() {
               Personal Information
             </button>
             <button
-              onClick={() => setActiveTab('orders')}
-              className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${
-                activeTab === 'orders'
-                  ? 'text-[#397fc5] border-b-2 border-[#397fc5]'
-                  : 'text-[#6a7581] hover:text-[#121416]'
-              }`}
-            >
-              <FiShoppingBag size={20} />
-              Order History
-            </button>
-            <button
               onClick={() => setActiveTab('addresses')}
               className={`flex items-center gap-2 px-6 py-4 font-medium whitespace-nowrap ${
                 activeTab === 'addresses'
@@ -821,18 +809,6 @@ export default function ProfilePage() {
                     )}
                     {saving ? 'Saving...' : 'Save Changes'}
                   </button>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'orders' && (
-              <div className="space-y-4">
-                <div className="text-center py-8">
-                  <FiShoppingBag className="mx-auto text-[#6a7581]" size={48} />
-                  <p className="mt-4 text-[#6a7581]">No orders yet</p>
-                  <p className="text-sm text-[#6a7581]">
-                    Your order history will appear here
-                  </p>
                 </div>
               </div>
             )}

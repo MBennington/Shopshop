@@ -1,9 +1,11 @@
 const orderStatus = Object.freeze({
-  PENDING: 'Pending',
-  SHIPPED: 'Shipped',
-  DELIVERED: 'Delivered',
-  CANCELLED: 'Cancelled',
-  RETURNED: 'Returned',
+  PENDING: 'pending',
+  PROCESSING: 'processing',
+  PACKED: 'packed',
+  DISPATCHED: 'dispatched',
+  DELIVERED: 'delivered',
+  CANCELLED: 'cancelled',
+  RETURNED: 'returned',
 });
 
 const paymentStatus = Object.freeze({

@@ -8,6 +8,7 @@ const {
   sellerPaymentStatus,
   deliveryStatus,
 } = require('../../config/suborder.config');
+const { orderStatus } = require('../../config/order.config');
 
 /**
  * Create new sub-order
@@ -159,12 +160,70 @@ module.exports.getSubOrdersBySeller = async (sellerId, queryParams) => {
  * @returns {Promise<Object>}
  */
 module.exports.updateSubOrderStatus = async (subOrderId, statusData) => {
-  return await repository.updateOne(
+  // Update the sub-order
+  const updatedSubOrder = await repository.updateOne(
     SubOrderModel,
     { _id: subOrderId },
     statusData,
     { new: true }
   );
+
+  // If orderStatus was updated, check if all sub-orders have the same status
+  if (statusData.orderStatus && updatedSubOrder) {
+    const mainOrderId = updatedSubOrder.main_order_id;
+    const newStatus = statusData.orderStatus;
+    
+    if (mainOrderId && newStatus !== subOrderStatus.CANCELLED) {
+      // Get all sub-orders for this main order (excluding cancelled ones)
+      const allSubOrders = await SubOrderModel.find({
+        main_order_id: mainOrderId,
+        orderStatus: { $ne: subOrderStatus.CANCELLED }, // Exclude cancelled sub-orders
+      }).lean();
+
+      // Check if all non-cancelled sub-orders have the same status
+      if (allSubOrders.length > 0) {
+        const allSameStatus = allSubOrders.every(
+          (subOrder) => subOrder.orderStatus === newStatus
+        );
+
+        // If all non-cancelled sub-orders have the same status, update main order status
+        if (allSameStatus) {
+          // Main order now has the same statuses as sub-orders, so we can use directly
+          // Map sub-order status to main order status (they now match)
+          let mainOrderStatus;
+          switch (newStatus) {
+            case subOrderStatus.PENDING:
+              mainOrderStatus = orderStatus.PENDING;
+              break;
+            case subOrderStatus.PROCESSING:
+              mainOrderStatus = orderStatus.PROCESSING;
+              break;
+            case subOrderStatus.PACKED:
+              mainOrderStatus = orderStatus.PACKED;
+              break;
+            case subOrderStatus.DISPATCHED:
+              mainOrderStatus = orderStatus.DISPATCHED;
+              break;
+            case subOrderStatus.DELIVERED:
+              mainOrderStatus = orderStatus.DELIVERED;
+              break;
+            default:
+              // Default to PENDING for any other status
+              mainOrderStatus = orderStatus.PENDING;
+          }
+
+          await repository.updateOne(
+            OrderModel,
+            { _id: mainOrderId },
+            { orderStatus: mainOrderStatus },
+            { new: true }
+          );
+        }
+      }
+    }
+  }
+
+  return updatedSubOrder;
 };
 
 /**
