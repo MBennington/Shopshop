@@ -53,13 +53,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const orderId = searchParams.get('order_id') || searchParams.get('orderId');
-
-    if (!orderId || orderId === 'undefined') {
-      return NextResponse.json(
-        { error: 'Order ID is required' },
-        { status: 400 }
-      );
-    }
+    const userOrders = searchParams.get('userOrders');
 
     // Get token from request headers
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
@@ -68,6 +62,44 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { error: 'Authorization token required' },
         { status: 401 }
+      );
+    }
+
+    // If userOrders is true, fetch all orders for the user
+    if (userOrders === 'true') {
+      const page = searchParams.get('page') || '1';
+      const limit = searchParams.get('limit') || '10';
+      const status = searchParams.get('status') || '';
+
+      let url = `${BACKEND_URL}/api/order/user-orders?page=${page}&limit=${limit}`;
+      if (status) {
+        url += `&status=${status}`;
+      }
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        return NextResponse.json(
+          { error: result.msg || 'Failed to fetch user orders' },
+          { status: response.status }
+        );
+      }
+
+      return NextResponse.json(result);
+    }
+
+    // Otherwise, fetch a specific order by ID
+    if (!orderId || orderId === 'undefined') {
+      return NextResponse.json(
+        { error: 'Order ID is required' },
+        { status: 400 }
       );
     }
 

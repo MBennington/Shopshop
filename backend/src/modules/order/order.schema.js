@@ -39,3 +39,9 @@ module.exports.createOrder = joi.object({
 module.exports.findOrderById = joi.object({
   order_id: joi.string().required(),
 });
+
+module.exports.getOrdersByUser = joi.object({
+  page: joi.number().integer().min(1).optional(),
+  limit: joi.number().integer().min(1).max(100).optional(),
+  status: joi.string().optional(),
+});

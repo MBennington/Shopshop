@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { FiUser, FiLogOut, FiChevronDown } from 'react-icons/fi';
+import { FiUser, FiLogOut, FiChevronDown, FiShoppingBag } from 'react-icons/fi';
 
 export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -211,6 +211,18 @@ export default function Navbar() {
                   >
                     <FiUser className="inline w-4 h-4 mr-2" />
                     Profile Settings
+                  </button>
+
+                  {/* Show My Orders for all users (sellers can also place orders) */}
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      router.push('/my-orders');
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-[#6a7581] hover:bg-[#f7f8fa] transition-colors flex items-center"
+                  >
+                    <FiShoppingBag className="inline w-4 h-4 mr-2" />
+                    My Orders
                   </button>
 
                   {user.role === 'seller' && (

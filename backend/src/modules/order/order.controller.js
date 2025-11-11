@@ -41,3 +41,27 @@ module.exports.findOrderById = async (req, res) => {
     return customError(`${error.message}`, res);
   }
 };
+
+/**
+ * Get orders by user ID
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.getOrdersByUser = async (req, res) => {
+  try {
+    const user_id = res.locals.user.id;
+    const queryParams = {
+      page: req.query.page,
+      limit: req.query.limit,
+      status: req.query.status,
+    };
+
+    const data = await orderService.getOrdersByUser(user_id, queryParams);
+
+    return successWithData(data, res);
+  } catch (error) {
+    console.error('Getting user orders error:', error);
+    return customError(`${error.message}`, res);
+  }
+};

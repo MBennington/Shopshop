@@ -135,8 +135,8 @@ module.exports.updatePaymentStatus = async (data) => {
   const subOrderUpdateData = {};
   
   if (status === paymentStatus.PAID) {
-    // Payment successful: set sub orders to processing and seller payment to held
-    subOrderUpdateData.orderStatus = subOrderStatus.PROCESSING;
+    // Payment successful: keep sub orders as pending, set seller payment to held
+    // Sub-orders remain pending until seller manually updates them
     subOrderUpdateData.seller_payment_status = sellerPaymentStatus.HELD;
   } else if (status === paymentStatus.FAILED) {
     // Payment failed: cancel sub orders, keep seller payment as pending

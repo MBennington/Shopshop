@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Package, Truck, CreditCard, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 
-export default function OrderSuccessPage() {
+export default function OrderDetailsPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const orderId = searchParams.get('orderId');
   const [orderDetails, setOrderDetails] = useState<any>(null);
   const [subOrders, setSubOrders] = useState<any[]>([]);
@@ -16,19 +17,19 @@ export default function OrderSuccessPage() {
 
   useEffect(() => {
     if (orderId) {
-      // Fetch order details from backend
       fetchOrderDetails(orderId);
     } else {
       setLoading(false);
+      setError('No order ID provided');
     }
   }, [orderId]);
 
   const fetchOrderDetails = async (orderId: string) => {
     try {
-      // Check if orderId is valid
       if (!orderId || orderId === 'undefined') {
         console.error('Invalid order ID:', orderId);
         setLoading(false);
+        setError('Invalid order ID');
         return;
       }
 
@@ -37,10 +38,10 @@ export default function OrderSuccessPage() {
       if (!token) {
         console.error('No authentication token found');
         setLoading(false);
+        setError('Please log in to view order details');
         return;
       }
 
-      // Fetch order details with sub-orders included
       const orderResponse = await fetch(`/api/order?order_id=${orderId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -52,9 +53,8 @@ export default function OrderSuccessPage() {
         console.log('Order data received:', orderData);
         console.log('Sub-orders data:', orderData.data.sub_orders_details);
         setOrderDetails(orderData.data);
-
-        // Sub-orders are now included in the order response
         setSubOrders(orderData.data.sub_orders_details || []);
+        setError(null);
       } else {
         console.error(
           'Failed to fetch order details:',
@@ -73,7 +73,6 @@ export default function OrderSuccessPage() {
     }
   };
 
-  // Determine order status for display
   const getOrderStatus = () => {
     if (!orderDetails) return null;
 
@@ -81,15 +80,13 @@ export default function OrderSuccessPage() {
     const orderStatus = orderDetails.orderStatus;
     const paymentMethod = orderDetails.paymentMethod;
 
-    // For COD, pending payment is normal
     if (paymentMethod === 'cod') {
       if (orderStatus === 'cancelled') {
         return 'cancelled';
       }
-      return 'success'; // COD orders are successful if not cancelled
+      return 'success';
     }
 
-    // For card payments, check payment status
     if (paymentStatus === 'Failed' || orderStatus === 'cancelled') {
       return 'failed';
     }
@@ -98,7 +95,6 @@ export default function OrderSuccessPage() {
       return 'success';
     }
 
-    // Pending payment for card - show as pending
     if (paymentStatus === 'Pending') {
       return 'pending';
     }
@@ -107,7 +103,7 @@ export default function OrderSuccessPage() {
       return 'refunded';
     }
 
-    return 'success'; // Default to success for backward compatibility
+    return 'success';
   };
 
   const orderStatus = getOrderStatus();
@@ -137,7 +133,7 @@ export default function OrderSuccessPage() {
               No valid order ID provided. Please check your order confirmation
               email or try again.
             </p>
-            <Button onClick={() => (window.location.href = '/my-orders')}>
+            <Button onClick={() => router.push('/my-orders')}>
               View My Orders
             </Button>
           </CardContent>
@@ -146,7 +142,6 @@ export default function OrderSuccessPage() {
     );
   }
 
-  // Show error state if fetch failed
   if (error && !orderDetails) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -165,7 +160,7 @@ export default function OrderSuccessPage() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => (window.location.href = '/my-orders')}
+                onClick={() => router.push('/my-orders')}
               >
                 View My Orders
               </Button>
@@ -179,7 +174,7 @@ export default function OrderSuccessPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
-        {/* Status Header - Dynamic based on order status */}
+        {/* Status Header */}
         {orderStatus === 'failed' && orderDetails && (
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
@@ -191,13 +186,6 @@ export default function OrderSuccessPage() {
             <p className="text-lg text-gray-600 mb-4">
               Your payment could not be processed. Your order has been cancelled.
             </p>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-2xl mx-auto">
-              <p className="text-sm text-red-800">
-                <strong>What happened?</strong> The payment transaction was
-                unsuccessful. This could be due to insufficient funds, card
-                issues, or payment gateway problems.
-              </p>
-            </div>
           </div>
         )}
 
@@ -227,12 +215,6 @@ export default function OrderSuccessPage() {
               Your order is waiting for payment confirmation. We'll notify you
               once the payment is processed.
             </p>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 max-w-2xl mx-auto">
-              <p className="text-sm text-yellow-800">
-                Please complete the payment to confirm your order. If you've
-                already paid, it may take a few minutes to process.
-              </p>
-            </div>
           </div>
         )}
 
@@ -256,11 +238,10 @@ export default function OrderSuccessPage() {
               <CheckCircle className="h-16 w-16 text-green-600" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Order Placed Successfully!
+              Order Details
             </h1>
             <p className="text-lg text-gray-600">
-              Thank you for your purchase. We'll send you a confirmation email
-              shortly.
+              View your order information below.
             </p>
           </div>
         )}
@@ -292,11 +273,7 @@ export default function OrderSuccessPage() {
                             day: 'numeric',
                           }
                         )
-                      : new Date().toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
+                      : 'N/A'}
                   </p>
                 </div>
                 {orderDetails && (
@@ -307,7 +284,6 @@ export default function OrderSuccessPage() {
                         LKR {orderDetails.totalPrice?.toFixed(2)}
                       </p>
                     </div>
-                    {/* Calculate total shipping from sub-orders */}
                     {subOrders.length > 0 && (
                       <div>
                         <p className="text-sm text-gray-600">Shipping</p>
@@ -323,13 +299,11 @@ export default function OrderSuccessPage() {
                         </p>
                       </div>
                     )}
-                    {/* Platform Fee - use new structure */}
                     <div>
                       <p className="text-sm text-gray-600">Platform Fee</p>
                       <p className="font-semibold">
                         LKR{' '}
                         {(() => {
-                          // Try new structure first
                           if (orderDetails.platformChargesObject) {
                             const total = Object.values(
                               orderDetails.platformChargesObject
@@ -339,7 +313,6 @@ export default function OrderSuccessPage() {
                             );
                             return total.toFixed(2);
                           }
-                          // Fallback to old structure for backward compatibility
                           if (orderDetails.platformCharges) {
                             const oldTotal =
                               (orderDetails.platformCharges.transactionFee ||
@@ -410,7 +383,7 @@ export default function OrderSuccessPage() {
           </Card>
         )}
 
-        {/* Package Information - Only show for successful orders */}
+        {/* Package Information */}
         {orderStatus !== 'failed' && (
           <>
             {subOrders.length > 0 ? (
@@ -467,7 +440,6 @@ export default function OrderSuccessPage() {
                           </div>
                         </div>
 
-                        {/* Products in this package */}
                         <div className="space-y-2 mb-3">
                           {subOrder.products_list?.map(
                             (product: any, productIndex: number) => (
@@ -476,7 +448,15 @@ export default function OrderSuccessPage() {
                                 className="flex items-center gap-3 p-2 bg-white rounded-lg"
                               >
                                 <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                                  <Package className="h-6 w-6 text-gray-400" />
+                                  {product.product_images?.[0] ? (
+                                    <img
+                                      src={product.product_images[0]}
+                                      alt={product.product_name}
+                                      className="w-12 h-12 rounded-lg object-cover"
+                                    />
+                                  ) : (
+                                    <Package className="h-6 w-6 text-gray-400" />
+                                  )}
                                 </div>
                                 <div className="flex-1">
                                   <p className="font-medium text-gray-900 text-sm">
@@ -496,7 +476,6 @@ export default function OrderSuccessPage() {
                           )}
                         </div>
 
-                        {/* Package summary */}
                         <div className="flex justify-between items-center pt-3 border-t border-gray-200">
                           <div className="text-sm text-gray-600">
                             <p>Items: {subOrder.products_list?.length || 0}</p>
@@ -513,7 +492,6 @@ export default function OrderSuccessPage() {
                           </div>
                         </div>
 
-                        {/* Tracking info if available */}
                         {subOrder.tracking_number ? (
                           <div className="mt-3 pt-3 border-t border-gray-200">
                             <p className="text-sm text-gray-600">
@@ -534,7 +512,6 @@ export default function OrderSuccessPage() {
                           </div>
                         )}
 
-                        {/* COD Payment Instructions */}
                         {orderDetails?.paymentMethod === 'cod' && (
                           <div className="mt-3 pt-3 border-t border-gray-200 bg-yellow-50 p-3 rounded-lg">
                             <div className="flex items-start gap-2">
@@ -568,10 +545,6 @@ export default function OrderSuccessPage() {
                 <CardContent>
                   <div className="text-center py-8">
                     <p className="text-gray-600 mb-4">Loading package details...</p>
-                    <p className="text-sm text-gray-500">
-                      If this message persists, please check the console for
-                      debugging information.
-                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -579,151 +552,24 @@ export default function OrderSuccessPage() {
           </>
         )}
 
-        {/* Next Steps - Only show for successful orders */}
-        {orderStatus === 'success' && orderDetails && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Truck className="h-5 w-5" />
-                What's Next?
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-blue-600 font-semibold text-sm">1</span>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900">
-                      Order Confirmation
-                    </h4>
-                    <p className="text-gray-600 text-sm">
-                      You'll receive an email confirmation with your order details
-                      and package breakdown.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-blue-600 font-semibold text-sm">2</span>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900">
-                      Processing by Sellers
-                    </h4>
-                    <p className="text-gray-600 text-sm">
-                      Each seller will prepare their portion of your order
-                      independently. You may receive packages at different times.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-blue-600 font-semibold text-sm">3</span>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900">
-                      Shipping & Tracking
-                    </h4>
-                    <p className="text-gray-600 text-sm">
-                      Each seller will ship their package separately. You'll
-                      receive individual tracking numbers for each package.
-                    </p>
-                  </div>
-                </div>
-
-                {orderDetails?.paymentMethod === 'cod' && (
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Truck className="h-4 w-4 text-yellow-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">
-                        Cash on Delivery
-                      </h4>
-                      <p className="text-gray-600 text-sm">
-                        You'll pay for each package when it arrives. Each package
-                        will have its own payment amount as shown above.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Failure Actions */}
-        {orderStatus === 'failed' && orderDetails && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-red-600" />
-                What Can You Do?
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 mb-2">
-                  Try Again
-                </h4>
-                <p className="text-gray-600 text-sm mb-3">
-                  You can place a new order with a different payment method or
-                  try again with the same card.
-                </p>
-                <Button
-                  onClick={() => (window.location.href = '/')}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  Continue Shopping
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Button
-            onClick={() => (window.location.href = '/my-orders')}
+            onClick={() => router.push('/my-orders')}
             className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3"
           >
-            View My Orders
+            Back to My Orders
           </Button>
-          {orderStatus === 'failed' && orderDetails ? (
-            <Button
-              onClick={() => (window.location.href = '/')}
-              className="px-8 py-3"
-            >
-              Try Again
-            </Button>
-          ) : (
-            <Button
-              onClick={() => (window.location.href = '/')}
-              variant="outline"
-              className="px-8 py-3"
-            >
-              Continue Shopping
-            </Button>
-          )}
-        </div>
-
-        {/* Support Information */}
-        <div className="mt-8 text-center">
-          <p className="text-sm text-gray-600">
-            Need help? Contact our support team at{' '}
-            <a
-              href="mailto:support@shopshop.com"
-              className="text-blue-600 hover:underline"
-            >
-              support@shopshop.com
-            </a>
-          </p>
+          <Button
+            onClick={() => router.push('/')}
+            variant="outline"
+            className="px-8 py-3"
+          >
+            Continue Shopping
+          </Button>
         </div>
       </div>
     </div>
   );
 }
+
