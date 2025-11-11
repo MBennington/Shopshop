@@ -168,8 +168,16 @@ export default function OrdersPage() {
       });
 
       if (response.ok) {
+        const result = await response.json();
         await fetchSubOrders();
         setTrackingNumber('');
+        // Update selectedOrder if modal is open
+        if (showDetailModal && selectedOrder && selectedOrder._id === subOrderId) {
+          setSelectedOrder({
+            ...selectedOrder,
+            tracking_number: trackingNumber.trim(),
+          });
+        }
         if (!showDetailModal) {
           setSelectedOrder(null);
         }
@@ -742,10 +750,18 @@ export default function OrdersPage() {
                     <div>
                       <h3 className="text-lg font-semibold text-[#121416] mb-4">Actions</h3>
                       <div className="flex flex-wrap gap-3">
+                        {selectedOrder.orderStatus === 'pending' && (
+                          <button
+                            onClick={() => updateOrderStatus(selectedOrder._id, 'processing')}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-blue-700 transition-colors"
+                          >
+                            Mark as Processing
+                          </button>
+                        )}
                         {selectedOrder.orderStatus === 'processing' && (
                           <button
                             onClick={() => updateOrderStatus(selectedOrder._id, 'packed')}
-                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-indigo-700"
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-indigo-700 transition-colors"
                           >
                             Mark as Packed
                           </button>
@@ -758,22 +774,44 @@ export default function OrdersPage() {
                                 setTrackingNumber(selectedOrder.tracking_number || '');
                                 setShowTrackingModal(true);
                               }}
-                              className="bg-blue-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-blue-700"
+                              className="bg-blue-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-blue-700 transition-colors"
                             >
                               {selectedOrder.tracking_number ? 'Update Tracking' : 'Add Tracking'}
                             </button>
                             <button
-                              onClick={() => updateOrderStatus(selectedOrder._id, 'dispatched')}
-                              className="bg-purple-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-purple-700"
+                              onClick={() => {
+                                if (!selectedOrder.tracking_number || selectedOrder.tracking_number.trim() === '') {
+                                  alert('Please add a tracking number before marking the order as dispatched.');
+                                  setShowDetailModal(false);
+                                  setTrackingNumber('');
+                                  setShowTrackingModal(true);
+                                  return;
+                                }
+                                updateOrderStatus(selectedOrder._id, 'dispatched');
+                              }}
+                              disabled={!selectedOrder.tracking_number || selectedOrder.tracking_number.trim() === ''}
+                              className={`px-4 py-2 rounded-xl font-medium transition-colors ${
+                                !selectedOrder.tracking_number || selectedOrder.tracking_number.trim() === ''
+                                  ? 'bg-gray-400 text-white cursor-not-allowed'
+                                  : 'bg-purple-600 text-white hover:bg-purple-700'
+                              }`}
+                              title={!selectedOrder.tracking_number || selectedOrder.tracking_number.trim() === '' 
+                                ? 'Please add a tracking number first' 
+                                : 'Mark as Dispatched'}
                             >
                               Mark as Dispatched
                             </button>
+                            {(!selectedOrder.tracking_number || selectedOrder.tracking_number.trim() === '') && (
+                              <p className="text-sm text-red-600 mt-2">
+                                ⚠️ Tracking number is required before dispatching
+                              </p>
+                            )}
                           </>
                         )}
                         {selectedOrder.orderStatus === 'dispatched' && (
                           <button
                             onClick={() => updateOrderStatus(selectedOrder._id, 'delivered')}
-                            className="bg-green-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-green-700"
+                            className="bg-green-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-green-700 transition-colors"
                           >
                             Mark as Delivered
                           </button>
@@ -781,7 +819,7 @@ export default function OrdersPage() {
                         {!['cancelled', 'delivered'].includes(selectedOrder.orderStatus) && (
                           <button
                             onClick={() => cancelOrder(selectedOrder._id)}
-                            className="bg-red-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-red-700"
+                            className="bg-red-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-red-700 transition-colors"
                           >
                             Cancel Order
                           </button>
