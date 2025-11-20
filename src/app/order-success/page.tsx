@@ -327,27 +327,28 @@ export default function OrderSuccessPage() {
                     <div>
                       <p className="text-sm text-gray-600">Platform Fee</p>
                       <p className="font-semibold">
-                        LKR{' '}
                         {(() => {
-                          // Try new structure first
+                          // Calculate total fees
+                          let total = 0;
                           if (orderDetails.platformChargesObject) {
-                            const total = Object.values(
+                            total = Object.values(
                               orderDetails.platformChargesObject
                             ).reduce(
                               (sum: number, fee: any) => sum + (fee || 0),
                               0
                             );
-                            return total.toFixed(2);
-                          }
-                          // Fallback to old structure for backward compatibility
-                          if (orderDetails.platformCharges) {
-                            const oldTotal =
+                          } else if (orderDetails.platformCharges) {
+                            total =
                               (orderDetails.platformCharges.transactionFee ||
                                 0) +
                               (orderDetails.platformCharges.platformFee || 0);
-                            return oldTotal.toFixed(2);
                           }
-                          return '0.00';
+                          
+                          // Show "No fees for COD" if COD and no fees, otherwise show amount
+                          if (orderDetails.paymentMethod === 'cod' && total === 0) {
+                            return <span className="text-gray-500">No fees for COD</span>;
+                          }
+                          return `LKR ${total.toFixed(2)}`;
                         })()}
                       </p>
                     </div>

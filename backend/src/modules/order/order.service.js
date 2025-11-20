@@ -98,8 +98,10 @@ module.exports.createOrder = async (user_id, body) => {
 
   // Calculate platform charges for buyer (main order level)
   // Note: Shipping is handled per seller, not in main order charges
+  // Platform fees are only applied to online payments, not COD
   const buyerCharges = calculatePlatformCharges(subtotal, 'buyer', {
     shippingFee: 0, // Shipping handled separately per seller
+    paymentMethod: paymentMethod, // Pass payment method to skip fees for COD
   });
 
   // Create main order with dynamic platform charges

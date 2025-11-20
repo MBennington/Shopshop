@@ -398,16 +398,31 @@ export default function CheckoutPage() {
 
   // Calculate charges when product subtotal or seller groups change
   // Note: Platform fees are calculated on product prices only (not including shipping)
+  // Platform fees are only applied to online payments, not COD
   useEffect(() => {
-    if (platformChargesConfig && platformChargesConfig.buyerFees) {
-      const totalShipping =
-        Object.keys(sellerGroups).length > 0
-          ? Object.values(sellerGroups).reduce(
-              (sum, group) => sum + group.shipping_fee,
-              0
-            )
-          : shippingFee;
+    const totalShipping =
+      Object.keys(sellerGroups).length > 0
+        ? Object.values(sellerGroups).reduce(
+            (sum, group) => sum + group.shipping_fee,
+            0
+          )
+        : shippingFee;
 
+    // Skip platform fees for COD payments
+    if (selectedPayment === 'cod') {
+      setCalculatedCharges({
+        charges: {},
+        totalCharges: 0,
+        subtotal: displaySubtotal, // Display subtotal includes shipping
+        productSubtotal, // Keep product subtotal for reference
+        shipping: totalShipping,
+        finalTotal: displaySubtotal, // No fees for COD
+      });
+      return;
+    }
+
+    // Calculate fees only for online payment methods
+    if (platformChargesConfig && platformChargesConfig.buyerFees && selectedPayment) {
       // Calculate all buyer fees dynamically based on product prices only
       const charges: { [key: string]: number } = {};
       let totalCharges = 0;
@@ -438,6 +453,16 @@ export default function CheckoutPage() {
         shipping: totalShipping,
         finalTotal: displaySubtotal + totalCharges,
       });
+    } else if (!selectedPayment) {
+      // No payment method selected yet, show subtotal only
+      setCalculatedCharges({
+        charges: {},
+        totalCharges: 0,
+        subtotal: displaySubtotal,
+        productSubtotal,
+        shipping: totalShipping,
+        finalTotal: displaySubtotal,
+      });
     }
   }, [
     productSubtotal,
@@ -445,6 +470,7 @@ export default function CheckoutPage() {
     sellerGroups,
     platformChargesConfig,
     shippingFee,
+    selectedPayment, // Add selectedPayment to dependencies
   ]);
 
   useEffect(() => {
@@ -1222,16 +1248,25 @@ export default function CheckoutPage() {
                     </div>
                   )} */}
 
-                  {/* Platform Fee (combined all charges) */}
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Platform Fee</span>
-                    <span className="font-medium">
-                      LKR{' '}
-                      {calculatedCharges && calculatedCharges.totalCharges
-                        ? calculatedCharges.totalCharges.toFixed(2)
-                        : '0.00'}
-                    </span>
-                  </div>
+                  {/* Platform Fee (combined all charges) - Only for online payments */}
+                  {selectedPayment === 'cod' ? (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Platform Fee</span>
+                      <span className="font-medium text-gray-500">
+                        No fees for COD
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Platform Fee</span>
+                      <span className="font-medium">
+                        LKR{' '}
+                        {calculatedCharges && calculatedCharges.totalCharges
+                          ? calculatedCharges.totalCharges.toFixed(2)
+                          : '0.00'}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <Separator />
