@@ -24,10 +24,23 @@ const { platformCharges } = require('../config/platform-charges.config');
  * }
  */
 const calculatePlatformCharges = (subtotal, role, options = {}) => {
-  const { shippingFee = 0 } = options;
+  const { shippingFee = 0, paymentMethod } = options;
   const charges = {};
   const chargesBreakdown = [];
   let totalCharges = 0;
+
+  // Skip platform charges for COD (Cash on Delivery) payments
+  // Fees are only applied to online payment methods
+  if (paymentMethod === 'cod') {
+    return {
+      charges: {},
+      chargesBreakdown: [],
+      totalCharges: 0,
+      subtotal,
+      shippingFee,
+      finalTotal: subtotal + shippingFee,
+    };
+  }
 
   // Iterate through all fee types in config
   Object.keys(platformCharges).forEach((feeKey) => {
@@ -149,5 +162,6 @@ module.exports = {
   calculatePlatformCharges,
   getConfiguredFees,
 };
+
 
 
