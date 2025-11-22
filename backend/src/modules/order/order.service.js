@@ -42,10 +42,7 @@ module.exports.createOrder = async (user_id, body) => {
 
     subtotal = cart.total;
 
-    // Clear cart after order placed
-    cart.products_list = [];
-    cart.total = 0;
-    await cart.save();
+    // Don't clear cart here - will be cleared after payment confirmation
   } else {
     // Direct order for single product (Buy Now)
     const exsistingProduct = await Product.findById(product.product_id);

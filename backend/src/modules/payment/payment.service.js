@@ -5,6 +5,7 @@ const { subOrderStatus, sellerPaymentStatus } = require('../../config/suborder.c
 const orderService = require('../order/order.service');
 const OrderModel = require('../order/order.model');
 const SubOrderModel = require('../subOrder/suborder.model');
+const Cart = require('../cart/cart.model');
 const md5 = require('crypto-js/md5');
 const mongoose = require('mongoose');
 
@@ -114,6 +115,19 @@ module.exports.updatePaymentStatus = async (data) => {
     { new: true }
   );
 
+  // Get current order to check its status
+  const currentOrder = await repository.findOne(OrderModel, {
+    _id: new mongoose.Types.ObjectId(order_id),
+  });
+
+  // Check if sub-orders were previously cancelled (for retry scenario)
+  const existingSubOrders = await SubOrderModel.find({
+    main_order_id: new mongoose.Types.ObjectId(order_id),
+  }).lean();
+  const hasCancelledSubOrders = existingSubOrders.some(
+    (so) => so.orderStatus === subOrderStatus.CANCELLED
+  );
+
   // Update main order
   const orderUpdateData = {
     paymentStatus: status,
@@ -122,6 +136,11 @@ module.exports.updatePaymentStatus = async (data) => {
   // If payment failed, cancel the order
   if (status === paymentStatus.FAILED) {
     orderUpdateData.orderStatus = orderStatus.CANCELLED;
+  } else if (status === paymentStatus.PAID) {
+    // If payment succeeds and order was previously cancelled (retry scenario), restore it
+    if (currentOrder && currentOrder.orderStatus === orderStatus.CANCELLED) {
+      orderUpdateData.orderStatus = orderStatus.PENDING;
+    }
   }
 
   await repository.updateOne(
@@ -138,6 +157,11 @@ module.exports.updatePaymentStatus = async (data) => {
     // Payment successful: keep sub orders as pending, set seller payment to held
     // Sub-orders remain pending until seller manually updates them
     subOrderUpdateData.seller_payment_status = sellerPaymentStatus.HELD;
+    
+    // If sub-orders were previously cancelled (retry scenario), restore them to pending
+    if (hasCancelledSubOrders) {
+      subOrderUpdateData.orderStatus = subOrderStatus.PENDING;
+    }
   } else if (status === paymentStatus.FAILED) {
     // Payment failed: cancel sub orders, keep seller payment as pending
     subOrderUpdateData.orderStatus = subOrderStatus.CANCELLED;
@@ -152,6 +176,32 @@ module.exports.updatePaymentStatus = async (data) => {
       subOrderUpdateData,
       { new: true }
     );
+  }
+
+  // Clear cart only if payment is successful
+  if (status === paymentStatus.PAID) {
+    try {
+      // Get the order to find user
+      const order = await repository.findOne(OrderModel, {
+        _id: new mongoose.Types.ObjectId(order_id),
+      });
+
+      if (order && order.user_id) {
+        // Clear the entire cart - all items should be ordered together
+        await repository.updateOne(
+          Cart,
+          { user_id: order.user_id },
+          {
+            products_list: [],
+            total: 0,
+          },
+          { new: true }
+        );
+      }
+    } catch (error) {
+      // Log error but don't fail the payment update
+      console.error('Error clearing cart after payment:', error);
+    }
   }
 
   return updatedPayment;
