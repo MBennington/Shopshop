@@ -9,6 +9,7 @@ const {
   deliveryStatus,
 } = require('../../config/suborder.config');
 const { orderStatus } = require('../../config/order.config');
+const stockService = require('../../services/stock.service');
 
 /**
  * Create new sub-order
@@ -160,6 +161,11 @@ module.exports.getSubOrdersBySeller = async (sellerId, queryParams) => {
  * @returns {Promise<Object>}
  */
 module.exports.updateSubOrderStatus = async (subOrderId, statusData) => {
+  // Get the sub-order before update to check if it's being cancelled
+  const existingSubOrder = await repository.findOne(SubOrderModel, {
+    _id: subOrderId,
+  });
+
   // Update the sub-order
   const updatedSubOrder = await repository.updateOne(
     SubOrderModel,
@@ -167,6 +173,22 @@ module.exports.updateSubOrderStatus = async (subOrderId, statusData) => {
     statusData,
     { new: true }
   );
+
+  // If sub-order is being cancelled and it wasn't cancelled before, restore stock
+  if (
+    statusData.orderStatus === subOrderStatus.CANCELLED &&
+    existingSubOrder &&
+    existingSubOrder.orderStatus !== subOrderStatus.CANCELLED
+  ) {
+    try {
+      await stockService.restoreStockFromCancelledSubOrder(subOrderId);
+    } catch (error) {
+      console.error(
+        `Error restoring stock for cancelled sub-order ${subOrderId}:`,
+        error
+      );
+    }
+  }
 
   // If orderStatus was updated, check if all sub-orders have the same status
   if (statusData.orderStatus && updatedSubOrder) {

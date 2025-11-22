@@ -13,6 +13,7 @@ const paymentService = require('../payment/payment.service');
 const subOrderService = require('../subOrder/suborder.service');
 const userService = require('../users/user.service');
 const { calculatePlatformCharges } = require('../../services/platform-charges.service');
+const stockService = require('../../services/stock.service');
 
 module.exports.createOrder = async (user_id, body) => {
   const { address, paymentMethod, fromCart, product } = body;
@@ -70,6 +71,12 @@ module.exports.createOrder = async (user_id, body) => {
     productsList.push(productData);
     // Set main order subtotal for Buy Now flow
     subtotal = itemSubtotal;
+  }
+
+  // Validate stock availability before creating order
+  const stockValidation = await stockService.validateStockAvailability(productsList);
+  if (!stockValidation.isValid) {
+    throw new Error(stockValidation.errors.join('; '));
   }
 
   // Group products by seller
