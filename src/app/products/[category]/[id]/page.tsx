@@ -26,8 +26,10 @@ interface Product {
     sizes?: Array<{
       size: string;
       quantity: number;
+      availableQuantity?: number;
     }>;
     quantity?: number;
+    availableQuantity?: number;
   }>;
   totalInventory: number;
 }
@@ -132,12 +134,20 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
           const sizeData = availableSizes.find(
             (size: any) => size.size === selectedSize
           );
-          currentAvailableQuantity = sizeData ? sizeData.quantity : 0;
+          // Use availableQuantity if provided by backend, otherwise fallback to quantity
+          currentAvailableQuantity = sizeData
+            ? sizeData.availableQuantity !== undefined
+              ? sizeData.availableQuantity
+              : sizeData.quantity
+            : 0;
         }
       } else {
         const selectedColorData = product.colors[selectedColor];
+        // Use availableQuantity if provided by backend, otherwise fallback to quantity
         currentAvailableQuantity = selectedColorData
-          ? selectedColorData.quantity || 0
+          ? selectedColorData.availableQuantity !== undefined
+            ? selectedColorData.availableQuantity
+            : selectedColorData.quantity || 0
           : 0;
       }
 
@@ -187,10 +197,20 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
       const sizeData = availableSizes.find(
         (size: any) => size.size === selectedSize
       );
-      return sizeData ? sizeData.quantity : 0;
+      // Use availableQuantity if provided by backend, otherwise fallback to quantity
+      return sizeData
+        ? sizeData.availableQuantity !== undefined
+          ? sizeData.availableQuantity
+          : sizeData.quantity
+        : 0;
     } else {
       const selectedColorData = product.colors[selectedColor];
-      return selectedColorData ? selectedColorData.quantity : 0;
+      // Use availableQuantity if provided by backend, otherwise fallback to quantity
+      return selectedColorData
+        ? selectedColorData.availableQuantity !== undefined
+          ? selectedColorData.availableQuantity
+          : selectedColorData.quantity
+        : 0;
     }
   };
 
@@ -435,31 +455,37 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                     Size
                   </h3>
                   <div className="flex flex-wrap gap-3 pb-2">
-                    {availableSizes.map((sizeData: any) => (
-                      <label
-                        key={sizeData.size}
-                        className={`text-sm font-medium leading-normal flex items-center justify-center rounded-xl border px-4 h-11 text-[#121416] relative ${
-                          selectedSize === sizeData.size
-                            ? 'border-[3px] px-3.5 border-[#528bc5]'
-                            : 'border-[#dde0e3]'
-                        } ${
-                          sizeData.quantity === 0
-                            ? 'opacity-50 cursor-not-allowed'
-                            : 'cursor-pointer'
-                        }`}
-                      >
-                        {sizeData.size}
-                        <input
-                          type="radio"
-                          className="invisible absolute"
-                          name="size"
-                          value={sizeData.size}
-                          checked={selectedSize === sizeData.size}
-                          onChange={(e) => setSelectedSize(e.target.value)}
-                          disabled={sizeData.quantity === 0}
-                        />
-                      </label>
-                    ))}
+                    {availableSizes.map((sizeData: any) => {
+                      const sizeAvailableQty =
+                        sizeData.availableQuantity !== undefined
+                          ? sizeData.availableQuantity
+                          : sizeData.quantity;
+                      return (
+                        <label
+                          key={sizeData.size}
+                          className={`text-sm font-medium leading-normal flex items-center justify-center rounded-xl border px-4 h-11 text-[#121416] relative ${
+                            selectedSize === sizeData.size
+                              ? 'border-[3px] px-3.5 border-[#528bc5]'
+                              : 'border-[#dde0e3]'
+                          } ${
+                            sizeAvailableQty === 0
+                              ? 'opacity-50 cursor-not-allowed'
+                              : 'cursor-pointer'
+                          }`}
+                        >
+                          {sizeData.size}
+                          <input
+                            type="radio"
+                            className="invisible absolute"
+                            name="size"
+                            value={sizeData.size}
+                            checked={selectedSize === sizeData.size}
+                            onChange={(e) => setSelectedSize(e.target.value)}
+                            disabled={sizeAvailableQty === 0}
+                          />
+                        </label>
+                      );
+                    })}
                   </div>
                 </>
               )}
@@ -593,14 +619,6 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                   </p>
                   <p className="text-[#121416] text-sm font-normal leading-normal">
                     {seller.businessName || seller.name}
-                  </p>
-                </div>
-                <div className="col-span-2 grid grid-cols-subgrid border-t border-t-[#dde0e3] py-5">
-                  <p className="text-[#6a7581] text-sm font-normal leading-normal">
-                    Stock
-                  </p>
-                  <p className="text-[#121416] text-sm font-normal leading-normal">
-                    {product.totalInventory} units
                   </p>
                 </div>
                 <div className="col-span-2 grid grid-cols-subgrid border-t border-t-[#dde0e3] py-5">

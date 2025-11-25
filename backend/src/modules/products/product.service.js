@@ -7,6 +7,7 @@ const {
   uploadBufferToCloudinary,
   deleteFromCloudinary,
 } = require('../../services/cloudinary.service');
+const stockService = require('../../services/stock.service');
 const mongoose = require('mongoose');
 const extractPublicIdFromUrl = require('../../utils/extractPublicIdFromUrl.util');
 
@@ -466,6 +467,34 @@ module.exports.getProductDetails = async (productId) => {
   const productObj = product.toObject();
   productObj.totalInventory =
     module.exports.calculateTotalInventory(productObj);
+
+  // Calculate available stock for each color/size variant
+  if (productObj.colors && productObj.colors.length > 0) {
+    for (let colorIndex = 0; colorIndex < productObj.colors.length; colorIndex++) {
+      const color = productObj.colors[colorIndex];
+      
+      if (productObj.hasSizes && color.sizes) {
+        // Product with sizes - calculate available stock for each size
+        for (let sizeIndex = 0; sizeIndex < color.sizes.length; sizeIndex++) {
+          const size = color.sizes[sizeIndex];
+          const availableStock = await stockService.calculateAvailableStock(
+            product,
+            color.colorCode,
+            size.size
+          );
+          productObj.colors[colorIndex].sizes[sizeIndex].availableQuantity = availableStock;
+        }
+      } else {
+        // Product without sizes - calculate available stock for color
+        const availableStock = await stockService.calculateAvailableStock(
+          product,
+          color.colorCode,
+          null
+        );
+        productObj.colors[colorIndex].availableQuantity = availableStock;
+      }
+    }
+  }
 
   // Get seller information
   const seller = await userService.getUserById(productObj.seller);

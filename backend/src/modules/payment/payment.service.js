@@ -5,6 +5,8 @@ const { subOrderStatus, sellerPaymentStatus } = require('../../config/suborder.c
 const orderService = require('../order/order.service');
 const OrderModel = require('../order/order.model');
 const SubOrderModel = require('../subOrder/suborder.model');
+const Cart = require('../cart/cart.model');
+const stockService = require('../../services/stock.service');
 const md5 = require('crypto-js/md5');
 const mongoose = require('mongoose');
 
@@ -114,6 +116,19 @@ module.exports.updatePaymentStatus = async (data) => {
     { new: true }
   );
 
+  // Get current order to check its status
+  const currentOrder = await repository.findOne(OrderModel, {
+    _id: new mongoose.Types.ObjectId(order_id),
+  });
+
+  // Check if sub-orders were previously cancelled (for retry scenario)
+  const existingSubOrders = await SubOrderModel.find({
+    main_order_id: new mongoose.Types.ObjectId(order_id),
+  }).lean();
+  const hasCancelledSubOrders = existingSubOrders.some(
+    (so) => so.orderStatus === subOrderStatus.CANCELLED
+  );
+
   // Update main order
   const orderUpdateData = {
     paymentStatus: status,
@@ -122,6 +137,30 @@ module.exports.updatePaymentStatus = async (data) => {
   // If payment failed, cancel the order
   if (status === paymentStatus.FAILED) {
     orderUpdateData.orderStatus = orderStatus.CANCELLED;
+  } else if (status === paymentStatus.PAID) {
+    // If payment succeeds and order was previously cancelled (retry scenario), restore it
+    if (currentOrder && currentOrder.orderStatus === orderStatus.CANCELLED) {
+      // Validate stock availability again for retry scenario
+      // Stock might have been sold to someone else between first attempt and retry
+      if (currentOrder.products_list && currentOrder.products_list.length > 0) {
+        const stockValidation = await stockService.validateStockAvailability(
+          currentOrder.products_list
+        );
+        if (stockValidation.isValid) {
+          orderUpdateData.orderStatus = orderStatus.PENDING;
+        } else {
+          // Stock no longer available, keep order cancelled
+          console.error(
+            `Stock validation failed for retry order ${order_id}:`,
+            stockValidation.errors
+          );
+          // Order remains cancelled, payment will be refunded or handled separately
+          orderUpdateData.orderStatus = orderStatus.CANCELLED;
+        }
+      } else {
+        orderUpdateData.orderStatus = orderStatus.PENDING;
+      }
+    }
   }
 
   await repository.updateOne(
@@ -138,6 +177,11 @@ module.exports.updatePaymentStatus = async (data) => {
     // Payment successful: keep sub orders as pending, set seller payment to held
     // Sub-orders remain pending until seller manually updates them
     subOrderUpdateData.seller_payment_status = sellerPaymentStatus.HELD;
+    
+    // If sub-orders were previously cancelled (retry scenario), restore them to pending
+    if (hasCancelledSubOrders) {
+      subOrderUpdateData.orderStatus = subOrderStatus.PENDING;
+    }
   } else if (status === paymentStatus.FAILED) {
     // Payment failed: cancel sub orders, keep seller payment as pending
     subOrderUpdateData.orderStatus = subOrderStatus.CANCELLED;
@@ -152,6 +196,47 @@ module.exports.updatePaymentStatus = async (data) => {
       subOrderUpdateData,
       { new: true }
     );
+  }
+
+  // Deduct stock and clear cart only if payment is successful and order is valid
+  if (status === paymentStatus.PAID) {
+    try {
+      // Get the updated order to check final status
+      const order = await repository.findOne(OrderModel, {
+        _id: new mongoose.Types.ObjectId(order_id),
+      });
+
+      if (order && order.user_id) {
+        // Only deduct stock if order is not cancelled (retry validation might have failed)
+        if (order.orderStatus !== orderStatus.CANCELLED) {
+          // Deduct stock from products
+          try {
+            await stockService.deductStock(order_id);
+          } catch (error) {
+            // Log error but don't fail the payment update
+            console.error('Error deducting stock after payment:', error);
+          }
+
+          // Clear the entire cart - all items should be ordered together
+          await repository.updateOne(
+            Cart,
+            { user_id: order.user_id },
+            {
+              products_list: [],
+              total: 0,
+            },
+            { new: true }
+          );
+        } else {
+          console.warn(
+            `Order ${order_id} payment succeeded but order remains cancelled due to stock unavailability`
+          );
+        }
+      }
+    } catch (error) {
+      // Log error but don't fail the payment update
+      console.error('Error processing post-payment actions:', error);
+    }
   }
 
   return updatedPayment;
