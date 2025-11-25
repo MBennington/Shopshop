@@ -14,9 +14,10 @@ const subOrderService = require('../subOrder/suborder.service');
 const userService = require('../users/user.service');
 const { calculatePlatformCharges } = require('../../services/platform-charges.service');
 const stockService = require('../../services/stock.service');
+const giftCardService = require('../giftcard/giftcard.service');
 
 module.exports.createOrder = async (user_id, body) => {
-  const { address, paymentMethod, fromCart, product } = body;
+  const { address, paymentMethod, fromCart, product, giftCards = [] } = body;
 
   let productsList = [];
   let subtotal = 0;
@@ -108,6 +109,44 @@ module.exports.createOrder = async (user_id, body) => {
     paymentMethod: paymentMethod, // Pass payment method to skip fees for COD
   });
 
+  // Calculate order total before gift card discount
+  const orderTotalBeforeGiftCard = buyerCharges.finalTotal + totalShippingFee;
+
+  // Apply gift cards if provided (but don't update gift cards yet - will do after order creation)
+  let giftCardDiscount = 0;
+  const appliedGiftCards = [];
+  let remainingOrderTotal = orderTotalBeforeGiftCard;
+
+  if (giftCards && giftCards.length > 0) {
+    for (const { code, pin } of giftCards) {
+      try {
+        // Validate gift card with PIN
+        const giftCard = await giftCardService.validateGiftCard(code, pin, user_id);
+        
+        const applied = Math.min(giftCard.remainingBalance, remainingOrderTotal);
+        giftCardDiscount += applied;
+        remainingOrderTotal -= applied;
+        
+        appliedGiftCards.push({
+          code: giftCard.code,
+          amountApplied: applied,
+          remainingBalance: giftCard.remainingBalance - applied,
+        });
+
+        // Stop if order is fully covered
+        if (remainingOrderTotal <= 0) {
+          break;
+        }
+      } catch (error) {
+        // Throw error to prevent order creation with invalid gift card
+        throw new Error(`Gift card ${code}: ${error.message}`);
+      }
+    }
+  }
+
+  // Final total after gift card discount
+  const finalTotal = Math.max(0, remainingOrderTotal);
+
   // Create main order with dynamic platform charges
   const newOrder = new OrderModel({
     user_id: user_id,
@@ -116,7 +155,9 @@ module.exports.createOrder = async (user_id, body) => {
     platformCharges: new Map(Object.entries(buyerCharges.charges)),
     platformChargesObject: buyerCharges.charges,
     platformChargesBreakdown: buyerCharges.chargesBreakdown,
-    finalTotal: buyerCharges.finalTotal + totalShippingFee, // Will include shipping in update
+    finalTotal: finalTotal,
+    giftCardDiscount: giftCardDiscount,
+    giftCards: appliedGiftCards,
     shippingAddress: address,
     paymentMethod,
   });
@@ -158,16 +199,37 @@ module.exports.createOrder = async (user_id, body) => {
     subOrders.push(subOrder);
   }
 
-  // Calculate main order finalTotal = sum of all seller totals + platform fees
-  // Platform fees are calculated on total product prices (buyer fees only)
-  const sumOfSellerTotals = subOrders.reduce((sum, subOrder) => sum + subOrder.finalTotal, 0);
-  const finalTotal = sumOfSellerTotals + buyerCharges.totalCharges;
-  await repository.updateOne(
-    OrderModel,
-    { _id: createdOrder._id },
-    { finalTotal: finalTotal },
-    { new: true }
-  );
+  // Apply gift cards to order and update gift card balances
+  if (appliedGiftCards.length > 0 && giftCards.length > 0) {
+    let remainingOrderTotalForGiftCards = orderTotalBeforeGiftCard;
+    for (let i = 0; i < appliedGiftCards.length; i++) {
+      const giftCardInfo = appliedGiftCards[i];
+      const giftCardData = giftCards[i]; // Get PIN from original request
+      
+      try {
+        // Apply gift card with the remaining order total and PIN
+        // The function will calculate the correct amount to apply
+        await giftCardService.applyGiftCardToOrder(
+          giftCardInfo.code,
+          giftCardData.pin,
+          remainingOrderTotalForGiftCards,
+          user_id,
+          createdOrder._id
+        );
+        
+        // Update remaining order total for next gift card
+        remainingOrderTotalForGiftCards -= giftCardInfo.amountApplied;
+        if (remainingOrderTotalForGiftCards <= 0) {
+          break;
+        }
+      } catch (error) {
+        // Log error but don't fail the order - gift card was already validated
+        console.error(`Error updating gift card ${giftCardInfo.code}:`, error);
+      }
+    }
+  }
+
+  // Note: finalTotal already includes gift card discount, so no need to recalculate
 
   // Update main order with sub-order references
   await repository.updateOne(
@@ -184,7 +246,7 @@ module.exports.createOrder = async (user_id, body) => {
     user_id,
     payment_method: paymentMethod,
     order_id: createdOrder._id,
-    amount: updatedOrder.finalTotal,
+    amount: updatedOrder.finalTotal, // This already includes gift card discount
   });
 
   if (!payment) {

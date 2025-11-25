@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
+import { Gift } from 'lucide-react';
 
 interface Address {
   id: string;
@@ -60,6 +61,7 @@ export default function CheckoutPage() {
   const searchParams = useSearchParams();
   const productParam = searchParams.get('product');
   const cartParam = searchParams.get('cart');
+  const giftCardsParam = searchParams.get('giftCards');
   const { user, loading } = useAuth();
 
   // Memoize parsed product and cartItems to prevent recreation on each render
@@ -89,6 +91,29 @@ export default function CheckoutPage() {
     };
   }, [productParam, cartParam]);
 
+  // Load gift cards from URL or localStorage
+  useEffect(() => {
+    if (giftCardsParam) {
+      try {
+        const giftCards = JSON.parse(decodeURIComponent(giftCardsParam));
+        setAppliedGiftCards(giftCards);
+      } catch (error) {
+        console.error('Error parsing gift cards:', error);
+      }
+    } else {
+      // Try to load from localStorage
+      const stored = localStorage.getItem('appliedGiftCards');
+      if (stored) {
+        try {
+          const giftCards = JSON.parse(stored);
+          setAppliedGiftCards(giftCards.map((gc: any) => ({ code: gc.code, pin: gc.pin })));
+        } catch (error) {
+          console.error('Error loading gift cards from localStorage:', error);
+        }
+      }
+    }
+  }, [giftCardsParam]);
+
   const [selectedAddress, setSelectedAddress] = useState<string>('');
   const [selectedPayment, setSelectedPayment] = useState<string>('');
   const [shippingFee, setShippingFee] = useState(100); // Platform default, will be updated from seller data
@@ -104,6 +129,7 @@ export default function CheckoutPage() {
     name: string;
     profilePicture?: string | null;
   } | null>(null);
+  const [appliedGiftCards, setAppliedGiftCards] = useState<Array<{ code: string; pin: string }>>([]);
 
   // Transform user's saved addresses to match our interface
   const savedAddresses: Address[] = (user?.savedAddresses ?? []).map(
@@ -637,6 +663,10 @@ export default function CheckoutPage() {
         address: newAddress,
         paymentMethod: selectedPayment,
         fromCart,
+        // Include gift cards with PINs if any
+        ...(appliedGiftCards.length > 0
+          ? { giftCards: appliedGiftCards }
+          : {}),
         // If not from cart, include product details
         ...(fromCart
           ? {}
@@ -1264,6 +1294,19 @@ export default function CheckoutPage() {
                         {calculatedCharges && calculatedCharges.totalCharges
                           ? calculatedCharges.totalCharges.toFixed(2)
                           : '0.00'}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Gift Card Discount */}
+                  {appliedGiftCards.length > 0 && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span className="flex items-center gap-1">
+                        <Gift className="w-4 h-4" />
+                        Gift Card Discount
+                      </span>
+                      <span className="font-medium">
+                        Applied ({appliedGiftCards.length} card{appliedGiftCards.length > 1 ? 's' : ''})
                       </span>
                     </div>
                   )}

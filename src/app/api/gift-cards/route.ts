@@ -1,0 +1,100 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const token = request.headers.get('Authorization')?.replace('Bearer ', '') || 
+                  request.cookies.get('token')?.value;
+
+    if (!token) {
+      return NextResponse.json(
+        { msg: 'Authentication required', error: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
+
+    const { action, ...data } = body;
+
+    let endpoint = '';
+    if (action === 'purchase') {
+      endpoint = '/api/gift-cards/purchase';
+    } else if (action === 'validate') {
+      endpoint = '/api/gift-cards/validate';
+    } else if (action === 'send-email') {
+      endpoint = '/api/gift-cards/send-email';
+    } else {
+      return NextResponse.json(
+        { msg: 'Invalid action', error: 'BAD_REQUEST' },
+        { status: 400 }
+      );
+    }
+
+    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { msg: result.msg || result.error || 'Request failed', error: result.error },
+        { status: response.status }
+      );
+    }
+
+    return NextResponse.json(result);
+  } catch (error: any) {
+    console.error('Gift card API error:', error);
+    return NextResponse.json(
+      { msg: error.message || 'Internal server error', error: 'INTERNAL_ERROR' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const token = request.headers.get('Authorization')?.replace('Bearer ', '') || 
+                  request.cookies.get('token')?.value;
+
+    if (!token) {
+      return NextResponse.json(
+        { msg: 'Authentication required', error: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
+
+    const response = await fetch(`${BACKEND_URL}/api/gift-cards/user-cards`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { msg: result.msg || result.error || 'Request failed', error: result.error },
+        { status: response.status }
+      );
+    }
+
+    return NextResponse.json(result);
+  } catch (error: any) {
+    console.error('Gift card API error:', error);
+    return NextResponse.json(
+      { msg: error.message || 'Internal server error', error: 'INTERNAL_ERROR' },
+      { status: 500 }
+    );
+  }
+}
+

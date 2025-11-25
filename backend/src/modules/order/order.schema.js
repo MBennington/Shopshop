@@ -34,6 +34,16 @@ module.exports.createOrder = joi.object({
       .required(),
     otherwise: joi.forbidden(),
   }),
+
+  // Gift card codes with PINs (optional)
+  giftCards: joi.array().items(
+    joi.object({
+      code: joi.string().trim().required(),
+      pin: joi.string().pattern(/^\d{4}$/).required().messages({
+        'string.pattern.base': 'PIN must be exactly 4 digits',
+      }),
+    })
+  ).optional(),
 });
 
 module.exports.findOrderById = joi.object({
