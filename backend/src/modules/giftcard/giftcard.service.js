@@ -122,8 +122,11 @@ module.exports.validateGiftCard = async (code, pin, user_id) => {
     throw new Error('Invalid gift card code');
   }
 
+  // Ensure PIN is a string and trim whitespace
+  const pinString = String(pin).trim();
+  
   // Verify PIN
-  const isPinValid = await giftCard.verifyPin(pin);
+  const isPinValid = await giftCard.verifyPin(pinString);
   if (!isPinValid) {
     throw new Error('Invalid PIN');
   }

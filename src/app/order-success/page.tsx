@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Package, Truck, CreditCard, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { CheckCircle, Package, Truck, CreditCard, XCircle, AlertCircle, RefreshCw, Gift } from 'lucide-react';
 
 export default function OrderSuccessPage() {
   const searchParams = useSearchParams();
@@ -352,6 +352,18 @@ export default function OrderSuccessPage() {
                         })()}
                       </p>
                     </div>
+                    {/* Gift Card Discount */}
+                    {orderDetails.giftCardDiscount && orderDetails.giftCardDiscount > 0 && (
+                      <div>
+                        <p className="text-sm text-gray-600 flex items-center gap-1">
+                          <Gift className="h-4 w-4" />
+                          Gift Card Discount
+                        </p>
+                        <p className="font-semibold text-green-600">
+                          -LKR {orderDetails.giftCardDiscount.toFixed(2)}
+                        </p>
+                      </div>
+                    )}
                     <div>
                       <p className="text-sm text-gray-600">Total Amount</p>
                       <p className="font-semibold text-lg text-green-600">
@@ -365,6 +377,11 @@ export default function OrderSuccessPage() {
                           <>
                             <CreditCard className="h-4 w-4" />
                             Credit/Debit Card
+                          </>
+                        ) : orderDetails.paymentMethod === 'gift_card' ? (
+                          <>
+                            <Gift className="h-4 w-4" />
+                            Gift Card
                           </>
                         ) : (
                           <>
@@ -406,6 +423,76 @@ export default function OrderSuccessPage() {
                     </div>
                   </>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Gift Card Redemption Details */}
+        {orderDetails?.giftCards && orderDetails.giftCards.length > 0 && (
+          <Card className="mb-6 border-green-200">
+            <CardHeader className="bg-green-50">
+              <CardTitle className="flex items-center gap-2 text-green-800">
+                <Gift className="h-5 w-5" />
+                Gift Cards Used
+              </CardTitle>
+              <p className="text-sm text-green-700">
+                The following gift cards were applied to this order
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {orderDetails.giftCards.map((giftCard: any, index: number) => (
+                  <div
+                    key={index}
+                    className="bg-green-50 border border-green-200 rounded-lg p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Gift className="h-4 w-4 text-green-600" />
+                          <p className="font-mono font-semibold text-green-800">
+                            {giftCard.code}
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <p className="text-gray-600">Amount Applied</p>
+                            <p className="font-semibold text-green-700">
+                              LKR {giftCard.amountApplied?.toFixed(2)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600">Remaining Balance</p>
+                            <p className="font-semibold text-gray-700">
+                              LKR {giftCard.remainingBalance?.toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {giftCard.remainingBalance > 0 && (
+                      <div className="mt-3 pt-3 border-t border-green-200">
+                        <p className="text-xs text-green-700">
+                          💡 You still have LKR{' '}
+                          {giftCard.remainingBalance.toFixed(2)} remaining on
+                          this gift card. You can use it for future purchases
+                          before it expires.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 pt-4 border-t border-green-200">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-gray-700">
+                    Total Gift Card Discount
+                  </p>
+                  <p className="text-lg font-bold text-green-600">
+                    -LKR {orderDetails.giftCardDiscount?.toFixed(2)}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -498,21 +585,57 @@ export default function OrderSuccessPage() {
                         </div>
 
                         {/* Package summary */}
-                        <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-                          <div className="text-sm text-gray-600">
-                            <p>Items: {subOrder.products_list?.length || 0}</p>
-                            <p>
-                              Shipping: LKR{' '}
-                              {subOrder.shipping_fee?.toFixed(2) || '0.00'}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm text-gray-600">Package Total</p>
-                            <p className="font-bold text-lg text-blue-600">
-                              LKR {subOrder.finalTotal?.toFixed(2) || '0.00'}
-                            </p>
-                          </div>
-                        </div>
+                        {(() => {
+                          // Calculate the amount for this package after gift card discount
+                          let packageTotal = subOrder.finalTotal || 0;
+                          let packageDiscount = 0;
+                          
+                          // If gift card discount exists, calculate proportional discount for this package
+                          if (orderDetails?.giftCardDiscount && orderDetails.giftCardDiscount > 0 && subOrders.length > 0) {
+                            // Calculate total of all sub-orders (before gift card discount)
+                            const totalSubOrders = subOrders.reduce(
+                              (sum, so) => sum + (so.finalTotal || 0),
+                              0
+                            );
+                            
+                            // Calculate this package's proportion of the total
+                            if (totalSubOrders > 0) {
+                              const packageProportion = (subOrder.finalTotal || 0) / totalSubOrders;
+                              // Apply gift card discount proportionally
+                              packageDiscount = orderDetails.giftCardDiscount * packageProportion;
+                              packageTotal = Math.max(0, (subOrder.finalTotal || 0) - packageDiscount);
+                            }
+                          }
+                          
+                          return (
+                            <div className="flex justify-between items-center pt-3 border-t border-gray-200">
+                              <div className="text-sm text-gray-600">
+                                <p>Items: {subOrder.products_list?.length || 0}</p>
+                                <p>
+                                  Shipping: LKR{' '}
+                                  {subOrder.shipping_fee?.toFixed(2) || '0.00'}
+                                </p>
+                                {packageDiscount > 0 && (
+                                  <p className="text-green-600 flex items-center gap-1">
+                                    <Gift className="w-3 h-3" />
+                                    Gift Card: -LKR {packageDiscount.toFixed(2)}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm text-gray-600">Package Total</p>
+                                <p className="font-bold text-lg text-blue-600">
+                                  LKR {packageTotal.toFixed(2)}
+                                </p>
+                                {packageDiscount > 0 && (
+                                  <p className="text-xs text-gray-500 line-through">
+                                    LKR {(subOrder.finalTotal || 0).toFixed(2)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
 
                         {/* Tracking info if available */}
                         {subOrder.tracking_number ? (
@@ -536,23 +659,50 @@ export default function OrderSuccessPage() {
                         )}
 
                         {/* COD Payment Instructions */}
-                        {orderDetails?.paymentMethod === 'cod' && (
-                          <div className="mt-3 pt-3 border-t border-gray-200 bg-yellow-50 p-3 rounded-lg">
-                            <div className="flex items-start gap-2">
-                              <Truck className="h-5 w-5 text-yellow-600 mt-0.5" />
-                              <div>
-                                <p className="text-sm font-semibold text-yellow-800">
-                                  Cash on Delivery Payment
-                                </p>
-                                <p className="text-xs text-yellow-700 mt-1">
-                                  You will need to pay LKR{' '}
-                                  {subOrder.finalTotal?.toFixed(2)} when this
-                                  package arrives.
-                                </p>
+                        {orderDetails?.paymentMethod === 'cod' && (() => {
+                          // Calculate the amount to pay for this package after gift card discount
+                          let codAmount = subOrder.finalTotal || 0;
+                          
+                          // If gift card discount exists, calculate proportional discount for this package
+                          if (orderDetails.giftCardDiscount && orderDetails.giftCardDiscount > 0 && subOrders.length > 0) {
+                            // Calculate total of all sub-orders (before gift card discount)
+                            const totalSubOrders = subOrders.reduce(
+                              (sum, so) => sum + (so.finalTotal || 0),
+                              0
+                            );
+                            
+                            // Calculate this package's proportion of the total
+                            if (totalSubOrders > 0) {
+                              const packageProportion = (subOrder.finalTotal || 0) / totalSubOrders;
+                              // Apply gift card discount proportionally
+                              const packageDiscount = orderDetails.giftCardDiscount * packageProportion;
+                              codAmount = Math.max(0, (subOrder.finalTotal || 0) - packageDiscount);
+                            }
+                          }
+                          
+                          return (
+                            <div className="mt-3 pt-3 border-t border-gray-200 bg-yellow-50 p-3 rounded-lg">
+                              <div className="flex items-start gap-2">
+                                <Truck className="h-5 w-5 text-yellow-600 mt-0.5" />
+                                <div>
+                                  <p className="text-sm font-semibold text-yellow-800">
+                                    Cash on Delivery Payment
+                                  </p>
+                                  <p className="text-xs text-yellow-700 mt-1">
+                                    You will need to pay LKR{' '}
+                                    {codAmount.toFixed(2)} when this
+                                    package arrives.
+                                    {orderDetails.giftCardDiscount && orderDetails.giftCardDiscount > 0 && (
+                                      <span className="block mt-1 text-green-700">
+                                        (Gift card discount applied)
+                                      </span>
+                                    )}
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
                       </div>
                     ))}
                   </div>

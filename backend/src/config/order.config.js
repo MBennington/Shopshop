@@ -20,6 +20,7 @@ const paymentMethod = Object.freeze({
   CARD: 'card',
   PAYPAL: 'PayPal',
   STRIPE: 'Stripe',
+  GIFT_CARD: 'gift_card',
 });
 
 module.exports = {

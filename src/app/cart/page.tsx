@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Gift, X, Check } from 'lucide-react';
 
 interface CartApiResponse {
   msg: string;
@@ -46,23 +45,11 @@ interface CartResponse {
   sellers: { [sellerId: string]: SellerGroup };
 }
 
-interface AppliedGiftCard {
-  code: string;
-  pin: string;
-  amount: number;
-  remainingBalance: number;
-}
-
 export default function CartPage() {
   const router = useRouter();
   const [cart, setCart] = useState<CartResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
-  const [giftCardCode, setGiftCardCode] = useState<string>('');
-  const [giftCardPin, setGiftCardPin] = useState<string>('');
-  const [appliedGiftCards, setAppliedGiftCards] = useState<AppliedGiftCard[]>([]);
-  const [giftCardError, setGiftCardError] = useState<string | null>(null);
-  const [isValidatingGiftCard, setIsValidatingGiftCard] = useState(false);
 
   // Helper function to create unique key for cart items
   const getItemKey = (item: CartItem) => {
@@ -165,128 +152,6 @@ export default function CartPage() {
       console.error('Remove failed:', err);
     }
   };
-
-  const handleApplyGiftCard = async () => {
-    if (!giftCardCode.trim()) {
-      setGiftCardError('Please enter a gift card code');
-      return;
-    }
-
-    if (!giftCardPin.trim() || giftCardPin.length !== 4) {
-      setGiftCardError('Please enter a valid 4-digit PIN');
-      return;
-    }
-
-    setIsValidatingGiftCard(true);
-    setGiftCardError(null);
-
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        router.push('/auth');
-        return;
-      }
-
-      const response = await fetch('/api/gift-cards', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          action: 'validate',
-          code: giftCardCode.trim().toUpperCase(),
-          pin: giftCardPin.trim(),
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.msg || data.error || 'Invalid gift card code or PIN');
-      }
-
-      // Check if already applied
-      if (appliedGiftCards.some((gc) => gc.code === data.data.code)) {
-        setGiftCardError('This gift card is already applied');
-        return;
-      }
-
-      // Add to applied gift cards
-      setAppliedGiftCards([
-        ...appliedGiftCards,
-        {
-          code: data.data.code,
-          pin: giftCardPin.trim(), // Store PIN for checkout
-          amount: data.data.amount,
-          remainingBalance: data.data.remainingBalance,
-        },
-      ]);
-
-      // Store in localStorage for checkout
-      localStorage.setItem(
-        'appliedGiftCards',
-        JSON.stringify([
-          ...appliedGiftCards,
-          {
-            code: data.data.code,
-            pin: giftCardPin.trim(),
-            amount: data.data.amount,
-            remainingBalance: data.data.remainingBalance,
-          },
-        ])
-      );
-
-      setGiftCardCode('');
-      setGiftCardPin('');
-    } catch (err: any) {
-      setGiftCardError(err.message || 'Failed to validate gift card');
-    } finally {
-      setIsValidatingGiftCard(false);
-    }
-  };
-
-  const handleRemoveGiftCard = (code: string) => {
-    const updated = appliedGiftCards.filter((gc) => gc.code !== code);
-    setAppliedGiftCards(updated);
-    localStorage.setItem('appliedGiftCards', JSON.stringify(updated));
-  };
-
-  // Load applied gift cards from localStorage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem('appliedGiftCards');
-    if (stored) {
-      try {
-        setAppliedGiftCards(JSON.parse(stored));
-      } catch (e) {
-        console.error('Error loading gift cards:', e);
-      }
-    }
-  }, []);
-
-  const calculateGiftCardDiscount = () => {
-    if (!cart) return 0;
-    const subtotal = cart.total;
-    const shipping = Object.values(cart.sellers).reduce(
-      (sum, seller) => sum + seller.shipping_fee,
-      0
-    );
-    const total = subtotal + shipping;
-
-    let discount = 0;
-    let remainingTotal = total;
-
-    for (const giftCard of appliedGiftCards) {
-      const applied = Math.min(giftCard.remainingBalance, remainingTotal);
-      discount += applied;
-      remainingTotal -= applied;
-      if (remainingTotal <= 0) break;
-    }
-
-    return discount;
-  };
-
-  const giftCardDiscount = calculateGiftCardDiscount();
 
   if (loading) {
     return <div className="text-center py-20">Loading cart...</div>;
@@ -468,100 +333,6 @@ export default function CartPage() {
             ))}
           </div>
 
-        {/* Gift Card Section */}
-        <div className="mb-6 bg-gray-50 rounded-lg p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Gift className="w-5 h-5 text-blue-600" />
-              <h3 className="text-lg font-semibold">Gift Card</h3>
-            </div>
-            <button
-              onClick={() => router.push('/gift-cards/purchase')}
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-            >
-              Buy Gift Card
-            </button>
-          </div>
-          
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <input
-                type="text"
-                value={giftCardCode}
-                onChange={(e) => {
-                  setGiftCardCode(e.target.value.toUpperCase());
-                  setGiftCardError(null);
-                }}
-                placeholder="Enter Gift Card Code (e.g., GC-XXXX-XXXX-XXXX)"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    document.getElementById('gift-card-pin')?.focus();
-                  }
-                }}
-              />
-              <div className="flex gap-2">
-                <input
-                  id="gift-card-pin"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={giftCardPin}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '').slice(0, 4);
-                    setGiftCardPin(value);
-                    setGiftCardError(null);
-                  }}
-                  placeholder="Enter 4-digit PIN"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-center text-lg tracking-widest"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleApplyGiftCard();
-                    }
-                  }}
-                />
-                <button
-                  onClick={handleApplyGiftCard}
-                  disabled={isValidatingGiftCard || !giftCardCode.trim() || giftCardPin.length !== 4}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                >
-                  {isValidatingGiftCard ? 'Validating...' : 'Apply'}
-                </button>
-              </div>
-            </div>
-
-            {giftCardError && (
-              <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
-                {giftCardError}
-              </div>
-            )}
-
-            {appliedGiftCards.length > 0 && (
-              <div className="space-y-2">
-                {appliedGiftCards.map((gc) => (
-                  <div
-                    key={gc.code}
-                    className="flex items-center justify-between bg-green-50 border border-green-200 p-3 rounded"
-                  >
-                    <div>
-                      <p className="font-medium text-green-800">{gc.code}</p>
-                      <p className="text-sm text-green-600">
-                        Balance: LKR {gc.remainingBalance.toFixed(2)}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleRemoveGiftCard(gc.code)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
         <div className="text-right mb-6 space-y-2">
           <div className="text-sm text-gray-600">
             <p>Subtotal: LKR {cart.total.toFixed(2)}</p>
@@ -572,22 +343,15 @@ export default function CartPage() {
                 0
               ).toFixed(2)}
             </p>
-            {giftCardDiscount > 0 && (
-              <p className="text-green-600 font-semibold">
-                Gift Card Discount: -LKR {giftCardDiscount.toFixed(2)}
-              </p>
-            )}
           </div>
           <p className="text-xl font-bold">
             Grand Total: LKR{' '}
-            {Math.max(
-              0,
+            {(
               cart.total +
-                Object.values(cart.sellers).reduce(
-                  (sum, seller) => sum + seller.shipping_fee,
-                  0
-                ) -
-                giftCardDiscount
+              Object.values(cart.sellers).reduce(
+                (sum, seller) => sum + seller.shipping_fee,
+                0
+              )
             ).toFixed(2)}
           </p>
         </div>
@@ -616,11 +380,9 @@ export default function CartPage() {
                 });
               });
               
-              // Navigate to checkout with cart data and gift cards
+              // Navigate to checkout with cart data
               const cartData = encodeURIComponent(JSON.stringify(checkoutItems));
-              const giftCardsData = appliedGiftCards.map((gc) => ({ code: gc.code, pin: gc.pin }));
-              const url = `/checkout?cart=${cartData}${giftCardsData.length > 0 ? `&giftCards=${encodeURIComponent(JSON.stringify(giftCardsData))}` : ''}`;
-              window.location.href = url;
+              window.location.href = `/checkout?cart=${cartData}`;
             }
           }}
           className="w-full py-4 rounded-full bg-[#1976d2] text-white font-bold text-lg shadow hover:bg-[#1565c0] transition-colors"

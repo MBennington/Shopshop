@@ -7,6 +7,7 @@ const OrderModel = require('../order/order.model');
 const SubOrderModel = require('../subOrder/suborder.model');
 const Cart = require('../cart/cart.model');
 const stockService = require('../../services/stock.service');
+const giftCardService = require('../giftcard/giftcard.service');
 const md5 = require('crypto-js/md5');
 const mongoose = require('mongoose');
 
@@ -24,7 +25,65 @@ module.exports.createPayment = async (paymentInfo) => {
 
   await repository.save(newPayment);
 
-  if (payment_method === paymentMethod.COD) {
+  if (payment_method === paymentMethod.COD || payment_method === paymentMethod.GIFT_CARD) {
+    // For COD or gift card, handle order processing
+    if (payment_method === paymentMethod.GIFT_CARD) {
+      // Update payment record to PAID
+      await repository.updateOne(
+        PaymentModel,
+        { _id: newPayment._id },
+        { paymentStatus: paymentStatus.PAID },
+        { new: true }
+      );
+
+      // Update the main order status to processing immediately
+      await repository.updateOne(
+        OrderModel,
+        { _id: order_id },
+        { paymentStatus: paymentStatus.PAID, orderStatus: orderStatus.PROCESSING },
+        { new: true }
+      );
+
+      // Update sub-orders: set seller payment to HELD (payment received but held)
+      await repository.updateMany(
+        SubOrderModel,
+        { main_order_id: order_id },
+        { seller_payment_status: sellerPaymentStatus.HELD },
+        { new: true }
+      );
+    } else if (payment_method === paymentMethod.COD) {
+      // For COD, order is accepted but payment is pending
+      // Still need to update order status and process the order
+      await repository.updateOne(
+        OrderModel,
+        { _id: order_id },
+        { orderStatus: orderStatus.PROCESSING },
+        { new: true }
+      );
+    }
+
+    // For both COD and GIFT_CARD: Deduct stock and clear cart immediately
+    // (Order is confirmed, so items should be reserved and cart cleared)
+    const order = await repository.findOne(OrderModel, { _id: order_id });
+    if (order && order.user_id) {
+      try {
+        await stockService.deductStock(order_id);
+      } catch (error) {
+        console.error('Error deducting stock after order creation:', error);
+      }
+
+      try {
+        await repository.updateOne(
+          Cart,
+          { user_id: order.user_id },
+          { products_list: [], total: 0 },
+          { new: true }
+        );
+      } catch (error) {
+        console.error('Error clearing cart after order creation:', error);
+      }
+    }
+
     return newPayment.toObject();
   }
 
@@ -209,6 +268,59 @@ module.exports.updatePaymentStatus = async (data) => {
       if (order && order.user_id) {
         // Only deduct stock if order is not cancelled (retry validation might have failed)
         if (order.orderStatus !== orderStatus.CANCELLED) {
+          // Apply gift cards for online payments (they were deferred until payment success)
+          if (order.giftCardPins && order.giftCardPins.length > 0 && order.giftCards && order.giftCards.length > 0) {
+            try {
+              // Get shipping fees from sub-orders
+              const subOrders = await SubOrderModel.find({
+                main_order_id: new mongoose.Types.ObjectId(order_id),
+              }).lean();
+              
+              const totalShippingFee = subOrders.reduce((sum, so) => sum + (so.shipping_fee || 0), 0);
+              
+              // Calculate order total before gift card discount (products + shipping + platform fees)
+              const orderTotalBeforeGiftCard = (order.totalPrice || 0) + totalShippingFee +
+                (order.platformChargesObject ? Object.values(order.platformChargesObject).reduce((sum, fee) => sum + (fee || 0), 0) : 0);
+              
+              let remainingOrderTotalForGiftCards = orderTotalBeforeGiftCard;
+              
+              // Apply each gift card
+              for (let i = 0; i < order.giftCardPins.length; i++) {
+                const giftCardPinData = order.giftCardPins[i];
+                const giftCardInfo = order.giftCards.find((gc) => gc.code === giftCardPinData.code);
+                
+                if (giftCardInfo && remainingOrderTotalForGiftCards > 0) {
+                  try {
+                    await giftCardService.applyGiftCardToOrder(
+                      giftCardPinData.code,
+                      giftCardPinData.pin,
+                      remainingOrderTotalForGiftCards,
+                      order.user_id.toString(),
+                      order_id
+                    );
+                    
+                    // Update remaining order total for next gift card
+                    remainingOrderTotalForGiftCards -= giftCardInfo.amountApplied;
+                    if (remainingOrderTotalForGiftCards <= 0) {
+                      break;
+                    }
+                  } catch (error) {
+                    console.error(`Error applying gift card ${giftCardPinData.code} after payment:`, error);
+                  }
+                }
+              }
+              
+              // Clear gift card PINs from order after applying (for security)
+              await repository.updateOne(
+                OrderModel,
+                { _id: new mongoose.Types.ObjectId(order_id) },
+                { giftCardPins: [] },
+                { new: true }
+              );
+            } catch (error) {
+              console.error('Error applying gift cards after payment success:', error);
+            }
+          }
           // Deduct stock from products
           try {
             await stockService.deductStock(order_id);

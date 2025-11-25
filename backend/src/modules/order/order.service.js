@@ -147,6 +147,12 @@ module.exports.createOrder = async (user_id, body) => {
   // Final total after gift card discount
   const finalTotal = Math.max(0, remainingOrderTotal);
 
+  // Store gift card PINs temporarily for online payments (will be applied when payment succeeds)
+  const giftCardPinsForOnlinePayment = 
+    paymentMethod === 'card' && giftCards.length > 0
+      ? giftCards.map((gc) => ({ code: gc.code, pin: gc.pin }))
+      : [];
+
   // Create main order with dynamic platform charges
   const newOrder = new OrderModel({
     user_id: user_id,
@@ -158,6 +164,7 @@ module.exports.createOrder = async (user_id, body) => {
     finalTotal: finalTotal,
     giftCardDiscount: giftCardDiscount,
     giftCards: appliedGiftCards,
+    giftCardPins: giftCardPinsForOnlinePayment, // Store PINs temporarily for online payments
     shippingAddress: address,
     paymentMethod,
   });
@@ -200,33 +207,40 @@ module.exports.createOrder = async (user_id, body) => {
   }
 
   // Apply gift cards to order and update gift card balances
+  // Only apply immediately for COD and fully gift card payments
+  // For online payments, defer until payment is successful
   if (appliedGiftCards.length > 0 && giftCards.length > 0) {
-    let remainingOrderTotalForGiftCards = orderTotalBeforeGiftCard;
-    for (let i = 0; i < appliedGiftCards.length; i++) {
-      const giftCardInfo = appliedGiftCards[i];
-      const giftCardData = giftCards[i]; // Get PIN from original request
-      
-      try {
-        // Apply gift card with the remaining order total and PIN
-        // The function will calculate the correct amount to apply
-        await giftCardService.applyGiftCardToOrder(
-          giftCardInfo.code,
-          giftCardData.pin,
-          remainingOrderTotalForGiftCards,
-          user_id,
-          createdOrder._id
-        );
+    // Only apply gift cards immediately if payment method is COD or fully gift card
+    // For online payments (card), we'll apply them when payment succeeds
+    if (paymentMethod === 'cod' || paymentMethod === 'gift_card') {
+      let remainingOrderTotalForGiftCards = orderTotalBeforeGiftCard;
+      for (let i = 0; i < appliedGiftCards.length; i++) {
+        const giftCardInfo = appliedGiftCards[i];
+        const giftCardData = giftCards[i]; // Get PIN from original request
         
-        // Update remaining order total for next gift card
-        remainingOrderTotalForGiftCards -= giftCardInfo.amountApplied;
-        if (remainingOrderTotalForGiftCards <= 0) {
-          break;
+        try {
+          // Apply gift card with the remaining order total and PIN
+          // The function will calculate the correct amount to apply
+          await giftCardService.applyGiftCardToOrder(
+            giftCardInfo.code,
+            giftCardData.pin,
+            remainingOrderTotalForGiftCards,
+            user_id,
+            createdOrder._id.toString()
+          );
+          
+          // Update remaining order total for next gift card
+          remainingOrderTotalForGiftCards -= giftCardInfo.amountApplied;
+          if (remainingOrderTotalForGiftCards <= 0) {
+            break;
+          }
+        } catch (error) {
+          // Log error but don't fail the order - gift card was already validated
+          console.error(`Error updating gift card ${giftCardInfo.code}:`, error);
         }
-      } catch (error) {
-        // Log error but don't fail the order - gift card was already validated
-        console.error(`Error updating gift card ${giftCardInfo.code}:`, error);
       }
     }
+    // For online payments, gift cards will be applied in updatePaymentStatus when payment succeeds
   }
 
   // Note: finalTotal already includes gift card discount, so no need to recalculate
@@ -242,11 +256,15 @@ module.exports.createOrder = async (user_id, body) => {
   // Get updated order with correct finalTotal
   const updatedOrder = await repository.findOne(OrderModel, { _id: createdOrder._id });
   
+  // For gift card payments, amount is 0 (fully covered)
+  // For other payments, use the final total after gift card discount
+  const paymentAmount = paymentMethod === 'gift_card' ? 0 : updatedOrder.finalTotal;
+  
   const payment = await paymentService.createPayment({
     user_id,
     payment_method: paymentMethod,
     order_id: createdOrder._id,
-    amount: updatedOrder.finalTotal, // This already includes gift card discount
+    amount: paymentAmount,
   });
 
   if (!payment) {

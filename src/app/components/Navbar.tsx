@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { FiUser, FiLogOut, FiChevronDown, FiShoppingBag, FiHeart, FiSearch, FiMenu, FiX } from 'react-icons/fi';
+import { Gift } from 'lucide-react';
 
 export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -200,7 +201,27 @@ export default function Navbar() {
               {loading ? (
                 <div className="w-8 h-8 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
               ) : user ? (
-                <div className="relative" ref={userMenuRef}>
+                <>
+                  {/* Gift Cards Button */}
+                  <button
+                    onClick={() => router.push('/gift-cards')}
+                    className={`relative p-2.5 rounded-xl transition-all duration-300 ${
+                      pathname.startsWith('/gift-cards')
+                        ? 'bg-white text-[#FF0808] shadow-lg scale-105'
+                        : 'bg-white/15 text-white hover:bg-white/25 hover:scale-110'
+                    }`}
+                    aria-label="Gift Cards"
+                  >
+                    <Gift
+                      size={20}
+                      className={pathname.startsWith('/gift-cards') ? 'fill-current' : ''}
+                    />
+                    {pathname.startsWith('/gift-cards') && (
+                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#FF0808] rounded-full animate-pulse"></span>
+                    )}
+                  </button>
+
+                  <div className="relative" ref={userMenuRef}>
                   <button
                     onClick={() => setShowUserMenu(!showUserMenu)}
                     className="flex items-center gap-2 px-3 py-2 bg-white rounded-xl hover:bg-white/95 transition-all duration-300 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg group"
@@ -268,29 +289,6 @@ export default function Navbar() {
                           <span className="font-medium">My Orders</span>
                         </button>
 
-                        <button
-                          onClick={() => {
-                            setShowUserMenu(false);
-                            router.push('/gift-cards');
-                          }}
-                          className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-[#FF0808]/5 hover:text-[#FF0808] transition-colors duration-200 flex items-center gap-3 group"
-                        >
-                          <svg
-                            className="w-4 h-4 group-hover:scale-110 transition-transform"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"
-                            />
-                          </svg>
-                          <span className="font-medium">Gift Cards</span>
-                        </button>
-
                         {user.role === 'seller' && (
                           <button
                             onClick={() => {
@@ -331,7 +329,8 @@ export default function Navbar() {
                       </div>
                     </div>
                   )}
-                </div>
+                  </div>
+                </>
               ) : (
                 <>
                   <button

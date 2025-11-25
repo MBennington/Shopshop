@@ -31,8 +31,13 @@ module.exports.purchaseGiftCard = async (req, res) => {
 module.exports.validateGiftCard = async (req, res) => {
   try {
     const user_id = res.locals.user.id;
-    const { code } = req.body;
-    const giftCard = await giftCardService.validateGiftCard(code, user_id);
+    const { code, pin } = req.body;
+    
+    if (!code || !pin) {
+      return customError('Gift card code and PIN are required', res);
+    }
+    
+    const giftCard = await giftCardService.validateGiftCard(code, pin, user_id);
     return successWithData(giftCard, res);
   } catch (error) {
     console.error('Validate gift card error:', error);
