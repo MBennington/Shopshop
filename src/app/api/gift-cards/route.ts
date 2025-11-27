@@ -20,6 +20,8 @@ export async function POST(request: NextRequest) {
     let endpoint = '';
     if (action === 'purchase') {
       endpoint = '/api/gift-cards/purchase';
+    } else if (action === 'initiate-purchase') {
+      endpoint = '/api/gift-cards/payment/initiate';
     } else if (action === 'validate') {
       endpoint = '/api/gift-cards/validate';
     } else if (action === 'send-email') {
@@ -71,6 +73,33 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Check if requesting payment by ID
+    const { searchParams } = new URL(request.url);
+    const paymentId = searchParams.get('paymentId');
+
+    if (paymentId) {
+      // Fetch payment by ID
+      const response = await fetch(`${BACKEND_URL}/api/gift-cards/payment/${paymentId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        return NextResponse.json(
+          { msg: result.msg || result.error || 'Request failed', error: result.error },
+          { status: response.status }
+        );
+      }
+
+      return NextResponse.json(result);
+    }
+
+    // Default: fetch user's gift cards
     const response = await fetch(`${BACKEND_URL}/api/gift-cards/user-cards`, {
       method: 'GET',
       headers: {

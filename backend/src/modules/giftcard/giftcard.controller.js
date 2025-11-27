@@ -32,11 +32,11 @@ module.exports.validateGiftCard = async (req, res) => {
   try {
     const user_id = res.locals.user.id;
     const { code, pin } = req.body;
-    
+
     if (!code || !pin) {
       return customError('Gift card code and PIN are required', res);
     }
-    
+
     const giftCard = await giftCardService.validateGiftCard(code, pin, user_id);
     return successWithData(giftCard, res);
   } catch (error) {
@@ -71,7 +71,7 @@ module.exports.getUserGiftCards = async (req, res) => {
 module.exports.sendGiftCardEmail = async (req, res) => {
   try {
     const { code, recipientEmail, message } = req.body;
-    
+
     // Validate gift card exists
     const giftCard = await giftCardService.getGiftCardByCode(code);
     if (!giftCard) {
@@ -81,7 +81,7 @@ module.exports.sendGiftCardEmail = async (req, res) => {
     // TODO: Implement email service
     // For now, just update the email recipient
     // In production, send actual email with gift card details
-    
+
     return successWithMessage('Gift card email sent successfully', res);
   } catch (error) {
     console.error('Send gift card email error:', error);
@@ -89,3 +89,85 @@ module.exports.sendGiftCardEmail = async (req, res) => {
   }
 };
 
+/**
+ * Initiate Gift Card Purchase Payment
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.initiateGiftCardPurchase = async (req, res) => {
+  try {
+    const user_id = res.locals.user.id;
+    const data = await giftCardService.initiateGiftCardPurchase(
+      req.body,
+      user_id
+    );
+    return successWithData(data, res);
+  } catch (error) {
+    console.error('Initiate gift card purchase error:', error);
+    return customError(`${error.message}`, res);
+  }
+};
+
+/**
+ * Update Gift Card Payment Status
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.updateGiftCardPaymentStatus = async (req, res) => {
+  try {
+    // console.log('=== Gift Card Payment Status Update ===');
+    // console.log('Request body:', JSON.stringify(req.body, null, 2));
+    // console.log('Status code type:', typeof req.body.status_code, 'Value:', req.body.status_code);
+
+    const data = await giftCardService.updateGiftCardPaymentStatus(req.body);
+
+    //console.log('Payment status updated successfully:', JSON.stringify(data, null, 2));
+    return successWithData(data, res);
+  } catch (error) {
+    //console.error('Update gift card payment status error:', error);
+    //console.error('Error stack:', error.stack);
+    return customError(`${error.message}`, res);
+  }
+};
+
+/**
+ * Get Gift Card Payment by Payment ID
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.getGiftCardPaymentById = async (req, res) => {
+  try {
+    const { payment_id } = req.params;
+    const payment = await giftCardService.getGiftCardPaymentById(payment_id);
+
+    if (!payment) {
+      return customError('Payment not found', res);
+    }
+
+    // Include gift card details if available
+    let responseData = { payment };
+
+    if (payment.gift_card_id && typeof payment.gift_card_id === 'object') {
+      // Gift card is populated
+      const giftCard = payment.gift_card_id;
+      delete giftCard.pin; // Never return hashed PIN
+
+      // Include temporary PIN if available (only once)
+      if (payment.temporaryPin) {
+        giftCard.pin = payment.temporaryPin;
+        // Clear temporary PIN after retrieval (optional - for security)
+        // await giftCardService.clearTemporaryPin(payment_id);
+      }
+
+      responseData.giftCard = giftCard;
+    }
+
+    return successWithData(responseData, res);
+  } catch (error) {
+    console.error('Get gift card payment error:', error);
+    return customError(`${error.message}`, res);
+  }
+};

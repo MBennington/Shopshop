@@ -17,4 +17,16 @@ module.exports.permissions = {
     path: '/send-email',
     grantedUserRoles: [roles.buyer, roles.admin, roles.seller],
   },
+  initiateGiftCardPurchase: {
+    path: '/payment/initiate',
+    grantedUserRoles: [roles.buyer, roles.admin, roles.seller],
+  },
+  updateGiftCardPaymentStatus: {
+    path: '/payment/update-status',
+    grantedUserRoles: [], // No auth required - called from webhook
+  },
+  getGiftCardPaymentById: {
+    path: '/payment/:payment_id',
+    grantedUserRoles: [roles.buyer, roles.admin, roles.seller],
+  },
 };

@@ -38,5 +38,27 @@ router
     controller.sendGiftCardEmail
   );
 
+router
+  .route(permissions.initiateGiftCardPurchase.path)
+  .post(
+    validator.validateHeader(permissions.initiateGiftCardPurchase.grantedUserRoles),
+    validator.validateBody(schema.purchaseGiftCard), // Reuse purchase schema
+    controller.initiateGiftCardPurchase
+  );
+
+router
+  .route(permissions.updateGiftCardPaymentStatus.path)
+  .post(
+    // No auth required - called from webhook
+    controller.updateGiftCardPaymentStatus
+  );
+
+router
+  .route(permissions.getGiftCardPaymentById.path)
+  .get(
+    validator.validateHeader(permissions.getGiftCardPaymentById.grantedUserRoles),
+    controller.getGiftCardPaymentById
+  );
+
 module.exports = router;
 
