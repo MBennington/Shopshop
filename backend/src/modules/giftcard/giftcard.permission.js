@@ -29,4 +29,16 @@ module.exports.permissions = {
     path: '/payment/:payment_id',
     grantedUserRoles: [roles.buyer, roles.admin, roles.seller],
   },
+  sendGiftCard: {
+    path: '/send',
+    grantedUserRoles: [roles.buyer, roles.admin, roles.seller],
+  },
+  getGiftCardByAcceptanceToken: {
+    path: '/accept/:token',
+    grantedUserRoles: [], // No auth required - public endpoint
+  },
+  acceptGiftCard: {
+    path: '/accept/:token/confirm',
+    grantedUserRoles: [roles.buyer, roles.admin, roles.seller],
+  },
 };

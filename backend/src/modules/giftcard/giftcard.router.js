@@ -60,5 +60,27 @@ router
     controller.getGiftCardPaymentById
   );
 
+router
+  .route(permissions.sendGiftCard.path)
+  .post(
+    validator.validateHeader(permissions.sendGiftCard.grantedUserRoles),
+    validator.validateBody(schema.sendGiftCard),
+    controller.sendGiftCard
+  );
+
+router
+  .route(permissions.getGiftCardByAcceptanceToken.path)
+  .get(
+    // No auth required - public endpoint
+    controller.getGiftCardByAcceptanceToken
+  );
+
+router
+  .route(permissions.acceptGiftCard.path)
+  .post(
+    validator.validateHeader(permissions.acceptGiftCard.grantedUserRoles),
+    controller.acceptGiftCard
+  );
+
 module.exports = router;
 

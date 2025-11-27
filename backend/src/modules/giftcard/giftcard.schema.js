@@ -18,3 +18,8 @@ module.exports.sendGiftCardEmail = joi.object().keys({
   message: joi.string().max(500).optional().allow(null, ''),
 });
 
+module.exports.sendGiftCard = joi.object().keys({
+  giftCardId: joi.string().required(),
+  receiverEmail: joi.string().email({ tlds: { allow: false } }).required(),
+});
+

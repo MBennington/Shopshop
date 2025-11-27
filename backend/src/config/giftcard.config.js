@@ -11,6 +11,7 @@ const giftCardConfig = Object.freeze({
   EXPIRY_DAYS: 365, // 1 year
   CODE_PREFIX: 'GC',
   CODE_LENGTH: 12, // After prefix, total will be GC-XXXX-XXXX-XXXX
+  ACCEPTANCE_TOKEN_EXPIRY_DAYS: 7, // Token expires in 7 days
 });
 
 module.exports = {

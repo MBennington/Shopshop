@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   Card,
@@ -34,7 +34,12 @@ export default function AuthPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
+  
+  // Get returnUrl from query params
+  const returnUrl = searchParams?.get('returnUrl') || null;
+  const isSignup = searchParams?.get('signup') === 'true';
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +61,12 @@ export default function AuthPage() {
 
       if (res.ok && data.status) {
         login(data.token, data.data);
+        // Redirect to returnUrl if provided, otherwise to home
+        if (returnUrl) {
+          router.push(returnUrl);
+        } else {
+          router.push('/');
+        }
       } else {
         setErrorMessage(data.msg || 'Login failed');
       }
@@ -110,6 +121,12 @@ export default function AuthPage() {
       if (res.ok) {
         setSuccessMessage('Account created successfully!');
         login(data.token, data.data);
+        // Redirect to returnUrl if provided, otherwise to home
+        if (returnUrl) {
+          router.push(returnUrl);
+        } else {
+          router.push('/');
+        }
       } else {
         setErrorMessage(data.msg || 'Signup failed');
       }
@@ -168,7 +185,7 @@ export default function AuthPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="login" className="w-full">
+            <Tabs defaultValue={isSignup ? "signup" : "login"} className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="login" className="text-sm font-medium">
                   Sign In

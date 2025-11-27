@@ -204,9 +204,15 @@ export default function Navbar() {
                 <>
                   {/* Gift Cards Button */}
                   <button
-                    onClick={() => router.push('/gift-cards')}
+                    onClick={() => {
+                      // Don't navigate if on acceptance page - stay on acceptance page
+                      if (pathname.startsWith('/gift-cards/accept')) {
+                        return;
+                      }
+                      router.push('/gift-cards');
+                    }}
                     className={`relative p-2.5 rounded-xl transition-all duration-300 ${
-                      pathname.startsWith('/gift-cards')
+                      pathname.startsWith('/gift-cards') && !pathname.startsWith('/gift-cards/accept')
                         ? 'bg-white text-[#FF0808] shadow-lg scale-105'
                         : 'bg-white/15 text-white hover:bg-white/25 hover:scale-110'
                     }`}
@@ -214,9 +220,9 @@ export default function Navbar() {
                   >
                     <Gift
                       size={20}
-                      className={pathname.startsWith('/gift-cards') ? 'fill-current' : ''}
+                      className={pathname.startsWith('/gift-cards') && !pathname.startsWith('/gift-cards/accept') ? 'fill-current' : ''}
                     />
-                    {pathname.startsWith('/gift-cards') && (
+                    {pathname.startsWith('/gift-cards') && !pathname.startsWith('/gift-cards/accept') && (
                       <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#FF0808] rounded-full animate-pulse"></span>
                     )}
                   </button>

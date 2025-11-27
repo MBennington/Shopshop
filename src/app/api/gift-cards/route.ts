@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
       endpoint = '/api/gift-cards/validate';
     } else if (action === 'send-email') {
       endpoint = '/api/gift-cards/send-email';
+    } else if (action === 'send') {
+      endpoint = '/api/gift-cards/send';
     } else {
       return NextResponse.json(
         { msg: 'Invalid action', error: 'BAD_REQUEST' },

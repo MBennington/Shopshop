@@ -57,6 +57,54 @@ const giftCardSchema = new Schema(
       trim: true,
       lowercase: true,
     },
+    // Gift card sharing fields
+    owner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'user',
+      default: null, // If null, owner is purchasedBy
+    },
+    sharedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'user',
+      default: null,
+    },
+    sentAt: {
+      type: Date,
+      default: null,
+    },
+    isShared: {
+      type: Boolean,
+      default: false,
+    },
+    isAccepted: {
+      type: Boolean,
+      default: false,
+    },
+    acceptedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'user',
+      default: null,
+    },
+    acceptedAt: {
+      type: Date,
+      default: null,
+    },
+    acceptanceToken: {
+      type: String,
+      default: null,
+      unique: true,
+      sparse: true, // Allow multiple nulls
+    },
+    tokenExpiry: {
+      type: Date,
+      default: null,
+    },
+    receiverEmail: {
+      type: String,
+      default: null,
+      trim: true,
+      lowercase: true,
+    },
     redemptionHistory: [
       {
         orderId: {
@@ -92,6 +140,10 @@ giftCardSchema.index({ purchasedBy: 1 });
 giftCardSchema.index({ redeemedBy: 1 });
 giftCardSchema.index({ status: 1 });
 giftCardSchema.index({ expiryDate: 1 });
+giftCardSchema.index({ owner: 1 });
+giftCardSchema.index({ acceptanceToken: 1 });
+giftCardSchema.index({ isShared: 1 });
+giftCardSchema.index({ isAccepted: 1 });
 
 // Virtual to check if gift card is expired
 giftCardSchema.virtual('isExpired').get(function () {

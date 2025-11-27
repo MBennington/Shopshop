@@ -171,3 +171,74 @@ module.exports.getGiftCardPaymentById = async (req, res) => {
     return customError(`${error.message}`, res);
   }
 };
+
+/**
+ * Send Gift Card to Receiver
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.sendGiftCard = async (req, res) => {
+  try {
+    const user_id = res.locals.user.id;
+    const user_name = res.locals.user.name;
+    const { giftCardId, receiverEmail } = req.body;
+
+    const giftCard = await giftCardService.sendGiftCard(
+      giftCardId,
+      receiverEmail,
+      user_id,
+      user_name
+    );
+
+    return successWithData(giftCard, res);
+  } catch (error) {
+    console.error('Send gift card error:', error);
+    return customError(`${error.message}`, res);
+  }
+};
+
+/**
+ * Get Gift Card by Acceptance Token
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.getGiftCardByAcceptanceToken = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const data = await giftCardService.getGiftCardByAcceptanceToken(token);
+
+    return successWithData(data, res);
+  } catch (error) {
+    console.error('Get gift card by acceptance token error:', error);
+    return customError(`${error.message}`, res);
+  }
+};
+
+/**
+ * Accept Gift Card
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.acceptGiftCard = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const user_id = res.locals.user.id;
+    const user_name = res.locals.user.name;
+    const user_email = res.locals.user.email;
+
+    const giftCard = await giftCardService.acceptGiftCard(
+      token,
+      user_id,
+      user_name,
+      user_email
+    );
+
+    return successWithData(giftCard, res);
+  } catch (error) {
+    console.error('Accept gift card error:', error);
+    return customError(`${error.message}`, res);
+  }
+};
