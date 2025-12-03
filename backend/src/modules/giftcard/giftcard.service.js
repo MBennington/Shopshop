@@ -2,6 +2,7 @@ const GiftCardModel = require('./giftcard.model');
 const GiftCardPaymentModel = require('./giftcard-payment.model');
 const repository = require('../../services/repository.service');
 const emailService = require('../../services/email.service');
+const pdfService = require('../../services/pdf.service');
 const {
   giftCardStatus,
   giftCardConfig,
@@ -9,7 +10,6 @@ const {
 const { paymentStatus } = require('../../config/order.config');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 const md5 = require('md5');
 
 /**
@@ -55,107 +55,19 @@ const calculateExpiryDate = () => {
   return expiryDate;
 };
 
-/**
- * Generate 4-digit PIN
- * @returns {String} 4-digit PIN (0000-9999)
- */
-const generatePin = () => {
-  // Generate random 4-digit PIN
-  const pin = Math.floor(1000 + Math.random() * 9000).toString();
-  return pin;
-};
-
-/**
- * Purchase a gift card
- * @param {Object} body - { amount, paymentMethod, recipientEmail? }
- * @param {String} user_id - User ID who purchased
- * @param {String} order_id - Order ID if purchased as part of order
- * @returns {Promise<Object>}
- */
-module.exports.purchaseGiftCard = async (body, user_id, order_id = null) => {
-  const { amount, recipientEmail } = body;
-
-  // Validate amount
-  if (
-    amount < giftCardConfig.MIN_AMOUNT ||
-    amount > giftCardConfig.MAX_AMOUNT
-  ) {
-    throw new Error(
-      `Gift card amount must be between ${giftCardConfig.MIN_AMOUNT} and ${giftCardConfig.MAX_AMOUNT} LKR`
-    );
-  }
-
-  // Generate unique code
-  const code = await generateGiftCardCode();
-
-  // Generate 4-digit PIN
-  const pin = generatePin();
-
-  // Calculate expiry date
-  const expiryDate = calculateExpiryDate();
-
-  // Create gift card (PIN will be hashed by pre-save hook)
-  const giftCard = new GiftCardModel({
-    code,
-    pin, // Will be hashed automatically
-    amount,
-    remainingBalance: amount,
-    purchasedBy: user_id,
-    owner: user_id, // Initially owner is the purchaser
-    expiryDate,
-    status: giftCardStatus.ACTIVE,
-    purchaseOrderId: order_id,
-    emailRecipient: recipientEmail || null,
-    // If recipientEmail provided at purchase, mark as shared
-    isShared: !!recipientEmail,
-    sentAt: recipientEmail ? new Date() : null,
-    receiverEmail: recipientEmail ? recipientEmail.toLowerCase().trim() : null,
-  });
-
-  // If recipientEmail provided, generate acceptance token
-  if (recipientEmail) {
-    giftCard.acceptanceToken = generateAcceptanceToken();
-    const tokenExpiry = new Date();
-    tokenExpiry.setDate(tokenExpiry.getDate() + giftCardConfig.ACCEPTANCE_TOKEN_EXPIRY_DAYS);
-    giftCard.tokenExpiry = tokenExpiry;
-    giftCard.sharedBy = user_id;
-  }
-
-  await repository.save(giftCard);
-
-  // Return gift card with plain PIN (only shown once during purchase)
-  const giftCardObj = giftCard.toObject();
-  // Remove hashed PIN from response
-  delete giftCardObj.pin;
-
-  // Return gift card with plain PIN (shown only once)
-  return {
-    ...giftCardObj,
-    pin: pin, // Return plain PIN only once during purchase
-  };
-};
+// Old purchaseGiftCard function removed - use initiateGiftCardPurchase instead
 
 /**
  * Validate and redeem gift card
  * @param {String} code - Gift card code
- * @param {String} pin - 4-digit PIN
  * @param {String} user_id - User ID redeeming
  * @returns {Promise<Object>}
  */
-module.exports.validateGiftCard = async (code, pin, user_id) => {
+module.exports.validateGiftCard = async (code, user_id) => {
   const giftCard = await GiftCardModel.findOne({ code: code.toUpperCase() });
 
   if (!giftCard) {
     throw new Error('Invalid gift card code');
-  }
-
-  // Ensure PIN is a string and trim whitespace
-  const pinString = String(pin).trim();
-
-  // Verify PIN
-  const isPinValid = await giftCard.verifyPin(pinString);
-  if (!isPinValid) {
-    throw new Error('Invalid PIN');
   }
 
   // Check if expired
@@ -193,7 +105,6 @@ module.exports.validateGiftCard = async (code, pin, user_id) => {
   }
 
   const giftCardObj = giftCard.toObject();
-  delete giftCardObj.pin; // Never return PIN in response
   return giftCardObj;
 };
 
@@ -207,12 +118,11 @@ module.exports.validateGiftCard = async (code, pin, user_id) => {
  */
 module.exports.applyGiftCardToOrder = async (
   code,
-  pin,
   orderTotal,
   user_id,
   order_id
 ) => {
-  const giftCard = await this.validateGiftCard(code, pin, user_id);
+  const giftCard = await this.validateGiftCard(code, user_id);
 
   const appliedAmount = Math.min(giftCard.remainingBalance, orderTotal);
   const newRemainingBalance = giftCard.remainingBalance - appliedAmount;
@@ -250,21 +160,16 @@ module.exports.applyGiftCardToOrder = async (
 };
 
 /**
- * Get user's gift cards (owned, shared, and received)
+ * Get user's gift cards (purchased and received)
  * @param {String} user_id - User ID
- * @returns {Promise<Object>} { owned, shared, received }
+ * @returns {Promise<Object>} { purchased, received }
  */
 module.exports.getUserGiftCards = async (user_id) => {
   const now = new Date();
 
-  // Get owned gift cards (owner is user_id or purchasedBy is user_id and no owner set)
-  const ownedCards = await GiftCardModel.find({
-    $or: [
-      { owner: user_id },
-      { purchasedBy: user_id, owner: null },
-      { purchasedBy: user_id, owner: { $exists: false } },
-    ],
-    isShared: false, // Not shared yet
+  // Get gift cards purchased by user
+  const purchasedCards = await GiftCardModel.find({
+    purchasedBy: user_id,
     status: {
       $in: [
         giftCardStatus.ACTIVE,
@@ -276,52 +181,26 @@ module.exports.getUserGiftCards = async (user_id) => {
     .sort({ created_at: -1 })
     .lean();
 
-  // Get shared gift cards (sent by user, pending acceptance)
-  const sharedCards = await GiftCardModel.find({
-    sharedBy: user_id,
-    isShared: true,
-    isAccepted: false, // Still pending acceptance
-    status: {
-      $in: [
-        giftCardStatus.ACTIVE,
-        giftCardStatus.FULLY_REDEEMED,
-        giftCardStatus.EXPIRED,
-      ],
-    },
-  })
-    .sort({ sentAt: -1 })
-    .lean();
+  // Get gift cards received by user (by email)
+  const UserModel = require('../users/user.model');
+  const user = await repository.findOne(UserModel, { _id: user_id });
+  const userEmail = user?.email?.toLowerCase();
 
-  // Get accepted shared cards (sent by user, accepted by receiver)
-  const sharedAcceptedCards = await GiftCardModel.find({
-    sharedBy: user_id,
-    isShared: true,
-    isAccepted: true,
-    status: {
-      $in: [
-        giftCardStatus.ACTIVE,
-        giftCardStatus.FULLY_REDEEMED,
-        giftCardStatus.EXPIRED,
-      ],
-    },
-  })
-    .sort({ acceptedAt: -1 })
-    .lean();
-
-  // Get received gift cards (accepted by user)
-  const receivedCards = await GiftCardModel.find({
-    acceptedBy: user_id,
-    isAccepted: true,
-    status: {
-      $in: [
-        giftCardStatus.ACTIVE,
-        giftCardStatus.FULLY_REDEEMED,
-        giftCardStatus.EXPIRED,
-      ],
-    },
-  })
-    .sort({ acceptedAt: -1 })
-    .lean();
+  const receivedCards = userEmail
+    ? await GiftCardModel.find({
+        receiverEmail: userEmail,
+        purchasedBy: { $ne: user_id }, // Not purchased by themselves
+        status: {
+          $in: [
+            giftCardStatus.ACTIVE,
+            giftCardStatus.FULLY_REDEEMED,
+            giftCardStatus.EXPIRED,
+          ],
+        },
+      })
+        .sort({ created_at: -1 })
+        .lean()
+    : [];
 
   // Helper function to process cards
   const processCards = (cards) => {
@@ -335,28 +214,17 @@ module.exports.getUserGiftCards = async (user_id) => {
             ? giftCardStatus.EXPIRED
             : card.status,
       };
-      delete cardObj.pin; // Never return PIN
       return cardObj;
     });
   };
 
   return {
-    owned: processCards(ownedCards),
-    shared: processCards(sharedCards),
-    sharedAccepted: processCards(sharedAcceptedCards),
+    purchased: processCards(purchasedCards),
     received: processCards(receivedCards),
   };
 };
 
-/**
- * Get gift card by code (for validation)
- * @param {String} code - Gift card code
- * @returns {Promise<Object>}
- */
-module.exports.getGiftCardByCode = async (code) => {
-  const giftCard = await GiftCardModel.findOne({ code: code.toUpperCase() });
-  return giftCard ? giftCard.toObject() : null;
-};
+// getGiftCardByCode removed - only used by unused sendGiftCardEmail endpoint
 
 /**
  * Refund gift card balance (for order cancellation)
@@ -458,6 +326,21 @@ module.exports.initiateGiftCardPurchase = async (body, user_id) => {
     );
   }
 
+  // Validate recipient email is required (always sending to others)
+  if (!recipientEmail || !recipientEmail.trim()) {
+    throw new Error('Recipient email is required. Gift cards are always sent to others.');
+  }
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(recipientEmail.trim())) {
+    throw new Error('Please provide a valid recipient email address.');
+  }
+
+  // Extract optional fields
+  const recipientName = body.recipientName?.trim() || null;
+  const personalMessage = body.personalMessage?.trim() || null;
+
   // Generate unique payment ID
   const paymentId = generateGiftCardPaymentId();
 
@@ -471,6 +354,8 @@ module.exports.initiateGiftCardPurchase = async (body, user_id) => {
     purchaseDetails: {
       amount,
       recipientEmail: recipientEmail || null,
+      recipientName: recipientName || null,
+      personalMessage: personalMessage || null,
     },
   });
 
@@ -493,7 +378,7 @@ module.exports.initiateGiftCardPurchase = async (body, user_id) => {
 /**
  * Create gift card after successful payment
  * @param {String} payment_id - Payment ID
- * @returns {Promise<Object>} Gift card with plain PIN
+ * @returns {Promise<Object>} Gift card
  */
 module.exports.createGiftCardAfterPayment = async (payment_id) => {
   // Find payment record using repository service
@@ -511,8 +396,7 @@ module.exports.createGiftCardAfterPayment = async (payment_id) => {
       _id: payment.gift_card_id,
     });
     if (existingGiftCard) {
-      // Return existing gift card (but we need to get the PIN from somewhere)
-      // Since PIN is hashed, we can't return it again
+      // Return existing gift card
       // This should not happen in normal flow, but handle gracefully
       throw new Error('Gift card already created for this payment');
     }
@@ -520,91 +404,133 @@ module.exports.createGiftCardAfterPayment = async (payment_id) => {
 
   const { amount, recipientEmail } = payment.purchaseDetails;
 
+  // Validate recipient email is required
+  if (!recipientEmail || !recipientEmail.trim()) {
+    throw new Error('Recipient email is required for gift card creation.');
+  }
+
   // Generate unique code
   const code = await generateGiftCardCode();
-
-  // Generate 4-digit PIN
-  const pin = generatePin();
 
   // Calculate expiry date
   const expiryDate = calculateExpiryDate();
 
-  // Create gift card (PIN will be hashed by pre-save hook)
+  // Get purchase details
+  const { recipientName, personalMessage } = payment.purchaseDetails;
+
+  // Create gift card
+  // Note: If personalMessage is not provided, the model default will be used
   const giftCard = new GiftCardModel({
     code,
-    pin, // Will be hashed automatically
     amount,
     remainingBalance: amount,
     purchasedBy: payment.user_id,
-    owner: payment.user_id, // Initially owner is the purchaser
+    receiverEmail: recipientEmail.toLowerCase().trim(),
+    recipientName: recipientName || null,
+    // Only set personalMessage if provided, otherwise let model default apply
+    ...(personalMessage && personalMessage.trim() ? { personalMessage: personalMessage.trim() } : {}),
     expiryDate,
     status: giftCardStatus.ACTIVE,
-    purchaseOrderId: null, // Not purchased as part of order
-    emailRecipient: recipientEmail || null,
-    // If recipientEmail provided at purchase, mark as shared
-    isShared: !!recipientEmail,
-    sentAt: recipientEmail ? new Date() : null,
-    receiverEmail: recipientEmail ? recipientEmail.toLowerCase().trim() : null,
   });
-
-  // If recipientEmail provided, generate acceptance token
-  if (recipientEmail) {
-    const acceptanceToken = generateAcceptanceToken();
-    giftCard.acceptanceToken = acceptanceToken;
-    const tokenExpiry = new Date();
-    tokenExpiry.setDate(tokenExpiry.getDate() + giftCardConfig.ACCEPTANCE_TOKEN_EXPIRY_DAYS);
-    giftCard.tokenExpiry = tokenExpiry;
-    giftCard.sharedBy = payment.user_id;
-  }
 
   await repository.save(giftCard);
 
-  // Update payment record with gift card ID and temporary PIN
+  // Update payment record with gift card ID
   await repository.updateOne(
     GiftCardPaymentModel,
     { _id: payment._id },
     {
       gift_card_id: giftCard._id,
-      temporaryPin: pin, // Store PIN temporarily for retrieval
     },
     { new: true }
   );
 
-  // If recipientEmail provided, send email
-  if (recipientEmail) {
-    try {
-      const UserModel = require('../users/user.model');
-      const sender = await repository.findOne(UserModel, {
-        _id: payment.user_id,
-      });
-      const senderName = sender ? sender.name : 'Someone';
+  // Generate PDF and send email with PDF attachment
+  try {
+    // Fetch gift card from DB to get all saved data
+    const savedGiftCard = await repository.findOne(GiftCardModel, {
+      _id: giftCard._id,
+    });
 
-      const acceptanceLink = `${emailService.FRONTEND_URL}/gift-cards/accept/${giftCard.acceptanceToken}`;
+    const UserModel = require('../users/user.model');
+    const sender = await repository.findOne(UserModel, {
+      _id: payment.user_id,
+    });
+    const senderName = sender ? sender.name : 'Someone';
 
-      await emailService.sendGiftCardShareEmail({
-        senderName,
-        senderEmail: null,
-        receiverEmail: recipientEmail.toLowerCase().trim(),
-        receiverName: null,
-        amount: giftCard.amount,
-        expiryDate: giftCard.expiryDate,
-        acceptanceLink,
-      });
-    } catch (error) {
-      console.error('Error sending gift card email:', error);
-      // Don't fail the operation if email fails
-    }
+    // Get recipient name and message from gift card (from DB)
+    const recipientName = savedGiftCard.recipientName;
+    const personalMessage = savedGiftCard.personalMessage;
+
+    // Generate PDF
+    const pdfBuffer = await pdfService.generateGiftCardPDF({
+      code: savedGiftCard.code,
+      amount: savedGiftCard.amount,
+      expiryDate: savedGiftCard.expiryDate,
+      recipientName: recipientName || null,
+      senderName: senderName,
+      personalMessage: personalMessage || null,
+    });
+
+    // Send email with PDF attachment (simplified message)
+    await emailService.sendEmail({
+      to: recipientEmail.toLowerCase().trim(),
+      subject: `🎁 You've Received a Gift Card from ${senderName}!`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>You've Received a Gift Card!</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #FF0808 0%, #FF4040 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0;">🎁 You've Received a Gift Card!</h1>
+          </div>
+          
+          <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+            <p style="font-size: 16px;">Hi ${recipientName || 'there'},</p>
+            
+            <p style="font-size: 16px;">
+              <strong>${senderName}</strong> has sent you a gift card!
+            </p>
+            
+            <p style="font-size: 16px;">
+              Your gift card PDF is attached to this email. You can use the gift card code from the PDF at checkout to apply the balance to your purchase.
+            </p>
+            
+            <p style="font-size: 16px; margin-top: 20px;">
+              Happy shopping! 🛍️
+            </p>
+            
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+            
+            <p style="font-size: 12px; color: #999; text-align: center;">
+              This is an automated email from Shopshop. Please do not reply to this email.
+            </p>
+          </div>
+        </body>
+        </html>
+      `,
+      attachments: [
+        {
+          filename: `GiftCard-${giftCard.code}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf',
+        },
+      ],
+    });
+  } catch (error) {
+    console.error('Error generating PDF or sending gift card email:', error);
+    // Don't fail the operation if PDF/email fails, but log it
   }
 
-  // Return gift card with plain PIN (only shown once)
-  const giftCardObj = giftCard.toObject();
-  delete giftCardObj.pin; // Remove hashed PIN
-  delete giftCardObj.acceptanceToken; // Don't return token
-
-  return {
-    ...giftCardObj,
-    pin: pin, // Return plain PIN only once
-  };
+  // Return gift card from DB
+  const savedGiftCard = await repository.findOne(GiftCardModel, {
+    _id: giftCard._id,
+  });
+  return savedGiftCard.toObject();
 };
 
 /**
@@ -690,11 +616,6 @@ module.exports.updateGiftCardPaymentStatus = async (data) => {
             });
             if (existingGiftCard) {
               giftCard = existingGiftCard.toObject();
-              delete giftCard.pin;
-              // Include temporary PIN if available
-              if (updatedPayment.temporaryPin) {
-                giftCard.pin = updatedPayment.temporaryPin;
-              }
             }
           }
         } else {
@@ -703,7 +624,7 @@ module.exports.updateGiftCardPaymentStatus = async (data) => {
         }
       }
     } else {
-      // Gift card already exists, fetch it with temporary PIN from payment
+      // Gift card already exists, fetch it
       const updatedPayment = await repository.findOne(GiftCardPaymentModel, {
         _id: payment._id,
       });
@@ -712,11 +633,6 @@ module.exports.updateGiftCardPaymentStatus = async (data) => {
       });
       if (existingGiftCard) {
         giftCard = existingGiftCard.toObject();
-        delete giftCard.pin;
-        // Include temporary PIN if available
-        if (updatedPayment.temporaryPin) {
-          giftCard.pin = updatedPayment.temporaryPin;
-        }
       }
     }
 
@@ -770,11 +686,6 @@ module.exports.getGiftCardPaymentById = async (payment_id) => {
     });
     if (giftCard) {
       paymentObj.gift_card_id = giftCard.toObject();
-      delete paymentObj.gift_card_id.pin; // Never return hashed PIN
-      // Include temporary PIN if available
-      if (payment.temporaryPin) {
-        paymentObj.gift_card_id.pin = payment.temporaryPin;
-      }
     }
   }
 
@@ -797,313 +708,9 @@ module.exports.getGiftCardPaymentById = async (payment_id) => {
   return paymentObj;
 };
 
-/**
- * Generate secure acceptance token
- * @returns {String} Token
- */
-const generateAcceptanceToken = () => {
-  return crypto.randomBytes(32).toString('hex');
-};
-
-/**
- * Send gift card to receiver
- * @param {String} giftCardId - Gift card ID
- * @param {String} receiverEmail - Receiver's email
- * @param {String} senderId - Sender's user ID
- * @param {String} senderName - Sender's name
- * @returns {Promise<Object>}
- */
-module.exports.sendGiftCard = async (giftCardId, receiverEmail, senderId, senderName) => {
-  // Find gift card
-  const giftCard = await repository.findOne(GiftCardModel, {
-    _id: new mongoose.Types.ObjectId(giftCardId),
-  });
-
-  if (!giftCard) {
-    throw new Error('Gift card not found');
-  }
-
-  // Check ownership - owner is either owner field or purchasedBy
-  const currentOwner = giftCard.owner || giftCard.purchasedBy;
-  if (currentOwner.toString() !== senderId.toString()) {
-    throw new Error('You do not own this gift card');
-  }
-
-  // Check if card is already shared and accepted
-  if (giftCard.isAccepted) {
-    throw new Error('This gift card has already been accepted by another user');
-  }
-
-  // Check if card is expired
-  if (new Date() > giftCard.expiryDate) {
-    throw new Error('This gift card has expired');
-  }
-
-  // Check if card is active
-  if (giftCard.status !== giftCardStatus.ACTIVE) {
-    throw new Error(`This gift card is ${giftCard.status}`);
-  }
-
-  // Generate acceptance token
-  const acceptanceToken = generateAcceptanceToken();
-  const tokenExpiry = new Date();
-  tokenExpiry.setDate(tokenExpiry.getDate() + giftCardConfig.ACCEPTANCE_TOKEN_EXPIRY_DAYS);
-
-  // Update gift card
-  const updatedGiftCard = await repository.updateOne(
-    GiftCardModel,
-    { _id: giftCard._id },
-    {
-      isShared: true,
-      sentAt: new Date(),
-      sharedBy: senderId,
-      receiverEmail: receiverEmail.toLowerCase().trim(),
-      acceptanceToken,
-      tokenExpiry,
-    },
-    { new: true }
-  );
-
-  // Generate acceptance link
-  const acceptanceLink = `${emailService.FRONTEND_URL}/gift-cards/accept/${acceptanceToken}`;
-
-  // Send email
-  try {
-    await emailService.sendGiftCardShareEmail({
-      senderName,
-      senderEmail: null,
-      receiverEmail: receiverEmail.toLowerCase().trim(),
-      receiverName: null,
-      amount: giftCard.amount,
-      expiryDate: giftCard.expiryDate,
-      acceptanceLink,
-    });
-  } catch (error) {
-    console.error('Error sending gift card email:', error);
-    // Don't fail the operation if email fails
-  }
-
-  const giftCardObj = updatedGiftCard.toObject();
-  delete giftCardObj.pin;
-  delete giftCardObj.acceptanceToken;
-
-  return giftCardObj;
-};
-
-/**
- * Get gift card by acceptance token
- * @param {String} token - Acceptance token
- * @returns {Promise<Object>}
- */
-module.exports.getGiftCardByAcceptanceToken = async (token) => {
-  const giftCard = await repository.findOne(GiftCardModel, {
-    acceptanceToken: token,
-  });
-
-  if (!giftCard) {
-    throw new Error('Invalid acceptance link');
-  }
-
-  // Check if token expired
-  if (giftCard.tokenExpiry && new Date() > giftCard.tokenExpiry) {
-    throw new Error('This acceptance link has expired');
-  }
-
-  // Check if already accepted
-  if (giftCard.isAccepted) {
-    throw new Error('This gift card has already been accepted');
-  }
-
-  // Check if card is expired
-  if (new Date() > giftCard.expiryDate) {
-    throw new Error('This gift card has expired');
-  }
-
-  // Check if card is active
-  if (giftCard.status !== giftCardStatus.ACTIVE) {
-    throw new Error(`This gift card is ${giftCard.status}`);
-  }
-
-  // Populate sender info
-  const UserModel = require('../users/user.model');
-  let senderName = 'Someone';
-  if (giftCard.sharedBy) {
-    const sender = await repository.findOne(UserModel, {
-      _id: giftCard.sharedBy,
-    });
-    if (sender) {
-      senderName = sender.name;
-    }
-  } else if (giftCard.purchasedBy) {
-    const sender = await repository.findOne(UserModel, {
-      _id: giftCard.purchasedBy,
-    });
-    if (sender) {
-      senderName = sender.name;
-    }
-  }
-
-  const giftCardObj = giftCard.toObject();
-  delete giftCardObj.pin;
-  delete giftCardObj.acceptanceToken;
-
-  return {
-    giftCard: giftCardObj,
-    senderName,
-    receiverEmail: giftCard.receiverEmail,
-  };
-};
-
-/**
- * Accept gift card
- * @param {String} token - Acceptance token
- * @param {String} receiverId - Receiver's user ID
- * @param {String} receiverName - Receiver's name
- * @param {String} receiverEmail - Receiver's email
- * @returns {Promise<Object>}
- */
-module.exports.acceptGiftCard = async (token, receiverId, receiverName, receiverEmail) => {
-  const giftCard = await repository.findOne(GiftCardModel, {
-    acceptanceToken: token,
-  });
-
-  if (!giftCard) {
-    throw new Error('Invalid acceptance link');
-  }
-
-  // Check if token expired
-  if (giftCard.tokenExpiry && new Date() > giftCard.tokenExpiry) {
-    throw new Error('This acceptance link has expired');
-  }
-
-  // Check if already accepted
-  if (giftCard.isAccepted) {
-    throw new Error('This gift card has already been accepted');
-  }
-
-  // Check if card is expired
-  if (new Date() > giftCard.expiryDate) {
-    throw new Error('This gift card has expired');
-  }
-
-  // Check if card is active
-  if (giftCard.status !== giftCardStatus.ACTIVE) {
-    throw new Error(`This gift card is ${giftCard.status}`);
-  }
-
-  // Verify receiver email matches
-  if (giftCard.receiverEmail && giftCard.receiverEmail.toLowerCase() !== receiverEmail.toLowerCase()) {
-    throw new Error(`This gift card was sent to ${giftCard.receiverEmail}. Please log in with that email address.`);
-  }
-
-  // Prevent sender from accepting their own gift card
-  if (giftCard.sharedBy && giftCard.sharedBy.toString() === receiverId.toString()) {
-    throw new Error('You cannot accept a gift card that you sent. The gift card must be accepted by the receiver.');
-  }
-
-  if (giftCard.purchasedBy && giftCard.purchasedBy.toString() === receiverId.toString() && !giftCard.isShared) {
-    throw new Error('This is your own gift card. You cannot accept it.');
-  }
-
-  // Get sender info for email
-  const UserModel = require('../users/user.model');
-  let sender = null;
-  let senderName = 'Someone';
-  let senderEmail = null;
-
-  if (giftCard.sharedBy) {
-    sender = await repository.findOne(UserModel, {
-      _id: giftCard.sharedBy,
-    });
-  } else if (giftCard.purchasedBy) {
-    sender = await repository.findOne(UserModel, {
-      _id: giftCard.purchasedBy,
-    });
-  }
-
-  if (sender) {
-    senderName = sender.name;
-    senderEmail = sender.email;
-  }
-
-  // Update gift card - transfer ownership
-  const updatedGiftCard = await repository.updateOne(
-    GiftCardModel,
-    { _id: giftCard._id },
-    {
-      owner: receiverId,
-      isAccepted: true,
-      acceptedBy: receiverId,
-      acceptedAt: new Date(),
-      acceptanceToken: null,
-      tokenExpiry: null,
-    },
-    { new: true }
-  );
-
-  // Get the plain PIN from payment record if available (for email)
-  let plainPin = null;
-  const payment = await repository.findOne(GiftCardPaymentModel, {
-    gift_card_id: giftCard._id,
-  });
-  if (payment && payment.temporaryPin) {
-    plainPin = payment.temporaryPin;
-  }
-
-  // Send confirmation emails
-  try {
-    // Email to sender
-    if (senderEmail) {
-      await emailService.sendAcceptanceConfirmationToSender({
-        senderName,
-        senderEmail,
-        receiverName,
-        amount: giftCard.amount,
-      });
-    }
-
-    // Email to receiver with gift card details
-    if (plainPin) {
-      await emailService.sendAcceptanceConfirmationToReceiver({
-        receiverName,
-        receiverEmail,
-        senderName,
-        amount: giftCard.amount,
-        code: giftCard.code,
-        pin: plainPin,
-        expiryDate: giftCard.expiryDate,
-      });
-    } else {
-      // Send email without PIN (they can view it in their account)
-      await emailService.sendEmail({
-        to: receiverEmail,
-        subject: `🎉 Gift Card Accepted - LKR ${giftCard.amount.toLocaleString()}`,
-        html: `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <title>Gift Card Accepted</title>
-          </head>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <h1>🎉 Gift Card Accepted!</h1>
-            <p>Hi ${receiverName},</p>
-            <p>You've successfully accepted the gift card from <strong>${senderName}</strong>!</p>
-            <p>The gift card has been added to your account. You can view the details and PIN in your "Received Gift Cards" section.</p>
-            <p><strong>Amount:</strong> LKR ${giftCard.amount.toLocaleString()}</p>
-            <p>Thank you for using Shopshop!</p>
-          </body>
-          </html>
-        `,
-      });
-    }
-  } catch (error) {
-    console.error('Error sending acceptance confirmation emails:', error);
-    // Don't fail the operation if email fails
-  }
-
-  const giftCardObj = updatedGiftCard.toObject();
-  delete giftCardObj.pin;
-
-  return giftCardObj;
-};
+// Old acceptance flow functions removed:
+// - sendGiftCard (old flow where you send an already-purchased gift card)
+// - getGiftCardByAcceptanceToken
+// - acceptGiftCard
+// - generateAcceptanceToken
+// New flow: Gift cards are sent directly via email with PDF after payment

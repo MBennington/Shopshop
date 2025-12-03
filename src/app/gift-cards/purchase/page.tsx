@@ -6,16 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Gift, Copy, Check, Mail } from 'lucide-react';
+import { Gift, Check } from 'lucide-react';
 
 const PRESET_AMOUNTS = [500, 1000, 2000, 5000, 10000, 50000];
-
-interface GiftCardSuccess {
-  code: string;
-  pin: string;
-  amount: number;
-  expiryDate: string;
-}
 
 export default function PurchaseGiftCardPage() {
   const router = useRouter();
@@ -23,11 +16,13 @@ export default function PurchaseGiftCardPage() {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState<string>('');
   const [recipientEmail, setRecipientEmail] = useState<string>('');
+  const [recipientName, setRecipientName] = useState<string>('');
+  const [personalMessage, setPersonalMessage] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<GiftCardSuccess | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [copiedPin, setCopiedPin] = useState(false);
+  const [success, setSuccess] = useState<{ recipientEmail: string } | null>(
+    null
+  );
   const [payHereReady, setPayHereReady] = useState(false);
   const [user, setUser] = useState<any>(null);
 
@@ -79,14 +74,17 @@ export default function PurchaseGiftCardPage() {
   useEffect(() => {
     const paymentId = searchParams.get('paymentId');
     const status = searchParams.get('status');
-    
+
     if (paymentId) {
       // Fetch gift card details from payment
       fetchGiftCardFromPayment(paymentId, status);
     }
   }, [searchParams]);
 
-  const fetchGiftCardFromPayment = async (paymentId: string, status?: string | null) => {
+  const fetchGiftCardFromPayment = async (
+    paymentId: string,
+    status?: string | null
+  ) => {
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -118,23 +116,29 @@ export default function PurchaseGiftCardPage() {
 
         // Check if payment is still pending
         if (payment && payment.paymentStatus === 'Pending') {
-          setError('Payment is still being processed. Please wait a moment and refresh the page.');
+          setError(
+            'Payment is still being processed. Please wait a moment and refresh the page.'
+          );
           return;
         }
 
-        // Payment successful - show gift card
+        // Payment successful - show success message
         if (giftCard) {
+          // Get recipient email from payment details or use the state
+          const email =
+            payment?.purchaseDetails?.recipientEmail || recipientEmail;
           setSuccess({
-            code: giftCard.code,
-            pin: giftCard.pin || 'N/A', // PIN might not be available if already retrieved
-            amount: giftCard.amount,
-            expiryDate: giftCard.expiryDate,
+            recipientEmail: email,
           });
         } else {
-          setError('Gift card not found. Please contact support if payment was successful.');
+          setError(
+            'Gift card not found. Please contact support if payment was successful.'
+          );
         }
       } else {
-        setError(data.msg || 'Failed to fetch payment status. Please try again.');
+        setError(
+          data.msg || 'Failed to fetch payment status. Please try again.'
+        );
       }
     } catch (err: any) {
       console.error('Error fetching gift card:', err);
@@ -199,7 +203,9 @@ export default function PurchaseGiftCardPage() {
 
     payhere.onDismissed = function onDismissed() {
       console.log('Payment dismissed by user');
-      setError('Payment was cancelled. Please try again if you want to complete the purchase.');
+      setError(
+        'Payment was cancelled. Please try again if you want to complete the purchase.'
+      );
       setIsProcessing(false);
     };
 
@@ -211,6 +217,11 @@ export default function PurchaseGiftCardPage() {
     const amount = getFinalAmount();
     if (!amount) {
       setError('Please select or enter a valid amount (500 - 50,000 LKR)');
+      return;
+    }
+
+    if (!recipientEmail.trim()) {
+      setError('Please enter a recipient email address');
       return;
     }
 
@@ -235,6 +246,8 @@ export default function PurchaseGiftCardPage() {
           action: 'initiate-purchase',
           amount,
           recipientEmail: recipientEmail || null,
+          recipientName: recipientName.trim() || null,
+          personalMessage: personalMessage.trim() || null,
         }),
       });
 
@@ -252,57 +265,6 @@ export default function PurchaseGiftCardPage() {
     }
   };
 
-  const handleCopyCode = () => {
-    if (success) {
-      navigator.clipboard.writeText(success.code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  const handleCopyPin = () => {
-    if (success) {
-      navigator.clipboard.writeText(success.pin);
-      setCopiedPin(true);
-      setTimeout(() => setCopiedPin(false), 2000);
-    }
-  };
-
-  const handleSendEmail = async () => {
-    if (!success) return;
-
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        router.push('/auth');
-        return;
-      }
-
-      const response = await fetch('/api/gift-cards', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          action: 'send-email',
-          code: success.code,
-          recipientEmail: recipientEmail || '',
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.msg || data.error || 'Failed to send email');
-      }
-
-      alert('Gift card email sent successfully!');
-    } catch (err: any) {
-      alert(err.message || 'Failed to send email');
-    }
-  };
-
   if (success) {
     return (
       <div className="min-h-screen bg-gray-50 py-10 px-4">
@@ -317,111 +279,19 @@ export default function PurchaseGiftCardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
-              <div className="bg-gray-50 p-6 rounded-lg space-y-4">
-                <div>
-                  <Label className="text-sm text-gray-600">
-                    Gift Card Code
-                  </Label>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Input
-                      value={success.code}
-                      readOnly
-                      className="font-mono text-lg font-bold"
-                    />
-                    <Button
-                      onClick={handleCopyCode}
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-2"
-                    >
-                      {copied ? (
-                        <>
-                          <Check className="w-4 h-4" />
-                          Copied!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4" />
-                          Copy
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-sm text-gray-600">Security PIN</Label>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Input
-                      value={success.pin}
-                      readOnly
-                      className="font-mono text-lg font-bold text-center tracking-widest"
-                    />
-                    <Button
-                      onClick={handleCopyPin}
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-2"
-                    >
-                      {copiedPin ? (
-                        <>
-                          <Check className="w-4 h-4" />
-                          Copied!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4" />
-                          Copy
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  <p className="text-xs text-red-600 mt-2 font-medium">
-                    ⚠️ Save this PIN securely! You'll need both code and PIN to
-                    redeem.
-                  </p>
-                </div>
-
-                <div>
-                  <Label className="text-sm text-gray-600">Amount</Label>
-                  <p className="text-2xl font-bold text-blue-600 mt-2">
-                    LKR {success.amount.toFixed(2)}
-                  </p>
-                </div>
-
-                <div>
-                  <Label className="text-sm text-gray-600">Expiry Date</Label>
-                  <p className="text-lg font-medium mt-2">
-                    {new Date(success.expiryDate).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </p>
-                </div>
-              </div>
-
-              {recipientEmail && (
-                <div className="space-y-2">
-                  <Label>Send to Email</Label>
-                  <div className="flex gap-2">
-                    <Input value={recipientEmail} readOnly className="flex-1" />
-                    <Button
-                      onClick={handleSendEmail}
-                      className="flex items-center gap-2"
-                    >
-                      <Mail className="w-4 h-4" />
-                      Send
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                <p className="text-sm text-yellow-800">
-                  <strong>Important:</strong> Please save both the Gift Card
-                  Code and PIN securely. You'll need both to redeem this gift
-                  card. The PIN will not be shown again.
+              <div className="bg-green-50 border border-green-200 p-6 rounded-lg text-center">
+                <p className="text-lg text-green-800 mb-2">
+                  ✅ Your gift card has been sent successfully!
+                </p>
+                <p className="text-gray-700">
+                  A beautiful gift card PDF has been sent to{' '}
+                  <strong className="text-green-700">
+                    {success.recipientEmail}
+                  </strong>
+                </p>
+                <p className="text-sm text-gray-600 mt-2">
+                  The recipient can use the gift card code from the PDF at
+                  checkout.
                 </p>
               </div>
 
@@ -432,6 +302,8 @@ export default function PurchaseGiftCardPage() {
                     setSelectedAmount(null);
                     setCustomAmount('');
                     setRecipientEmail('');
+                    setRecipientName('');
+                    setPersonalMessage('');
                   }}
                   variant="outline"
                   className="flex-1"
@@ -502,7 +374,7 @@ export default function PurchaseGiftCardPage() {
                 htmlFor="recipient-email"
                 className="text-base font-semibold"
               >
-                Recipient Email (Optional)
+                Recipient Email <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="recipient-email"
@@ -511,9 +383,51 @@ export default function PurchaseGiftCardPage() {
                 onChange={(e) => setRecipientEmail(e.target.value)}
                 placeholder="email@example.com"
                 className="mt-2"
+                required
               />
               <p className="text-sm text-gray-500 mt-1">
-                Leave empty if purchasing for yourself
+                Enter the recipient's email address.
+              </p>
+            </div>
+
+            <div>
+              <Label
+                htmlFor="recipient-name"
+                className="text-base font-semibold"
+              >
+                Recipient Name (Optional)
+              </Label>
+              <Input
+                id="recipient-name"
+                type="text"
+                value={recipientName}
+                onChange={(e) => setRecipientName(e.target.value)}
+                placeholder="John Doe"
+                className="mt-2"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Enter the recipient's name.
+              </p>
+            </div>
+
+            <div>
+              <Label
+                htmlFor="personal-message"
+                className="text-base font-semibold"
+              >
+                Personal Message (Optional)
+              </Label>
+              <textarea
+                id="personal-message"
+                value={personalMessage}
+                onChange={(e) => setPersonalMessage(e.target.value)}
+                placeholder="Happy Birthday! This is my gift for you."
+                className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] resize-none"
+                maxLength={200}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Add a personal message to make the gift card special. This will
+                be displayed on the gift card. (max 200 characters).
               </p>
             </div>
 
@@ -538,7 +452,9 @@ export default function PurchaseGiftCardPage() {
 
             <Button
               onClick={handlePurchase}
-              disabled={!getFinalAmount() || isProcessing}
+              disabled={
+                !getFinalAmount() || !recipientEmail.trim() || isProcessing
+              }
               className="w-full h-12 text-lg"
             >
               {isProcessing ? 'Processing...' : 'Purchase Gift Card'}

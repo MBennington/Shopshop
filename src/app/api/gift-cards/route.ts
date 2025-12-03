@@ -18,16 +18,10 @@ export async function POST(request: NextRequest) {
     const { action, ...data } = body;
 
     let endpoint = '';
-    if (action === 'purchase') {
-      endpoint = '/api/gift-cards/purchase';
-    } else if (action === 'initiate-purchase') {
+    if (action === 'initiate-purchase') {
       endpoint = '/api/gift-cards/payment/initiate';
     } else if (action === 'validate') {
       endpoint = '/api/gift-cards/validate';
-    } else if (action === 'send-email') {
-      endpoint = '/api/gift-cards/send-email';
-    } else if (action === 'send') {
-      endpoint = '/api/gift-cards/send';
     } else {
       return NextResponse.json(
         { msg: 'Invalid action', error: 'BAD_REQUEST' },

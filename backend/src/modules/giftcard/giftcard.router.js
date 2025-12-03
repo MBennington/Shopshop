@@ -7,13 +7,7 @@ const { permissions } = require('./giftcard.permission');
 const controller = require('./giftcard.controller');
 const schema = require('./giftcard.schema');
 
-router
-  .route(permissions.purchaseGiftCard.path)
-  .post(
-    validator.validateHeader(permissions.purchaseGiftCard.grantedUserRoles),
-    validator.validateBody(schema.purchaseGiftCard),
-    controller.purchaseGiftCard
-  );
+// Old purchaseGiftCard route removed - use initiateGiftCardPurchase instead
 
 router
   .route(permissions.validateGiftCard.path)
@@ -30,13 +24,7 @@ router
     controller.getUserGiftCards
   );
 
-router
-  .route(permissions.sendGiftCardEmail.path)
-  .post(
-    validator.validateHeader(permissions.sendGiftCardEmail.grantedUserRoles),
-    validator.validateBody(schema.sendGiftCardEmail),
-    controller.sendGiftCardEmail
-  );
+// Old sendGiftCardEmail route removed - gift cards are sent automatically after payment
 
 router
   .route(permissions.initiateGiftCardPurchase.path)
@@ -60,27 +48,10 @@ router
     controller.getGiftCardPaymentById
   );
 
-router
-  .route(permissions.sendGiftCard.path)
-  .post(
-    validator.validateHeader(permissions.sendGiftCard.grantedUserRoles),
-    validator.validateBody(schema.sendGiftCard),
-    controller.sendGiftCard
-  );
-
-router
-  .route(permissions.getGiftCardByAcceptanceToken.path)
-  .get(
-    // No auth required - public endpoint
-    controller.getGiftCardByAcceptanceToken
-  );
-
-router
-  .route(permissions.acceptGiftCard.path)
-  .post(
-    validator.validateHeader(permissions.acceptGiftCard.grantedUserRoles),
-    controller.acceptGiftCard
-  );
+// Old acceptance flow routes removed:
+// - sendGiftCard
+// - getGiftCardByAcceptanceToken
+// - acceptGiftCard
 
 module.exports = router;
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Package, Truck, CreditCard, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { CheckCircle, Package, Truck, CreditCard, XCircle, AlertCircle, RefreshCw, Gift } from 'lucide-react';
 
 export default function OrderDetailsPage() {
   const searchParams = useSearchParams();
@@ -319,12 +319,24 @@ export default function OrderDetailsPage() {
                               (orderDetails.platformCharges.platformFee || 0);
                           }
                           
-                          // Show "No fees for COD" if COD and no fees, otherwise show amount
+                          // Show appropriate message based on payment method and coverage
+                          if (orderDetails.finalTotal === 0 && orderDetails.giftCardDiscount > 0) {
+                            return <span className="text-gray-500">No fees</span>;
+                          }
                           if (orderDetails.paymentMethod === 'cod' && total === 0) {
                             return <span className="text-gray-500">No fees for COD</span>;
                           }
                           return `LKR ${total.toFixed(2)}`;
                         })()}
+                      </p>
+                    </div>
+                    {/* Gift Card Discount - always show label and value */}
+                    <div>
+                      <p className="text-sm text-gray-600">Gift Card Discount</p>
+                      <p className="font-semibold text-green-600">
+                        {orderDetails.giftCardDiscount && orderDetails.giftCardDiscount > 0
+                          ? `-LKR ${orderDetails.giftCardDiscount.toFixed(2)}`
+                          : 'LKR 0.00'}
                       </p>
                     </div>
                     <div>

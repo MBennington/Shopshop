@@ -81,10 +81,8 @@ export default function CheckoutPage() {
     profilePicture?: string | null;
   } | null>(null);
   const [giftCardCode, setGiftCardCode] = useState<string>('');
-  const [giftCardPin, setGiftCardPin] = useState<string>('');
   const [appliedGiftCards, setAppliedGiftCards] = useState<Array<{ 
     code: string; 
-    pin: string; 
     amount: number; 
     remainingBalance: number;
   }>>([]);
@@ -179,17 +177,13 @@ export default function CheckoutPage() {
   ]);
 
   // Calculate gift card discount
-  // Gift cards are applied to: products + shipping + platform fees (if online payment)
+  // Gift cards are applied to: products + shipping only (no platform fees)
+  // Platform fees are NOT applied when gift cards are used
   const calculateGiftCardDiscount = useMemo(() => {
     if (appliedGiftCards.length === 0) return 0;
     
-    // Start with displaySubtotal (products + shipping)
-    let orderTotalBeforeGiftCard = displaySubtotal;
-    
-    // Add platform fees if payment method is card (online payment) and fees are calculated
-    if (selectedPayment === 'card' && calculatedCharges?.totalCharges) {
-      orderTotalBeforeGiftCard = displaySubtotal + calculatedCharges.totalCharges;
-    }
+    // Gift cards apply to products + shipping only (no platform fees)
+    const orderTotalBeforeGiftCard = displaySubtotal;
     
     let discount = 0;
     let remainingTotal = orderTotalBeforeGiftCard;
@@ -202,26 +196,25 @@ export default function CheckoutPage() {
     }
 
     return discount;
-  }, [appliedGiftCards, displaySubtotal, selectedPayment, calculatedCharges]);
+  }, [appliedGiftCards, displaySubtotal]);
 
   const giftCardDiscount = calculateGiftCardDiscount;
   
-  // Calculate if fully covered - this will be updated when charges are recalculated
+  // Calculate if fully covered - check if final total after all charges is 0 or less
   const isFullyCovered = useMemo(() => {
     if (giftCardDiscount === 0) return false;
-    const orderTotal = calculatedCharges?.finalTotal || displaySubtotal;
-    return orderTotal - giftCardDiscount <= 0;
+    // Use finalTotal from calculatedCharges if available (already has gift card discount applied)
+    // Otherwise calculate: displaySubtotal - giftCardDiscount
+    if (calculatedCharges?.finalTotal !== undefined) {
+      return calculatedCharges.finalTotal <= 0;
+    }
+    return displaySubtotal - giftCardDiscount <= 0;
   }, [giftCardDiscount, calculatedCharges, displaySubtotal]);
 
   // Handle apply gift card
   const handleApplyGiftCard = async () => {
     if (!giftCardCode.trim()) {
       setGiftCardError('Please enter a gift card code');
-      return;
-    }
-
-    if (!giftCardPin.trim() || giftCardPin.length !== 4) {
-      setGiftCardError('Please enter a valid 4-digit PIN');
       return;
     }
 
@@ -244,14 +237,13 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           action: 'validate',
           code: giftCardCode.trim().toUpperCase(),
-          pin: giftCardPin.trim(),
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.msg || data.error || 'Invalid gift card code or PIN');
+        throw new Error(data.msg || data.error || 'Invalid gift card code');
       }
 
       // Check if already applied
@@ -265,14 +257,12 @@ export default function CheckoutPage() {
         ...appliedGiftCards,
         {
           code: data.data.code,
-          pin: giftCardPin.trim(),
           amount: data.data.amount,
           remainingBalance: data.data.remainingBalance,
         },
       ]);
 
       setGiftCardCode('');
-      setGiftCardPin('');
     } catch (err: any) {
       setGiftCardError(err.message || 'Failed to validate gift card');
     } finally {
@@ -534,7 +524,7 @@ export default function CheckoutPage() {
     // Apply gift card discount first
     const remainingAfterGiftCard = orderTotalBeforeGiftCard - giftCardDiscount;
 
-    // If fully covered by gift cards, no payment needed
+    // If fully covered by gift cards, no payment needed and no platform fees
     if (remainingAfterGiftCard <= 0) {
       setCalculatedCharges({
         charges: {},
@@ -560,9 +550,10 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Calculate fees only for online payment methods and only when there's remaining balance after gift cards
-    if (platformChargesConfig && platformChargesConfig.buyerFees && selectedPayment === 'card' && remainingAfterGiftCard > 0) {
-      // Calculate all buyer fees dynamically based on product prices only
+    // Platform fees ALWAYS apply for online payments (card), even if gift cards partially cover
+    // Platform fees are calculated on product subtotal, then added to remaining amount after gift card
+    if (platformChargesConfig && platformChargesConfig.buyerFees && selectedPayment === 'card') {
+      // Calculate platform fees on product subtotal (not on remaining after gift card)
       const charges: { [key: string]: number } = {};
       let totalCharges = 0;
 
@@ -570,7 +561,7 @@ export default function CheckoutPage() {
         if (fee.value > 0) {
           let feeAmount = 0;
           if (fee.type === 'percentage') {
-            // Platform fees calculated on product prices only (not shipping)
+            // Platform fees calculated on product prices only (not shipping, not gift card discount)
             feeAmount = productSubtotal * fee.value;
           } else if (fee.type === 'fixed') {
             feeAmount = fee.value;
@@ -583,7 +574,8 @@ export default function CheckoutPage() {
         }
       });
 
-      // Final total = remaining after gift card + platform fees (platform fees calculated on product subtotal)
+      // Final total = remaining after gift card + platform fees
+      // Platform fees always apply for card payments, regardless of gift card usage
       setCalculatedCharges({
         charges,
         totalCharges,
@@ -778,9 +770,9 @@ export default function CheckoutPage() {
         // If fully covered by gift cards, use 'gift_card' payment method, otherwise use selected payment
         paymentMethod: isFullyCovered ? 'gift_card' : selectedPayment,
         fromCart,
-        // Include gift cards with PINs if any
+        // Include gift cards if any (no PIN required)
         ...(appliedGiftCards.length > 0
-          ? { giftCards: appliedGiftCards.map((gc) => ({ code: gc.code, pin: gc.pin })) }
+          ? { giftCards: appliedGiftCards.map((gc) => ({ code: gc.code })) }
           : {}),
         // If not from cart, include product details
         ...(fromCart
@@ -1079,28 +1071,9 @@ export default function CheckoutPage() {
                     />
                   </div>
                   <div className="flex gap-2">
-                    <input
-                      id="gift-card-pin-checkout"
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={4}
-                      value={giftCardPin}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, '').slice(0, 4);
-                        setGiftCardPin(value);
-                        setGiftCardError(null);
-                      }}
-                      placeholder="Enter 4-digit PIN"
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-center text-lg tracking-widest"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          handleApplyGiftCard();
-                        }
-                      }}
-                    />
                     <Button
                       onClick={handleApplyGiftCard}
-                      disabled={isValidatingGiftCard || !giftCardCode.trim() || giftCardPin.length !== 4}
+                      disabled={isValidatingGiftCard || !giftCardCode.trim()}
                       className="px-6"
                     >
                       {isValidatingGiftCard ? 'Validating...' : 'Apply'}
@@ -1511,7 +1484,7 @@ export default function CheckoutPage() {
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Platform Fee</span>
                       <span className="font-medium text-gray-500">
-                        No fees (fully covered)
+                        No fees
                       </span>
                     </div>
                   ) : selectedPayment === 'cod' ? (

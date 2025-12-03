@@ -103,10 +103,10 @@ module.exports.createOrder = async (user_id, body) => {
 
   // Calculate platform charges for buyer (main order level)
   // Note: Shipping is handled per seller, not in main order charges
-  // Platform fees are only applied to online payments, not COD
+  // Platform fees are only applied to online payments, not COD or gift_card
   const buyerCharges = calculatePlatformCharges(subtotal, 'buyer', {
     shippingFee: 0, // Shipping handled separately per seller
-    paymentMethod: paymentMethod, // Pass payment method to skip fees for COD
+    paymentMethod: paymentMethod === 'gift_card' ? 'cod' : paymentMethod, // Skip fees for gift_card (treat as COD for fee calculation)
   });
 
   // Calculate order total before gift card discount
@@ -118,10 +118,10 @@ module.exports.createOrder = async (user_id, body) => {
   let remainingOrderTotal = orderTotalBeforeGiftCard;
 
   if (giftCards && giftCards.length > 0) {
-    for (const { code, pin } of giftCards) {
+    for (const { code } of giftCards) {
       try {
-        // Validate gift card with PIN
-        const giftCard = await giftCardService.validateGiftCard(code, pin, user_id);
+        // Validate gift card
+        const giftCard = await giftCardService.validateGiftCard(code, user_id);
         
         const applied = Math.min(giftCard.remainingBalance, remainingOrderTotal);
         giftCardDiscount += applied;
@@ -147,24 +147,38 @@ module.exports.createOrder = async (user_id, body) => {
   // Final total after gift card discount
   const finalTotal = Math.max(0, remainingOrderTotal);
 
-  // Store gift card PINs temporarily for online payments (will be applied when payment succeeds)
-  const giftCardPinsForOnlinePayment = 
+  // Store gift card codes temporarily for online payments (will be applied when payment succeeds)
+  const giftCardCodesForOnlinePayment = 
     paymentMethod === 'card' && giftCards.length > 0
-      ? giftCards.map((gc) => ({ code: gc.code, pin: gc.pin }))
+      ? giftCards.map((gc) => ({ code: gc.code }))
       : [];
+
+  // Platform fees should NOT be stored if:
+  // 1. Order is fully covered by gift cards (finalTotal <= 0, using <= to handle rounding)
+  // 2. Payment method is COD (no fees for COD)
+  // 3. Payment method is gift_card (fully covered by gift cards)
+  // Platform fees only apply for online (card) payments when there's a remaining balance after gift cards
+  const isFullyCovered = finalTotal <= 0 || paymentMethod === 'gift_card';
+  const shouldStorePlatformCharges = !isFullyCovered && paymentMethod === 'card';
 
   // Create main order with dynamic platform charges
   const newOrder = new OrderModel({
     user_id: user_id,
     products_list: productsList,
     totalPrice: subtotal,
-    platformCharges: new Map(Object.entries(buyerCharges.charges)),
-    platformChargesObject: buyerCharges.charges,
-    platformChargesBreakdown: buyerCharges.chargesBreakdown,
+    platformCharges: shouldStorePlatformCharges 
+      ? new Map(Object.entries(buyerCharges.charges))
+      : new Map(),
+    platformChargesObject: shouldStorePlatformCharges 
+      ? buyerCharges.charges
+      : {},
+    platformChargesBreakdown: shouldStorePlatformCharges
+      ? buyerCharges.chargesBreakdown
+      : [],
     finalTotal: finalTotal,
     giftCardDiscount: giftCardDiscount,
     giftCards: appliedGiftCards,
-    giftCardPins: giftCardPinsForOnlinePayment, // Store PINs temporarily for online payments
+    giftCardCodes: giftCardCodesForOnlinePayment, // Store codes temporarily for online payments
     shippingAddress: address,
     paymentMethod,
   });
@@ -216,14 +230,12 @@ module.exports.createOrder = async (user_id, body) => {
       let remainingOrderTotalForGiftCards = orderTotalBeforeGiftCard;
       for (let i = 0; i < appliedGiftCards.length; i++) {
         const giftCardInfo = appliedGiftCards[i];
-        const giftCardData = giftCards[i]; // Get PIN from original request
         
         try {
-          // Apply gift card with the remaining order total and PIN
+          // Apply gift card with the remaining order total
           // The function will calculate the correct amount to apply
           await giftCardService.applyGiftCardToOrder(
             giftCardInfo.code,
-            giftCardData.pin,
             remainingOrderTotalForGiftCards,
             user_id,
             createdOrder._id.toString()

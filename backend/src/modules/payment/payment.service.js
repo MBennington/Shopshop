@@ -36,11 +36,11 @@ module.exports.createPayment = async (paymentInfo) => {
         { new: true }
       );
 
-      // Update the main order status to processing immediately
+      // Update the main order status to pending (sellers will update it)
       await repository.updateOne(
         OrderModel,
         { _id: order_id },
-        { paymentStatus: paymentStatus.PAID, orderStatus: orderStatus.PROCESSING },
+        { paymentStatus: paymentStatus.PAID, orderStatus: orderStatus.PENDING },
         { new: true }
       );
 
@@ -53,11 +53,11 @@ module.exports.createPayment = async (paymentInfo) => {
       );
     } else if (payment_method === paymentMethod.COD) {
       // For COD, order is accepted but payment is pending
-      // Still need to update order status and process the order
+      // Set order status to pending (sellers will update it)
       await repository.updateOne(
         OrderModel,
         { _id: order_id },
-        { orderStatus: orderStatus.PROCESSING },
+        { orderStatus: orderStatus.PENDING },
         { new: true }
       );
     }
@@ -269,7 +269,7 @@ module.exports.updatePaymentStatus = async (data) => {
         // Only deduct stock if order is not cancelled (retry validation might have failed)
         if (order.orderStatus !== orderStatus.CANCELLED) {
           // Apply gift cards for online payments (they were deferred until payment success)
-          if (order.giftCardPins && order.giftCardPins.length > 0 && order.giftCards && order.giftCards.length > 0) {
+          if (order.giftCardCodes && order.giftCardCodes.length > 0 && order.giftCards && order.giftCards.length > 0) {
             try {
               // Get shipping fees from sub-orders
               const subOrders = await SubOrderModel.find({
@@ -285,15 +285,14 @@ module.exports.updatePaymentStatus = async (data) => {
               let remainingOrderTotalForGiftCards = orderTotalBeforeGiftCard;
               
               // Apply each gift card
-              for (let i = 0; i < order.giftCardPins.length; i++) {
-                const giftCardPinData = order.giftCardPins[i];
-                const giftCardInfo = order.giftCards.find((gc) => gc.code === giftCardPinData.code);
+              for (let i = 0; i < order.giftCardCodes.length; i++) {
+                const giftCardCodeData = order.giftCardCodes[i];
+                const giftCardInfo = order.giftCards.find((gc) => gc.code === giftCardCodeData.code);
                 
                 if (giftCardInfo && remainingOrderTotalForGiftCards > 0) {
                   try {
                     await giftCardService.applyGiftCardToOrder(
-                      giftCardPinData.code,
-                      giftCardPinData.pin,
+                      giftCardCodeData.code,
                       remainingOrderTotalForGiftCards,
                       order.user_id.toString(),
                       order_id
@@ -305,16 +304,16 @@ module.exports.updatePaymentStatus = async (data) => {
                       break;
                     }
                   } catch (error) {
-                    console.error(`Error applying gift card ${giftCardPinData.code} after payment:`, error);
+                    console.error(`Error applying gift card ${giftCardCodeData.code} after payment:`, error);
                   }
                 }
               }
               
-              // Clear gift card PINs from order after applying (for security)
+              // Clear gift card codes from order after applying (for security)
               await repository.updateOne(
                 OrderModel,
                 { _id: new mongoose.Types.ObjectId(order_id) },
-                { giftCardPins: [] },
+                { giftCardCodes: [] },
                 { new: true }
               );
             } catch (error) {

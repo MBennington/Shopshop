@@ -344,7 +344,10 @@ export default function OrderSuccessPage() {
                               (orderDetails.platformCharges.platformFee || 0);
                           }
                           
-                          // Show "No fees for COD" if COD and no fees, otherwise show amount
+                          // Show appropriate message based on payment method and coverage
+                          if (orderDetails.finalTotal === 0 && orderDetails.giftCardDiscount > 0) {
+                            return <span className="text-gray-500">No fees</span>;
+                          }
                           if (orderDetails.paymentMethod === 'cod' && total === 0) {
                             return <span className="text-gray-500">No fees for COD</span>;
                           }
@@ -352,18 +355,15 @@ export default function OrderSuccessPage() {
                         })()}
                       </p>
                     </div>
-                    {/* Gift Card Discount */}
-                    {orderDetails.giftCardDiscount && orderDetails.giftCardDiscount > 0 && (
-                      <div>
-                        <p className="text-sm text-gray-600 flex items-center gap-1">
-                          <Gift className="h-4 w-4" />
-                          Gift Card Discount
-                        </p>
-                        <p className="font-semibold text-green-600">
-                          -LKR {orderDetails.giftCardDiscount.toFixed(2)}
-                        </p>
-                      </div>
-                    )}
+                    {/* Gift Card Discount - always show label and value */}
+                    <div>
+                      <p className="text-sm text-gray-600">Gift Card Discount</p>
+                      <p className="font-semibold text-green-600">
+                        {orderDetails.giftCardDiscount && orderDetails.giftCardDiscount > 0
+                          ? `-LKR ${orderDetails.giftCardDiscount.toFixed(2)}`
+                          : 'LKR 0.00'}
+                      </p>
+                    </div>
                     <div>
                       <p className="text-sm text-gray-600">Total Amount</p>
                       <p className="font-semibold text-lg text-green-600">
@@ -409,16 +409,8 @@ export default function OrderSuccessPage() {
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Order Status</p>
-                      <p
-                        className={`font-semibold capitalize ${
-                          orderDetails.orderStatus === 'delivered'
-                            ? 'text-green-600'
-                            : orderDetails.orderStatus === 'cancelled'
-                            ? 'text-red-600'
-                            : 'text-gray-600'
-                        }`}
-                      >
-                        {orderDetails.orderStatus || 'pending'}
+                      <p className="font-semibold text-gray-600">
+                        Pending
                       </p>
                     </div>
                   </>

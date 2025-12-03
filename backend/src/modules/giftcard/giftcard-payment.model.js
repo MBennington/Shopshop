@@ -66,12 +66,16 @@ const giftCardPaymentSchema = new Schema(
         trim: true,
         lowercase: true,
       },
-    },
-
-    // Temporary storage for gift card PIN (cleared after first retrieval)
-    temporaryPin: {
-      type: String,
-      default: null,
+      recipientName: {
+        type: String,
+        default: null,
+        trim: true,
+      },
+      personalMessage: {
+        type: String,
+        default: null,
+        trim: true,
+      },
     },
   },
   {
@@ -89,4 +93,3 @@ giftCardPaymentSchema.index({ gift_card_id: 1 });
 giftCardPaymentSchema.index({ paymentStatus: 1 });
 
 module.exports = mongoose.model('giftcardpayment', giftCardPaymentSchema);
-

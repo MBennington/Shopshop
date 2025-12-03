@@ -1,10 +1,7 @@
 const { roles } = require('../../config/role.config');
 
 module.exports.permissions = {
-  purchaseGiftCard: {
-    path: '/purchase',
-    grantedUserRoles: [roles.buyer, roles.admin, roles.seller],
-  },
+  // Old purchaseGiftCard permission removed - use initiateGiftCardPurchase instead
   validateGiftCard: {
     path: '/validate',
     grantedUserRoles: [roles.buyer, roles.admin, roles.seller],
@@ -13,10 +10,7 @@ module.exports.permissions = {
     path: '/user-cards',
     grantedUserRoles: [roles.buyer, roles.admin, roles.seller],
   },
-  sendGiftCardEmail: {
-    path: '/send-email',
-    grantedUserRoles: [roles.buyer, roles.admin, roles.seller],
-  },
+  // Old sendGiftCardEmail permission removed - gift cards are sent automatically after payment
   initiateGiftCardPurchase: {
     path: '/payment/initiate',
     grantedUserRoles: [roles.buyer, roles.admin, roles.seller],
@@ -29,16 +23,8 @@ module.exports.permissions = {
     path: '/payment/:payment_id',
     grantedUserRoles: [roles.buyer, roles.admin, roles.seller],
   },
-  sendGiftCard: {
-    path: '/send',
-    grantedUserRoles: [roles.buyer, roles.admin, roles.seller],
-  },
-  getGiftCardByAcceptanceToken: {
-    path: '/accept/:token',
-    grantedUserRoles: [], // No auth required - public endpoint
-  },
-  acceptGiftCard: {
-    path: '/accept/:token/confirm',
-    grantedUserRoles: [roles.buyer, roles.admin, roles.seller],
-  },
+  // Old acceptance flow permissions removed:
+  // - sendGiftCard
+  // - getGiftCardByAcceptanceToken
+  // - acceptGiftCard
 };

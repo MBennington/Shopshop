@@ -113,11 +113,10 @@ const orderSchema = new Schema(
       type: Number,
       default: 0,
     },
-    // Temporary storage for gift card PINs (for online payments - will be cleared after application)
-    giftCardPins: [
+    // Temporary storage for gift card codes (for online payments - will be cleared after application)
+    giftCardCodes: [
       {
         code: { type: String, required: true },
-        pin: { type: String, required: true },
       },
     ],
   },

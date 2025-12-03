@@ -209,7 +209,7 @@ export default function Navbar() {
                       if (pathname.startsWith('/gift-cards/accept')) {
                         return;
                       }
-                      router.push('/gift-cards');
+                      router.push('/gift-cards/landing');
                     }}
                     className={`relative p-2.5 rounded-xl transition-all duration-300 ${
                       pathname.startsWith('/gift-cards') && !pathname.startsWith('/gift-cards/accept')
