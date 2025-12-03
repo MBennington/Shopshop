@@ -34,6 +34,13 @@ module.exports.createOrder = joi.object({
       .required(),
     otherwise: joi.forbidden(),
   }),
+
+  // Gift card codes (optional)
+  giftCards: joi.array().items(
+    joi.object({
+      code: joi.string().trim().required(),
+    })
+  ).optional(),
 });
 
 module.exports.findOrderById = joi.object({

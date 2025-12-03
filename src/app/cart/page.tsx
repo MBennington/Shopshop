@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface CartApiResponse {
   msg: string;
@@ -45,6 +46,7 @@ interface CartResponse {
 }
 
 export default function CartPage() {
+  const router = useRouter();
   const [cart, setCart] = useState<CartResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [quantities, setQuantities] = useState<{ [key: string]: number }>({});

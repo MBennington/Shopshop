@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
+import { Gift, X } from 'lucide-react';
 
 interface Address {
   id: string;
@@ -57,10 +58,36 @@ interface SellerGroup {
 }
 
 export default function CheckoutPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const productParam = searchParams.get('product');
   const cartParam = searchParams.get('cart');
   const { user, loading } = useAuth();
+
+  // State declarations - must be before useMemo hooks that use them
+  const [selectedAddress, setSelectedAddress] = useState<string>('');
+  const [selectedPayment, setSelectedPayment] = useState<string>('');
+  const [shippingFee, setShippingFee] = useState(100); // Platform default, will be updated from seller data
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [payHereReady, setPayHereReady] = useState(false);
+  const [platformChargesConfig, setPlatformChargesConfig] = useState<any>(null);
+  const [calculatedCharges, setCalculatedCharges] = useState<any>(null);
+  const [sellerGroups, setSellerGroups] = useState<{
+    [sellerId: string]: SellerGroup;
+  }>({});
+  const [buyNowSellerInfo, setBuyNowSellerInfo] = useState<{
+    businessName: string;
+    name: string;
+    profilePicture?: string | null;
+  } | null>(null);
+  const [giftCardCode, setGiftCardCode] = useState<string>('');
+  const [appliedGiftCards, setAppliedGiftCards] = useState<Array<{ 
+    code: string; 
+    amount: number; 
+    remainingBalance: number;
+  }>>([]);
+  const [giftCardError, setGiftCardError] = useState<string | null>(null);
+  const [isValidatingGiftCard, setIsValidatingGiftCard] = useState(false);
 
   // Memoize parsed product and cartItems to prevent recreation on each render
   const { product, cartItems, fromCart } = useMemo(() => {
@@ -89,21 +116,163 @@ export default function CheckoutPage() {
     };
   }, [productParam, cartParam]);
 
-  const [selectedAddress, setSelectedAddress] = useState<string>('');
-  const [selectedPayment, setSelectedPayment] = useState<string>('');
-  const [shippingFee, setShippingFee] = useState(100); // Platform default, will be updated from seller data
-  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [payHereReady, setPayHereReady] = useState(false);
-  const [platformChargesConfig, setPlatformChargesConfig] = useState<any>(null);
-  const [calculatedCharges, setCalculatedCharges] = useState<any>(null);
-  const [sellerGroups, setSellerGroups] = useState<{
-    [sellerId: string]: SellerGroup;
-  }>({});
-  const [buyNowSellerInfo, setBuyNowSellerInfo] = useState<{
-    businessName: string;
-    name: string;
-    profilePicture?: string | null;
-  } | null>(null);
+  // Helper function to get price value
+  const getPriceValue = (price: any): number => {
+    if (typeof price === 'string') {
+      const cleanPrice = price.replace(/[$,]/g, '');
+      return parseFloat(cleanPrice) || 0;
+    } else if (typeof price === 'number') {
+      return price;
+    }
+    return 0;
+  };
+
+  // Calculate product subtotal (products only, no shipping) - for platform fee calculation
+  const productSubtotal = useMemo(() => {
+    if (fromCart && cartItems) {
+      // If we have seller groups, calculate from them (more accurate)
+      if (Object.keys(sellerGroups).length > 0) {
+        return Object.values(sellerGroups).reduce(
+          (sum, group) => sum + group.subtotal,
+          0
+        );
+      }
+      // Fallback to cart items
+      return cartItems.reduce(
+        (sum: number, item: any) =>
+          sum + getPriceValue(item.price) * (item.quantity || 1),
+        0
+      );
+    } else if (product) {
+      // For Buy Now: multiply price by quantity
+      return getPriceValue(product.price) * (product.quantity || 1);
+    }
+    return 0;
+  }, [fromCart, cartItems, sellerGroups, product]);
+
+  // Calculate display subtotal (products + shipping) - sum of all seller totals
+  const displaySubtotal = useMemo(() => {
+    if (fromCart && cartItems) {
+      // If we have seller groups, calculate sum of seller totals (products + shipping)
+      if (Object.keys(sellerGroups).length > 0) {
+        return Object.values(sellerGroups).reduce(
+          (sum, group) => sum + group.subtotal + group.shipping_fee,
+          0
+        );
+      }
+      // Fallback: product subtotal + shipping (when seller groups not available)
+      return productSubtotal + shippingFee;
+    } else if (product) {
+      // Single product: product price + shipping
+      return productSubtotal + shippingFee;
+    }
+    return 0;
+  }, [
+    fromCart,
+    cartItems,
+    sellerGroups,
+    product,
+    productSubtotal,
+    shippingFee,
+  ]);
+
+  // Calculate gift card discount
+  // Gift cards are applied to: products + shipping only (no platform fees)
+  // Platform fees are NOT applied when gift cards are used
+  const calculateGiftCardDiscount = useMemo(() => {
+    if (appliedGiftCards.length === 0) return 0;
+    
+    // Gift cards apply to products + shipping only (no platform fees)
+    const orderTotalBeforeGiftCard = displaySubtotal;
+    
+    let discount = 0;
+    let remainingTotal = orderTotalBeforeGiftCard;
+
+    for (const giftCard of appliedGiftCards) {
+      const applied = Math.min(giftCard.remainingBalance, remainingTotal);
+      discount += applied;
+      remainingTotal -= applied;
+      if (remainingTotal <= 0) break;
+    }
+
+    return discount;
+  }, [appliedGiftCards, displaySubtotal]);
+
+  const giftCardDiscount = calculateGiftCardDiscount;
+  
+  // Calculate if fully covered - check if final total after all charges is 0 or less
+  const isFullyCovered = useMemo(() => {
+    if (giftCardDiscount === 0) return false;
+    // Use finalTotal from calculatedCharges if available (already has gift card discount applied)
+    // Otherwise calculate: displaySubtotal - giftCardDiscount
+    if (calculatedCharges?.finalTotal !== undefined) {
+      return calculatedCharges.finalTotal <= 0;
+    }
+    return displaySubtotal - giftCardDiscount <= 0;
+  }, [giftCardDiscount, calculatedCharges, displaySubtotal]);
+
+  // Handle apply gift card
+  const handleApplyGiftCard = async () => {
+    if (!giftCardCode.trim()) {
+      setGiftCardError('Please enter a gift card code');
+      return;
+    }
+
+    setIsValidatingGiftCard(true);
+    setGiftCardError(null);
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/auth');
+        return;
+      }
+
+      const response = await fetch('/api/gift-cards', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          action: 'validate',
+          code: giftCardCode.trim().toUpperCase(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.msg || data.error || 'Invalid gift card code');
+      }
+
+      // Check if already applied
+      if (appliedGiftCards.some((gc) => gc.code === data.data.code)) {
+        setGiftCardError('This gift card is already applied');
+        return;
+      }
+
+      // Add to applied gift cards
+      setAppliedGiftCards([
+        ...appliedGiftCards,
+        {
+          code: data.data.code,
+          amount: data.data.amount,
+          remainingBalance: data.data.remainingBalance,
+        },
+      ]);
+
+      setGiftCardCode('');
+    } catch (err: any) {
+      setGiftCardError(err.message || 'Failed to validate gift card');
+    } finally {
+      setIsValidatingGiftCard(false);
+    }
+  };
+
+  const handleRemoveGiftCard = (code: string) => {
+    setAppliedGiftCards(appliedGiftCards.filter((gc) => gc.code !== code));
+  };
 
   // Transform user's saved addresses to match our interface
   const savedAddresses: Address[] = (user?.savedAddresses ?? []).map(
@@ -336,69 +505,10 @@ export default function CheckoutPage() {
     fetchPlatformCharges();
   }, []);
 
-  // Helper function to get price value
-  const getPriceValue = (price: any): number => {
-    if (typeof price === 'string') {
-      const cleanPrice = price.replace(/[$,]/g, '');
-      return parseFloat(cleanPrice) || 0;
-    } else if (typeof price === 'number') {
-      return price;
-    }
-    return 0;
-  };
-
-  // Calculate product subtotal (products only, no shipping) - for platform fee calculation
-  const productSubtotal = useMemo(() => {
-    if (fromCart && cartItems) {
-      // If we have seller groups, calculate from them (more accurate)
-      if (Object.keys(sellerGroups).length > 0) {
-        return Object.values(sellerGroups).reduce(
-          (sum, group) => sum + group.subtotal,
-          0
-        );
-      }
-      // Fallback to cart items
-      return cartItems.reduce(
-        (sum: number, item: any) =>
-          sum + getPriceValue(item.price) * (item.quantity || 1),
-        0
-      );
-    } else if (product) {
-      // For Buy Now: multiply price by quantity
-      return getPriceValue(product.price) * (product.quantity || 1);
-    }
-    return 0;
-  }, [fromCart, cartItems, sellerGroups, product]);
-
-  // Calculate display subtotal (products + shipping) - sum of all seller totals
-  const displaySubtotal = useMemo(() => {
-    if (fromCart && cartItems) {
-      // If we have seller groups, calculate sum of seller totals (products + shipping)
-      if (Object.keys(sellerGroups).length > 0) {
-        return Object.values(sellerGroups).reduce(
-          (sum, group) => sum + group.subtotal + group.shipping_fee,
-          0
-        );
-      }
-      // Fallback: product subtotal + shipping (when seller groups not available)
-      return productSubtotal + shippingFee;
-    } else if (product) {
-      // Single product: product price + shipping
-      return productSubtotal + shippingFee;
-    }
-    return 0;
-  }, [
-    fromCart,
-    cartItems,
-    sellerGroups,
-    product,
-    productSubtotal,
-    shippingFee,
-  ]);
-
   // Calculate charges when product subtotal or seller groups change
   // Note: Platform fees are calculated on product prices only (not including shipping)
   // Platform fees are only applied to online payments, not COD
+  // Platform fees only apply when there's remaining balance after gift cards
   useEffect(() => {
     const totalShipping =
       Object.keys(sellerGroups).length > 0
@@ -408,22 +518,42 @@ export default function CheckoutPage() {
           )
         : shippingFee;
 
+    // Calculate order total before gift card discount (products + shipping)
+    const orderTotalBeforeGiftCard = displaySubtotal;
+    
+    // Apply gift card discount first
+    const remainingAfterGiftCard = orderTotalBeforeGiftCard - giftCardDiscount;
+
+    // If fully covered by gift cards, no payment needed and no platform fees
+    if (remainingAfterGiftCard <= 0) {
+      setCalculatedCharges({
+        charges: {},
+        totalCharges: 0,
+        subtotal: displaySubtotal,
+        productSubtotal,
+        shipping: totalShipping,
+        finalTotal: 0, // Fully covered
+      });
+      return;
+    }
+
     // Skip platform fees for COD payments
     if (selectedPayment === 'cod') {
       setCalculatedCharges({
         charges: {},
         totalCharges: 0,
-        subtotal: displaySubtotal, // Display subtotal includes shipping
-        productSubtotal, // Keep product subtotal for reference
+        subtotal: displaySubtotal,
+        productSubtotal,
         shipping: totalShipping,
-        finalTotal: displaySubtotal, // No fees for COD
+        finalTotal: remainingAfterGiftCard, // Remaining after gift card, no fees for COD
       });
       return;
     }
 
-    // Calculate fees only for online payment methods
-    if (platformChargesConfig && platformChargesConfig.buyerFees && selectedPayment) {
-      // Calculate all buyer fees dynamically based on product prices only
+    // Platform fees ALWAYS apply for online payments (card), even if gift cards partially cover
+    // Platform fees are calculated on product subtotal, then added to remaining amount after gift card
+    if (platformChargesConfig && platformChargesConfig.buyerFees && selectedPayment === 'card') {
+      // Calculate platform fees on product subtotal (not on remaining after gift card)
       const charges: { [key: string]: number } = {};
       let totalCharges = 0;
 
@@ -431,7 +561,7 @@ export default function CheckoutPage() {
         if (fee.value > 0) {
           let feeAmount = 0;
           if (fee.type === 'percentage') {
-            // Platform fees calculated on product prices only (not shipping)
+            // Platform fees calculated on product prices only (not shipping, not gift card discount)
             feeAmount = productSubtotal * fee.value;
           } else if (fee.type === 'fixed') {
             feeAmount = fee.value;
@@ -444,24 +574,25 @@ export default function CheckoutPage() {
         }
       });
 
-      // Final total = display subtotal (products + shipping) + platform fees
+      // Final total = remaining after gift card + platform fees
+      // Platform fees always apply for card payments, regardless of gift card usage
       setCalculatedCharges({
         charges,
         totalCharges,
-        subtotal: displaySubtotal, // Display subtotal includes shipping
-        productSubtotal, // Keep product subtotal for reference
+        subtotal: displaySubtotal,
+        productSubtotal,
         shipping: totalShipping,
-        finalTotal: displaySubtotal + totalCharges,
+        finalTotal: remainingAfterGiftCard + totalCharges,
       });
     } else if (!selectedPayment) {
-      // No payment method selected yet, show subtotal only
+      // No payment method selected yet, show remaining after gift card (no platform fees yet)
       setCalculatedCharges({
         charges: {},
         totalCharges: 0,
         subtotal: displaySubtotal,
         productSubtotal,
         shipping: totalShipping,
-        finalTotal: displaySubtotal,
+        finalTotal: remainingAfterGiftCard,
       });
     }
   }, [
@@ -470,7 +601,8 @@ export default function CheckoutPage() {
     sellerGroups,
     platformChargesConfig,
     shippingFee,
-    selectedPayment, // Add selectedPayment to dependencies
+    selectedPayment,
+    giftCardDiscount, // Add gift card discount to dependencies
   ]);
 
   useEffect(() => {
@@ -635,8 +767,13 @@ export default function CheckoutPage() {
       // Prepare order data
       const orderData = {
         address: newAddress,
-        paymentMethod: selectedPayment,
+        // If fully covered by gift cards, use 'gift_card' payment method, otherwise use selected payment
+        paymentMethod: isFullyCovered ? 'gift_card' : selectedPayment,
         fromCart,
+        // Include gift cards if any (no PIN required)
+        ...(appliedGiftCards.length > 0
+          ? { giftCards: appliedGiftCards.map((gc) => ({ code: gc.code })) }
+          : {}),
         // If not from cart, include product details
         ...(fromCart
           ? {}
@@ -674,19 +811,25 @@ export default function CheckoutPage() {
 
       const orderDataFromServer = result.data;
 
-      if (
+      if (orderDataFromServer.payment_method === 'gift_card') {
+        // Fully covered by gift cards, no payment needed
+        console.log('Order fully covered by gift cards.');
+        const orderId =
+          orderDataFromServer.orderId || orderDataFromServer.order_id;
+        window.location.href = `/order-success?orderId=${orderId}`;
+      } else if (
         orderDataFromServer.payment_method === 'card' &&
         orderDataFromServer.hash
       ) {
         // Trigger PayHere payment
         initiatePayHerePayment(orderDataFromServer);
       } else {
-        // Payment is not card (e.g., COD)
-        console.log('Cash on Delivery selected.');
+        // Payment is COD or other method
+        console.log('Cash on Delivery or other payment method.');
         // Get order ID from the response (different field names for different payment methods)
         const orderId =
           orderDataFromServer.orderId || orderDataFromServer.order_id;
-        console.log('Order ID for COD:', orderId);
+        console.log('Order ID:', orderId);
         // Redirect to order confirmation page
         window.location.href = `/order-success?orderId=${orderId}`;
       }
@@ -892,23 +1035,109 @@ export default function CheckoutPage() {
               </CardContent>
             </Card>
 
+            {/* Gift Card Section */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Gift className="w-5 h-5" />
+                    Gift Card / Coupon
+                  </CardTitle>
+                  <button
+                    onClick={() => router.push('/gift-cards/purchase')}
+                    className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    Buy Gift Card
+                  </button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div>
+                    <input
+                      type="text"
+                      value={giftCardCode}
+                      onChange={(e) => {
+                        setGiftCardCode(e.target.value.toUpperCase());
+                        setGiftCardError(null);
+                      }}
+                      placeholder="Enter Gift Card Code (e.g., GC-XXXX-XXXX-XXXX)"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          document.getElementById('gift-card-pin-checkout')?.focus();
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleApplyGiftCard}
+                      disabled={isValidatingGiftCard || !giftCardCode.trim()}
+                      className="px-6"
+                    >
+                      {isValidatingGiftCard ? 'Validating...' : 'Apply'}
+                    </Button>
+                  </div>
+
+                  {giftCardError && (
+                    <div className="text-sm text-red-600 bg-red-50 p-3 rounded border border-red-200">
+                      {giftCardError}
+                    </div>
+                  )}
+
+                  {appliedGiftCards.length > 0 && (
+                    <div className="space-y-2">
+                      {appliedGiftCards.map((gc) => (
+                        <div
+                          key={gc.code}
+                          className="flex items-center justify-between bg-green-50 border border-green-200 p-3 rounded"
+                        >
+                          <div>
+                            <p className="font-medium text-green-800">{gc.code}</p>
+                            <p className="text-sm text-green-600">
+                              Balance: LKR {gc.remainingBalance.toFixed(2)}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleRemoveGiftCard(gc.code)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Payment Method */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Payment Method</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Payment Options */}
-                <div className="space-y-3">
-                  {/* COD Option */}
-                  <div
-                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                      selectedPayment === 'cod'
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                    onClick={() => setSelectedPayment('cod')}
-                  >
+                {isFullyCovered ? (
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-green-800 font-medium text-center">
+                      ✓ Order fully covered by gift cards. No payment required.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Payment Options */}
+                    <div className="space-y-3">
+                      {/* COD Option */}
+                      <div
+                        className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                          selectedPayment === 'cod'
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                        onClick={() => setSelectedPayment('cod')}
+                      >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                         <span className="text-green-600 text-sm font-bold">
@@ -954,6 +1183,8 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -1248,15 +1479,22 @@ export default function CheckoutPage() {
                     </div>
                   )} */}
 
-                  {/* Platform Fee (combined all charges) - Only for online payments */}
-                  {selectedPayment === 'cod' ? (
+                  {/* Platform Fee (combined all charges) - Only for online payments when there's remaining balance */}
+                  {isFullyCovered ? (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Platform Fee</span>
+                      <span className="font-medium text-gray-500">
+                        No fees
+                      </span>
+                    </div>
+                  ) : selectedPayment === 'cod' ? (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Platform Fee</span>
                       <span className="font-medium text-gray-500">
                         No fees for COD
                       </span>
                     </div>
-                  ) : (
+                  ) : selectedPayment === 'card' ? (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Platform Fee</span>
                       <span className="font-medium">
@@ -1264,6 +1502,26 @@ export default function CheckoutPage() {
                         {calculatedCharges && calculatedCharges.totalCharges
                           ? calculatedCharges.totalCharges.toFixed(2)
                           : '0.00'}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Platform Fee</span>
+                      <span className="font-medium text-gray-500">
+                        Select payment method
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Gift Card Discount */}
+                  {giftCardDiscount > 0 && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span className="flex items-center gap-1">
+                        <Gift className="w-4 h-4" />
+                        Gift Card Discount
+                      </span>
+                      <span className="font-medium">
+                        -LKR {giftCardDiscount.toFixed(2)}
                       </span>
                     </div>
                   )}
@@ -1289,7 +1547,7 @@ export default function CheckoutPage() {
                   onClick={handlePlaceOrder}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3"
                   disabled={
-                    !isAddressComplete() || !selectedPayment || isPlacingOrder
+                    !isAddressComplete() || (!isFullyCovered && !selectedPayment) || isPlacingOrder
                   }
                 >
                   {isPlacingOrder ? (

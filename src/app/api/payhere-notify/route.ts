@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:5000";
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || "http://localhost:5000";
 
 export async function POST(request: NextRequest) {
   try {
@@ -52,65 +52,123 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
     }
 
-    // Check if payment is successful (status_code = 2)
-    if (status_code === '2') {
-      console.log('Payment successful for order:', order_id);
+    // Check if this is a gift card payment (order_id starts with "GC-")
+    const isGiftCardPayment = order_id && order_id.startsWith('GC-');
+
+    console.log('=== PayHere Webhook Received ===');
+    console.log('Order ID:', order_id);
+    console.log('Is Gift Card Payment?', isGiftCardPayment);
+    console.log('Status Code:', status_code, '(type:', typeof status_code, ')');
+    console.log('Payment ID:', payment_id);
+
+    if (isGiftCardPayment) {
+      // Handle gift card payment
+      console.log('=== Processing Gift Card Payment ===');
+      console.log('Gift card payment notification received:', order_id, 'Status:', status_code);
       
-      // Update payment status in backend
+      // Update gift card payment status in backend (handles both success and failure)
       try {
-        const response = await fetch(`${BACKEND_URL}/api/payment/update-status`, {
+        const updatePayload = {
+          payment_id: order_id, // For gift cards, order_id from PayHere is our payment_id
+          order_id: order_id, // Keep order_id for reference (same as payment_id)
+          payhere_payment_id: payment_id, // PayHere's payment_id (from payment_id field)
+          status_code,
+          status_message,
+          method,
+          captured_amount: formData.get('captured_amount') as string,
+          payhere_amount: payhere_amount,
+        };
+
+        console.log('=== Calling Backend ===');
+        console.log('BACKEND_URL from env:', process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'http://localhost:5000');
+        console.log('Full URL:', `${BACKEND_URL}/api/gift-cards/payment/update-status`);
+        console.log('Payload:', JSON.stringify(updatePayload, null, 2));
+
+        const response = await fetch(`${BACKEND_URL}/api/gift-cards/payment/update-status`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            order_id,
-            payment_id,
-            status: 'success',
-            amount: payhere_amount,
-            currency: payhere_currency,
-            method,
-            status_message
-          }),
+          body: JSON.stringify(updatePayload),
         });
 
+        const responseData = await response.json();
+
         if (!response.ok) {
-          console.error('Failed to update payment status in backend');
+          console.error('Failed to update gift card payment status in backend:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: responseData,
+          });
+        } else {
+          console.log('Gift card payment status updated successfully:', responseData);
         }
       } catch (error) {
-        console.error('Error updating payment status:', error);
+        console.error('Error updating gift card payment status:', error);
       }
     } else {
-      console.log('Payment failed for order:', order_id, 'Status:', status_code);
-      
-      // Update payment status as failed
-      try {
-        const response = await fetch(`${BACKEND_URL}/api/payment/update-status`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            order_id,
-            payment_id,
-            status: 'failed',
-            amount: payhere_amount,
-            currency: payhere_currency,
-            method,
-            status_message
-          }),
-        });
+      // Handle order payment (existing flow)
+      // Check if payment is successful (status_code = 2)
+      if (status_code === '2') {
+        console.log('Payment successful for order:', order_id);
+        
+        // Update payment status in backend
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/payment/update-status`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              order_id,
+              payment_id,
+              status: 'success',
+              amount: payhere_amount,
+              currency: payhere_currency,
+              method,
+              status_message
+            }),
+          });
 
-        if (!response.ok) {
-          console.error('Failed to update payment status in backend');
+          if (!response.ok) {
+            console.error('Failed to update payment status in backend');
+          }
+        } catch (error) {
+          console.error('Error updating payment status:', error);
         }
-      } catch (error) {
-        console.error('Error updating payment status:', error);
+      } else {
+        console.log('Payment failed for order:', order_id, 'Status:', status_code);
+        
+        // Update payment status as failed
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/payment/update-status`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              order_id,
+              payment_id,
+              status: 'failed',
+              amount: payhere_amount,
+              currency: payhere_currency,
+              method,
+              status_message
+            }),
+          });
+
+          if (!response.ok) {
+            console.error('Failed to update payment status in backend');
+          }
+        } catch (error) {
+          console.error('Error updating payment status:', error);
+        }
       }
     }
 
     // Return success response to PayHere
-    return NextResponse.json({ status: 'success' });
+    // PayHere expects a simple text response "success" or JSON
+    return NextResponse.json({ status: 'success' }, { status: 200 });
 
   } catch (error) {
     console.error('PayHere notification error:', error);

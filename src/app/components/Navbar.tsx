@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { FiUser, FiLogOut, FiChevronDown, FiShoppingBag, FiHeart, FiSearch, FiMenu, FiX } from 'react-icons/fi';
+import { Gift } from 'lucide-react';
 
 export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -200,7 +201,33 @@ export default function Navbar() {
               {loading ? (
                 <div className="w-8 h-8 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
               ) : user ? (
-                <div className="relative" ref={userMenuRef}>
+                <>
+                  {/* Gift Cards Button */}
+                  <button
+                    onClick={() => {
+                      // Don't navigate if on acceptance page - stay on acceptance page
+                      if (pathname.startsWith('/gift-cards/accept')) {
+                        return;
+                      }
+                      router.push('/gift-cards/landing');
+                    }}
+                    className={`relative p-2.5 rounded-xl transition-all duration-300 ${
+                      pathname.startsWith('/gift-cards') && !pathname.startsWith('/gift-cards/accept')
+                        ? 'bg-white text-[#FF0808] shadow-lg scale-105'
+                        : 'bg-white/15 text-white hover:bg-white/25 hover:scale-110'
+                    }`}
+                    aria-label="Gift Cards"
+                  >
+                    <Gift
+                      size={20}
+                      className={pathname.startsWith('/gift-cards') && !pathname.startsWith('/gift-cards/accept') ? 'fill-current' : ''}
+                    />
+                    {pathname.startsWith('/gift-cards') && !pathname.startsWith('/gift-cards/accept') && (
+                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#FF0808] rounded-full animate-pulse"></span>
+                    )}
+                  </button>
+
+                  <div className="relative" ref={userMenuRef}>
                   <button
                     onClick={() => setShowUserMenu(!showUserMenu)}
                     className="flex items-center gap-2 px-3 py-2 bg-white rounded-xl hover:bg-white/95 transition-all duration-300 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg group"
@@ -308,7 +335,8 @@ export default function Navbar() {
                       </div>
                     </div>
                   )}
-                </div>
+                  </div>
+                </>
               ) : (
                 <>
                   <button

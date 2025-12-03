@@ -100,6 +100,25 @@ const orderSchema = new Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'suborder',
     }],
+
+    // Gift cards applied to this order
+    giftCards: [
+      {
+        code: { type: String, required: true },
+        amountApplied: { type: Number, required: true },
+        remainingBalance: { type: Number, required: true },
+      },
+    ],
+    giftCardDiscount: {
+      type: Number,
+      default: 0,
+    },
+    // Temporary storage for gift card codes (for online payments - will be cleared after application)
+    giftCardCodes: [
+      {
+        code: { type: String, required: true },
+      },
+    ],
   },
   {
     timestamps: {
