@@ -49,6 +49,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('personal');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingAddressIndex, setDeletingAddressIndex] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showAddressForm, setShowAddressForm] = useState(false);
@@ -57,6 +58,7 @@ export default function ProfilePage() {
     label: '',
     address: '',
     city: '',
+    province: '',
     postalCode: '',
     country: '',
   });
@@ -109,9 +111,11 @@ export default function ProfilePage() {
         role: user.role || 'seller',
         savedAddresses:
           user.savedAddresses?.map((addr: any) => ({
+            _id: addr._id || undefined,
             label: addr.label || '',
             address: addr.address || '',
             city: addr.city || '',
+            province: addr.province || '',
             postalCode: addr.postalCode || '',
             country: addr.country || '',
           })) || [],
@@ -255,6 +259,9 @@ export default function ProfilePage() {
     if (!addressForm.city.trim()) {
       errors.city = 'City is required';
     }
+    if (!addressForm.province.trim()) {
+      errors.province = 'Province is required';
+    }
     if (!addressForm.postalCode.trim()) {
       errors.postalCode = 'Postal code is required';
     }
@@ -273,6 +280,7 @@ export default function ProfilePage() {
       label: '',
       address: '',
       city: '',
+      province: '',
       postalCode: '',
       country: '',
     });
@@ -285,6 +293,7 @@ export default function ProfilePage() {
       label: address.label,
       address: address.address,
       city: address.city,
+      province: address.province || '',
       postalCode: address.postalCode,
       country: address.country,
     });
@@ -293,12 +302,45 @@ export default function ProfilePage() {
     setAddressErrors({});
   };
 
-  const handleDeleteAddress = (index: number) => {
-    if (window.confirm('Are you sure you want to delete this address?')) {
+  const handleDeleteAddress = async (index: number) => {
+    if (!window.confirm('Are you sure you want to delete this address?')) {
+      return;
+    }
+
+    // Store original addresses for rollback in case of error
+    const originalAddresses = [...formData.savedAddresses];
+    const addressToDelete = originalAddresses[index];
+
+    // Optimistically remove from local state
+    const updatedAddresses = formData.savedAddresses.filter((_, i) => i !== index);
+    
+    setFormData((prev) => ({
+      ...prev,
+      savedAddresses: updatedAddresses,
+    }));
+
+    // Set loading state for this specific address
+    setDeletingAddressIndex(index);
+    setError('');
+    setSuccess('');
+
+    try {
+      // Save to backend
+      await saveAddressesToBackend(updatedAddresses);
+      
+      setSuccess('Address deleted successfully!');
+    } catch (error: any) {
+      console.error('Error deleting address:', error);
+      
+      // Revert the local change on error
       setFormData((prev) => ({
         ...prev,
-        savedAddresses: prev.savedAddresses.filter((_, i) => i !== index),
+        savedAddresses: originalAddresses,
       }));
+      
+      setError(error.message || 'Failed to delete address. Please try again.');
+    } finally {
+      setDeletingAddressIndex(null);
     }
   };
 
@@ -344,6 +386,7 @@ export default function ProfilePage() {
       label: '',
       address: '',
       city: '',
+      province: '',
       postalCode: '',
       country: '',
     });
@@ -357,6 +400,7 @@ export default function ProfilePage() {
       label: '',
       address: '',
       city: '',
+      province: '',
       postalCode: '',
       country: '',
     });
@@ -400,6 +444,53 @@ export default function ProfilePage() {
   function isChangedNonEmpty(newValue: any, oldValue: any): boolean {
     return newValue !== oldValue && newValue !== '';
   }
+
+  // Reusable function to save addresses to backend
+  const saveAddressesToBackend = async (addressesToSave: any[]) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/auth');
+      throw new Error('No authentication token');
+    }
+
+    const formDataToSend = new FormData();
+    formDataToSend.append('savedAddresses', JSON.stringify(addressesToSave));
+
+    const response = await fetch('/api/profile', {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formDataToSend,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.msg || data.error || 'Failed to save addresses');
+    }
+
+    // Update user context with new addresses
+    if (data.data) {
+      updateUser(data.data);
+      
+      // Update formData to preserve _id fields from backend response
+      setFormData((prev) => ({
+        ...prev,
+        savedAddresses: data.data.savedAddresses?.map((addr: any) => ({
+          _id: addr._id || undefined,
+          label: addr.label || '',
+          address: addr.address || '',
+          city: addr.city || '',
+          province: addr.province || '',
+          postalCode: addr.postalCode || '',
+          country: addr.country || '',
+        })) || prev.savedAddresses,
+      }));
+    }
+
+    return data.data;
+  };
 
   const handleSaveChanges = async () => {
     try {
@@ -528,7 +619,15 @@ export default function ProfilePage() {
       setFormData((prev) => ({
         ...prev,
         name: data.data.name || prev.name,
-        savedAddresses: data.data.savedAddresses || prev.savedAddresses,
+        savedAddresses: data.data.savedAddresses?.map((addr: any) => ({
+          _id: addr._id || undefined,
+          label: addr.label || '',
+          address: addr.address || '',
+          city: addr.city || '',
+          province: addr.province || '',
+          postalCode: addr.postalCode || '',
+          country: addr.country || '',
+        })) || prev.savedAddresses,
         notifications: {
           ...prev.notifications,
           ...data.data.notifications,
@@ -828,61 +927,12 @@ export default function ProfilePage() {
                   </button>
                 </div>
 
-                {formData.savedAddresses.length > 0 ? (
-                  <div className="space-y-4">
-                    {formData.savedAddresses.map((address, index) => (
-                      <div
-                        key={index}
-                        className="border border-[#dde0e3] p-4 rounded-lg shadow-sm bg-white"
-                      >
-                        <div className="flex justify-between items-start mb-3">
-                          <div>
-                            <h4 className="font-semibold text-[#121416]">
-                              {address.label}
-                            </h4>
-                            <p className="text-[#6a7581] text-sm mt-1">
-                              {address.address}
-                            </p>
-                            <p className="text-[#6a7581] text-sm">
-                              {address.city}, {address.postalCode},{' '}
-                              {address.country}
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleEditAddress(index)}
-                              className="flex items-center gap-1 text-[#397fc5] hover:text-[#2c5f94] text-sm font-medium"
-                            >
-                              <FiEdit2 size={14} />
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDeleteAddress(index)}
-                              className="flex items-center gap-1 text-red-600 hover:text-red-700 text-sm font-medium"
-                            >
-                              <FiTrash2 size={14} />
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-[#6a7581]">
-                    <FiMapPin className="mx-auto" size={48} />
-                    <p className="mt-4 font-medium">No saved addresses</p>
-                    <p className="text-sm">Add addresses for faster checkout</p>
-                  </div>
-                )}
-
-                {showAddressForm && (
+                {/* Show form at top when adding new address */}
+                {showAddressForm && editingIndex === null && (
                   <div className="border border-[#dde0e3] rounded-lg p-6 bg-[#f7f8fa]">
                     <div className="flex items-center justify-between mb-4">
                       <h4 className="text-lg font-semibold text-[#121416]">
-                        {editingIndex !== null
-                          ? 'Edit Address'
-                          : 'Add New Address'}
+                        Add New Address
                       </h4>
                       <button
                         onClick={cancelAddressForm}
@@ -968,6 +1018,29 @@ export default function ProfilePage() {
 
                         <div>
                           <label className="block text-sm font-medium text-[#6a7581] mb-2">
+                            Province *
+                          </label>
+                          <input
+                            type="text"
+                            name="province"
+                            value={addressForm.province}
+                            onChange={handleAddressFormChange}
+                            placeholder="Province"
+                            className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#397fc5] focus:border-transparent ${
+                              addressErrors.province
+                                ? 'border-red-300 focus:ring-red-500'
+                                : 'border-[#dde0e3]'
+                            }`}
+                          />
+                          {addressErrors.province && (
+                            <p className="mt-1 text-sm text-red-600">
+                              {addressErrors.province}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-[#6a7581] mb-2">
                             Postal Code *
                           </label>
                           <input
@@ -1033,6 +1106,243 @@ export default function ProfilePage() {
                     </form>
                   </div>
                 )}
+
+                {/* Addresses List */}
+                {formData.savedAddresses.length > 0 ? (
+                  <div className="space-y-4">
+                    {formData.savedAddresses.map((address, index) => (
+                      <div key={index}>
+                        {/* Show form inline when editing this address */}
+                        {showAddressForm && editingIndex === index ? (
+                          <div className="border border-[#dde0e3] rounded-lg p-6 bg-[#f7f8fa]">
+                            <div className="flex items-center justify-between mb-4">
+                              <h4 className="text-lg font-semibold text-[#121416]">
+                                Edit Address
+                              </h4>
+                              <button
+                                onClick={cancelAddressForm}
+                                className="text-[#6a7581] hover:text-[#121416]"
+                              >
+                                <FiX size={20} />
+                              </button>
+                            </div>
+
+                            <form
+                              onSubmit={handleAddressFormSubmit}
+                              className="space-y-4"
+                            >
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-[#6a7581] mb-2">
+                                    Label *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    name="label"
+                                    value={addressForm.label}
+                                    onChange={handleAddressFormChange}
+                                    placeholder="e.g., Home, Office"
+                                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#397fc5] focus:border-transparent ${
+                                      addressErrors.label
+                                        ? 'border-red-300 focus:ring-red-500'
+                                        : 'border-[#dde0e3]'
+                                    }`}
+                                  />
+                                  {addressErrors.label && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                      {addressErrors.label}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div>
+                                  <label className="block text-sm font-medium text-[#6a7581] mb-2">
+                                    Address *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    name="address"
+                                    value={addressForm.address}
+                                    onChange={handleAddressFormChange}
+                                    placeholder="Street address"
+                                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#397fc5] focus:border-transparent ${
+                                      addressErrors.address
+                                        ? 'border-red-300 focus:ring-red-500'
+                                        : 'border-[#dde0e3]'
+                                    }`}
+                                  />
+                                  {addressErrors.address && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                      {addressErrors.address}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div>
+                                  <label className="block text-sm font-medium text-[#6a7581] mb-2">
+                                    City *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    name="city"
+                                    value={addressForm.city}
+                                    onChange={handleAddressFormChange}
+                                    placeholder="City"
+                                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#397fc5] focus:border-transparent ${
+                                      addressErrors.city
+                                        ? 'border-red-300 focus:ring-red-500'
+                                        : 'border-[#dde0e3]'
+                                    }`}
+                                  />
+                                  {addressErrors.city && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                      {addressErrors.city}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div>
+                                  <label className="block text-sm font-medium text-[#6a7581] mb-2">
+                                    Province *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    name="province"
+                                    value={addressForm.province}
+                                    onChange={handleAddressFormChange}
+                                    placeholder="Province"
+                                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#397fc5] focus:border-transparent ${
+                                      addressErrors.province
+                                        ? 'border-red-300 focus:ring-red-500'
+                                        : 'border-[#dde0e3]'
+                                    }`}
+                                  />
+                                  {addressErrors.province && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                      {addressErrors.province}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div>
+                                  <label className="block text-sm font-medium text-[#6a7581] mb-2">
+                                    Postal Code *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    name="postalCode"
+                                    value={addressForm.postalCode}
+                                    onChange={handleAddressFormChange}
+                                    placeholder="Postal code"
+                                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#397fc5] focus:border-transparent ${
+                                      addressErrors.postalCode
+                                        ? 'border-red-300 focus:ring-red-500'
+                                        : 'border-[#dde0e3]'
+                                    }`}
+                                  />
+                                  {addressErrors.postalCode && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                      {addressErrors.postalCode}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div className="md:col-span-2">
+                                  <label className="block text-sm font-medium text-[#6a7581] mb-2">
+                                    Country *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    name="country"
+                                    value={addressForm.country}
+                                    onChange={handleAddressFormChange}
+                                    placeholder="Country"
+                                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#397fc5] focus:border-transparent ${
+                                      addressErrors.country
+                                        ? 'border-red-300 focus:ring-red-500'
+                                        : 'border-[#dde0e3]'
+                                    }`}
+                                  />
+                                  {addressErrors.country && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                      {addressErrors.country}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex justify-end gap-3 pt-4">
+                                <button
+                                  type="button"
+                                  onClick={cancelAddressForm}
+                                  className="px-4 py-2 border border-[#dde0e3] text-[#6a7581] rounded-lg hover:bg-[#f7f8fa] transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="submit"
+                                  className="px-4 py-2 bg-[#397fc5] text-white rounded-lg hover:bg-[#2c5f94] transition-colors"
+                                >
+                                  Update Address
+                                </button>
+                              </div>
+                            </form>
+                          </div>
+                        ) : (
+                          /* Show address card when not editing */
+                          <div className="border border-[#dde0e3] p-4 rounded-lg shadow-sm bg-white">
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <h4 className="font-semibold text-[#121416]">
+                                  {address.label}
+                                </h4>
+                                <p className="text-[#6a7581] text-sm mt-1">
+                                  {address.address}
+                                </p>
+                                <p className="text-[#6a7581] text-sm">
+                                  {address.city}, {address.province} {address.postalCode},{' '}
+                                  {address.country}
+                                </p>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleEditAddress(index)}
+                                  className="flex items-center gap-1 text-[#397fc5] hover:text-[#2c5f94] text-sm font-medium"
+                                >
+                                  <FiEdit2 size={14} />
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteAddress(index)}
+                                  disabled={deletingAddressIndex === index}
+                                  className="flex items-center gap-1 text-red-600 hover:text-red-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {deletingAddressIndex === index ? (
+                                    <>
+                                      <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-red-600"></div>
+                                      Deleting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <FiTrash2 size={14} />
+                                      Delete
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : !showAddressForm ? (
+                  <div className="text-center py-8 text-[#6a7581]">
+                    <FiMapPin className="mx-auto" size={48} />
+                    <p className="mt-4 font-medium">No saved addresses</p>
+                    <p className="text-sm">Add addresses for faster checkout</p>
+                  </div>
+                ) : null}
 
                 {/* Save Changes Button for Addresses */}
                 {formData.savedAddresses.length > 0 && (

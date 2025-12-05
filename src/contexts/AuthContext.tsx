@@ -19,6 +19,7 @@ interface User {
     label: string;
     address: string;
     city: string;
+    province?: string;
     postalCode: string;
     country: string;
   }[];
