@@ -152,7 +152,7 @@ module.exports.getProductsBySellerId = async (req, res) => {
     const sellerId = req.params.id;
     console.log('seller id: ', sellerId);
 
-    const data = await productService.getProductsBySeller(sellerId);
+    const data = await productService.getActiveProductsBySeller(sellerId);
     return successWithData(data, res);
   } catch (error) {
     return customError(`${error.message}`, res);

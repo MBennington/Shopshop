@@ -308,7 +308,7 @@ export default function Navbar() {
                             className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-[#FF0808]/5 hover:text-[#FF0808] transition-colors duration-200 flex items-center gap-3 group"
                           >
                             <FiUser className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                            <span className="font-medium">Dashboard</span>
+                            <span className="font-medium">Profile</span>
                           </button>
 
                           <button
