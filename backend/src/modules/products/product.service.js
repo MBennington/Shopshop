@@ -219,7 +219,7 @@ module.exports.getProductsWithInventory = async (filter = {}) => {
 };
 
 /**
- * Get all products by seller
+ * Get all products by seller (includes inactive products for seller management)
  * @param sellerId
  * @returns {Promise<*>}
  */
@@ -228,6 +228,26 @@ module.exports.getProductsBySeller = async (seller_id) => {
     seller: seller_id,
   });
   console.log('products ', products);
+
+  return products.map((product) => {
+    const productObj = product.toObject();
+    productObj.totalInventory =
+      module.exports.calculateTotalInventory(productObj);
+    return productObj;
+  });
+};
+
+/**
+ * Get active products by seller (for public shop pages)
+ * @param sellerId
+ * @returns {Promise<*>}
+ */
+module.exports.getActiveProductsBySeller = async (seller_id) => {
+  const products = await repository.findMany(ProductModel, {
+    seller: seller_id,
+    isActive: { $ne: false }, // Only active products
+  });
+  console.log('active products ', products);
 
   return products.map((product) => {
     const productObj = product.toObject();
