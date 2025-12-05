@@ -72,6 +72,7 @@ module.exports.updateProduct = joi.object({
         colorCode: joi.string().trim().required(),
         colorName: joi.string().trim().required(),
         images: joi.array().items(joi.string()).optional(),
+        keepImages: joi.array().items(joi.string()).optional(), // Existing image URLs to keep
         sizes: joi
           .array()
           .items(

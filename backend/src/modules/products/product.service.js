@@ -52,6 +52,10 @@ module.exports.processProductData = async (
         existingImages.length
       );
 
+      // Check if keepImages is provided (images to keep from existing)
+      const keepImages = colorData.keepImages || [];
+      const imagesToKeep = Array.isArray(keepImages) ? keepImages : [];
+      
       // Find images for this color from the files array
       const colorImages = files
         ? files.filter(
@@ -62,12 +66,12 @@ module.exports.processProductData = async (
         : [];
 
       console.log(
-        `Color ${colorIndex} - Found ${colorImages.length} new images`
+        `Color ${colorIndex} - Found ${colorImages.length} new images, keeping ${imagesToKeep.length} existing images`
       );
 
+      // Upload new images if any
+      const uploadedImages = [];
       if (colorImages.length > 0) {
-        // If new images are uploaded, replace existing images (don't duplicate)
-        const uploadedImages = [];
         for (const file of colorImages) {
           try {
             const uploadResult = await uploadBufferToCloudinary(
@@ -85,42 +89,40 @@ module.exports.processProductData = async (
             throw new Error(`Failed to upload image: ${error.message}`);
           }
         }
+      }
 
-        // Delete old images from Cloudinary if this is an update
-        if (existingProduct && existingImages.length > 0) {
-          console.log(
-            `Deleting ${existingImages.length} old images for color ${colorIndex}`
-          );
-          for (const oldImageUrl of existingImages) {
-            try {
-              const publicId = extractPublicIdFromUrl(oldImageUrl);
-              if (publicId) {
-                await deleteFromCloudinary(publicId);
-                console.log(`Deleted old image: ${publicId}`);
-              }
-            } catch (error) {
-              console.error(
-                `Failed to delete old image: ${oldImageUrl}`,
-                error
-              );
-              // Don't throw error for deletion failures
+      // Determine which existing images to delete
+      const imagesToDelete = existingImages.filter(
+        (img) => !imagesToKeep.includes(img)
+      );
+
+      // Delete removed images from Cloudinary
+      if (existingProduct && imagesToDelete.length > 0) {
+        console.log(
+          `Deleting ${imagesToDelete.length} removed images for color ${colorIndex}`
+        );
+        for (const oldImageUrl of imagesToDelete) {
+          try {
+            const publicId = extractPublicIdFromUrl(oldImageUrl);
+            if (publicId) {
+              await deleteFromCloudinary(publicId);
+              console.log(`Deleted removed image: ${publicId}`);
             }
+          } catch (error) {
+            console.error(
+              `Failed to delete old image: ${oldImageUrl}`,
+              error
+            );
+            // Don't throw error for deletion failures
           }
         }
-
-        // Replace existing images with new ones (don't merge)
-        color.images = uploadedImages;
-        console.log(
-          `Color ${colorIndex} - Replaced with ${uploadedImages.length} new images`
-        );
-      } else {
-        // No new images, keep existing ones
-        color.images = existingImages;
-        console.log(
-          `Color ${colorIndex} - Keeping existing images:`,
-          color.images.length
-        );
       }
+
+      // Combine kept existing images with new uploaded images
+      color.images = [...imagesToKeep, ...uploadedImages];
+      console.log(
+        `Color ${colorIndex} - Final images: ${imagesToKeep.length} kept + ${uploadedImages.length} new = ${color.images.length} total`
+      );
 
       if (processedData.hasSizes) {
         if (colorData.sizes && Array.isArray(colorData.sizes)) {
