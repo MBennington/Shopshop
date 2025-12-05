@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 
@@ -13,13 +13,26 @@ interface ColorOption {
   id: string;
   color: string;
   images: File[];
+  imagePreviews: string[]; // Store preview URLs
   sizeQuantities: SizeQuantity[];
   quantity?: number; // if no size tracking for this color
 }
 
 export default function AddProductPage() {
   const router = useRouter();
-  const [colors, setColors] = useState<ColorOption[]>([]);
+  const SIZES = ['XS', 'S', 'M', 'L', 'XL'];
+  
+  // Initialize with one default color
+  const [colors, setColors] = useState<ColorOption[]>([
+    {
+      id: Math.random().toString(36).slice(2),
+      color: '#cccccc',
+      images: [],
+      imagePreviews: [],
+      sizeQuantities: SIZES.map((size) => ({ size, quantity: 0 })),
+      quantity: 0,
+    },
+  ]);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [description, setDescription] = useState('');
@@ -27,6 +40,7 @@ export default function AddProductPage() {
   const [hasSizes, setHasSizes] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const previewUrlsRef = useRef<Set<string>>(new Set());
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
@@ -130,12 +144,29 @@ export default function AddProductPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.msg || 'Something went wrong');
 
+      // Clean up preview URLs before reset
+      colors.forEach((color) => {
+        color.imagePreviews.forEach((url) => {
+          URL.revokeObjectURL(url);
+          previewUrlsRef.current.delete(url);
+        });
+      });
+
       // Reset form on success
       setName('');
       setPrice('');
       setDescription('');
       setCategory('');
-      setColors([]);
+      setColors([
+        {
+          id: Math.random().toString(36).slice(2),
+          color: '#cccccc',
+          images: [],
+          imagePreviews: [],
+          sizeQuantities: SIZES.map((size) => ({ size, quantity: 0 })),
+          quantity: 0,
+        },
+      ]);
 
       alert('Product created successfully!');
       // Redirect to products page after showing success message
@@ -148,7 +179,6 @@ export default function AddProductPage() {
     }
   };
 
-  const SIZES = ['XS', 'S', 'M', 'L', 'XL'];
   const CATEGORIES = [
     'Fashion',
     'Home & Living',
@@ -168,18 +198,12 @@ export default function AddProductPage() {
         id: Math.random().toString(36).slice(2),
         color: '#cccccc',
         images: [],
+        imagePreviews: [],
         sizeQuantities: SIZES.map((size) => ({ size, quantity: 0 })),
         quantity: 0,
       },
     ]);
   };
-
-  // Initialize with one default color if no colors exist
-  useEffect(() => {
-    if (colors.length === 0) {
-      addColor();
-    }
-  }, []);
 
   const updateSizeQuantity = (
     colorId: string,
@@ -207,7 +231,17 @@ export default function AddProductPage() {
   };
 
   const removeColor = (id: string) => {
-    setColors((prev) => prev.filter((c) => c.id !== id));
+    setColors((prev) => {
+      const colorToRemove = prev.find((c) => c.id === id);
+      // Clean up preview URLs
+      if (colorToRemove) {
+        colorToRemove.imagePreviews.forEach((url) => {
+          URL.revokeObjectURL(url);
+          previewUrlsRef.current.delete(url);
+        });
+      }
+      return prev.filter((c) => c.id !== id);
+    });
   };
 
   const updateColor = (id: string, color: string) => {
@@ -217,26 +251,80 @@ export default function AddProductPage() {
   const handleImageChange = (id: string, files: FileList | null) => {
     if (!files) return;
 
-    // Validate file sizes (max 5MB per file)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    const validFiles = Array.from(files).filter((file) => {
-      if (file.size > maxSize) {
-        alert(`File ${file.name} is too large. Maximum size is 5MB.`);
-        return false;
-      }
-      return true;
-    });
-
-    // Limit to 5 images per color
-    if (validFiles.length > 5) {
-      alert('Maximum 5 images allowed per color');
-      validFiles.splice(5);
-    }
-
     setColors((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, images: validFiles } : c))
+      prev.map((c) => {
+        if (c.id === id) {
+          // Get current number of images
+          const currentImageCount = c.images.length;
+          const remainingSlots = 5 - currentImageCount;
+
+          if (remainingSlots <= 0) {
+            alert('Maximum 5 images allowed per color. Please remove an image first.');
+            return c;
+          }
+
+          // Validate file sizes (max 5MB per file)
+          const maxSize = 5 * 1024 * 1024; // 5MB
+          const validFiles = Array.from(files).filter((file) => {
+            if (file.size > maxSize) {
+              alert(`File ${file.name} is too large. Maximum size is 5MB.`);
+              return false;
+            }
+            return true;
+          });
+
+          // Limit new files to remaining slots
+          const newFiles = validFiles.slice(0, remainingSlots);
+          
+          if (validFiles.length > remainingSlots) {
+            alert(`Only ${remainingSlots} more image(s) can be added. Maximum 5 images allowed per color.`);
+          }
+
+          // Create preview URLs for new files only
+          const newPreviews = newFiles.map((file) => {
+            const url = URL.createObjectURL(file);
+            previewUrlsRef.current.add(url);
+            return url;
+          });
+          
+          return {
+            ...c,
+            images: [...c.images, ...newFiles],
+            imagePreviews: [...c.imagePreviews, ...newPreviews],
+          };
+        }
+        return c;
+      })
     );
   };
+
+  const removeImage = (colorId: string, imageIndex: number) => {
+    setColors((prev) =>
+      prev.map((c) => {
+        if (c.id === colorId) {
+          // Clean up the preview URL
+          const urlToRemove = c.imagePreviews[imageIndex];
+          URL.revokeObjectURL(urlToRemove);
+          previewUrlsRef.current.delete(urlToRemove);
+          
+          return {
+            ...c,
+            images: c.images.filter((_, idx) => idx !== imageIndex),
+            imagePreviews: c.imagePreviews.filter((_, idx) => idx !== imageIndex),
+          };
+        }
+        return c;
+      })
+    );
+  };
+
+  // Cleanup preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      previewUrlsRef.current.clear();
+    };
+  }, []);
 
   return (
     <div className="flex min-h-screen bg-[#f7f8fa]">
@@ -411,11 +499,53 @@ export default function AddProductPage() {
                                   e.target.files
                                 )
                               }
+                              className="block w-full text-sm text-[#121417] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-[#121416] file:text-white hover:file:bg-[#2a2d30] file:cursor-pointer"
                             />
-                            {colorOption.images.length > 0 && (
-                              <p className="text-xs text-gray-500 mt-1">
-                                {colorOption.images.length} image(s) selected
-                              </p>
+                            
+                            {/* Image Previews */}
+                            {colorOption.imagePreviews.length > 0 && (
+                              <div className="mt-3">
+                                <p className="text-xs text-[#6a7581] mb-2">
+                                  {colorOption.imagePreviews.length} image(s) selected
+                                </p>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                                  {colorOption.imagePreviews.map((preview, imgIdx) => (
+                                    <div
+                                      key={imgIdx}
+                                      className="relative group aspect-square rounded-lg overflow-hidden border border-[#dde0e3] bg-[#f7f8fa]"
+                                    >
+                                      <img
+                                        src={preview}
+                                        alt={`Preview ${imgIdx + 1}`}
+                                        className="w-full h-full object-cover"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => removeImage(colorOption.id, imgIdx)}
+                                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                        title="Remove image"
+                                      >
+                                        <svg
+                                          className="w-4 h-4"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M6 18L18 6M6 6l12 12"
+                                          />
+                                        </svg>
+                                      </button>
+                                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 truncate">
+                                        {colorOption.images[imgIdx]?.name || `Image ${imgIdx + 1}`}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
                             )}
                           </div>
 
@@ -499,12 +629,29 @@ export default function AddProductPage() {
                 <button
                   type="button"
                   onClick={() => {
+                    // Clean up preview URLs before reset
+                    colors.forEach((color) => {
+                      color.imagePreviews.forEach((url) => {
+                        URL.revokeObjectURL(url);
+                        previewUrlsRef.current.delete(url);
+                      });
+                    });
+                    
                     // Reset form
                     setName('');
                     setPrice('');
                     setDescription('');
                     setCategory('');
-                    setColors([]);
+                    setColors([
+                      {
+                        id: Math.random().toString(36).slice(2),
+                        color: '#cccccc',
+                        images: [],
+                        imagePreviews: [],
+                        sizeQuantities: SIZES.map((size) => ({ size, quantity: 0 })),
+                        quantity: 0,
+                      },
+                    ]);
                     setErrors({});
                   }}
                   className="px-6 py-2 border border-[#dde0e3] rounded-lg text-[#6a7581] hover:bg-[#f7f8fa]"
