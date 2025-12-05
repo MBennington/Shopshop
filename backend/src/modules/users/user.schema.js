@@ -50,9 +50,11 @@ const accountPreferencesSchema = joi.object({
 });
 
 const addressSchema = joi.object({
+  _id: joi.string().optional().allow(null),
   label: joi.string().required(),
   address: joi.string().required(),
   city: joi.string().required(),
+  province: joi.string().required(),
   postalCode: joi.string().required(),
   country: joi.string().required(),
 });

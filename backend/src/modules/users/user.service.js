@@ -93,11 +93,8 @@ module.exports.processUserData = async (body, files, existingUser = null) => {
     if (!Array.isArray(incomingSavedAddressesInfo)) {
       incomingSavedAddressesInfo = [incomingSavedAddressesInfo];
     }
-    const existingSavedAddressesInfo = existingUser?.savedAddresses || [];
-    processedData.savedAddresses = [
-      ...existingSavedAddressesInfo,
-      ...incomingSavedAddressesInfo,
-    ];
+    // Replace the entire array instead of merging
+    processedData.savedAddresses = incomingSavedAddressesInfo;
   }
 
   // Handle profile picture upload

@@ -5,7 +5,16 @@ import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { FiUser, FiLogOut, FiChevronDown, FiShoppingBag, FiHeart, FiSearch, FiMenu, FiX } from 'react-icons/fi';
+import {
+  FiUser,
+  FiLogOut,
+  FiChevronDown,
+  FiShoppingBag,
+  FiHeart,
+  FiSearch,
+  FiMenu,
+  FiX,
+} from 'react-icons/fi';
 import { Gift } from 'lucide-react';
 
 export default function Navbar() {
@@ -75,7 +84,9 @@ export default function Navbar() {
             {/* Navigation Links - Desktop */}
             <nav className="hidden lg:flex items-center gap-1">
               {navItems.map(({ label, path }) => {
-                const isActive = pathname === path || (path !== '/' && pathname.startsWith(path));
+                const isActive =
+                  pathname === path ||
+                  (path !== '/' && pathname.startsWith(path));
                 return (
                   <Link
                     key={label}
@@ -172,7 +183,9 @@ export default function Navbar() {
               >
                 <FiHeart
                   size={20}
-                  className={pathname.startsWith('/wishlist') ? 'fill-current' : ''}
+                  className={
+                    pathname.startsWith('/wishlist') ? 'fill-current' : ''
+                  }
                 />
                 {pathname.startsWith('/wishlist') && (
                   <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#FF0808] rounded-full animate-pulse"></span>
@@ -212,7 +225,8 @@ export default function Navbar() {
                       router.push('/gift-cards/landing');
                     }}
                     className={`relative p-2.5 rounded-xl transition-all duration-300 ${
-                      pathname.startsWith('/gift-cards') && !pathname.startsWith('/gift-cards/accept')
+                      pathname.startsWith('/gift-cards') &&
+                      !pathname.startsWith('/gift-cards/accept')
                         ? 'bg-white text-[#FF0808] shadow-lg scale-105'
                         : 'bg-white/15 text-white hover:bg-white/25 hover:scale-110'
                     }`}
@@ -220,121 +234,136 @@ export default function Navbar() {
                   >
                     <Gift
                       size={20}
-                      className={pathname.startsWith('/gift-cards') && !pathname.startsWith('/gift-cards/accept') ? 'fill-current' : ''}
+                      className={
+                        pathname.startsWith('/gift-cards') &&
+                        !pathname.startsWith('/gift-cards/accept')
+                          ? 'fill-current'
+                          : ''
+                      }
                     />
-                    {pathname.startsWith('/gift-cards') && !pathname.startsWith('/gift-cards/accept') && (
-                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#FF0808] rounded-full animate-pulse"></span>
-                    )}
+                    {pathname.startsWith('/gift-cards') &&
+                      !pathname.startsWith('/gift-cards/accept') && (
+                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#FF0808] rounded-full animate-pulse"></span>
+                      )}
                   </button>
 
                   <div className="relative" ref={userMenuRef}>
-                  <button
-                    onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center gap-2 px-3 py-2 bg-white rounded-xl hover:bg-white/95 transition-all duration-300 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg group"
-                  >
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FF0808] to-[#FF4040] flex items-center justify-center overflow-hidden ring-2 ring-white/50">
-                      {user.profilePicture ? (
-                        <img
-                          src={user.profilePicture}
-                          alt={user.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <FiUser className="w-4 h-4 text-white" />
-                      )}
-                    </div>
-                    <span className="hidden md:inline text-sm font-semibold text-[#FF0808] max-w-[100px] truncate">
-                      {user.name}
-                    </span>
-                    <FiChevronDown
-                      className={`w-4 h-4 text-[#FF0808] transition-transform duration-300 ${
-                        showUserMenu ? 'rotate-180' : ''
-                      }`}
-                    />
-                  </button>
-
-                  {/* Enhanced Dropdown Menu */}
-                  {showUserMenu && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                      {/* User Info Header */}
-                      <div className="px-4 py-4 bg-gradient-to-br from-[#FF0808] to-[#FF4040] text-white">
-                        <p className="text-sm font-bold truncate">{user.name}</p>
-                        <p className="text-xs text-white/90 truncate mt-0.5">{user.email}</p>
-                        {user.role === 'seller' && user.sellerInfo?.businessName && (
-                          <div className="mt-2 px-2 py-1 bg-white/20 rounded-lg backdrop-blur-sm">
-                            <p className="text-xs font-medium truncate">
-                              {user.sellerInfo.businessName}
-                            </p>
-                          </div>
+                    <button
+                      onClick={() => setShowUserMenu(!showUserMenu)}
+                      className="flex items-center gap-2 px-3 py-2 bg-white rounded-xl hover:bg-white/95 transition-all duration-300 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg group"
+                    >
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FF0808] to-[#FF4040] flex items-center justify-center overflow-hidden ring-2 ring-white/50">
+                        {user.profilePicture ? (
+                          <img
+                            src={user.profilePicture}
+                            alt={user.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <FiUser className="w-4 h-4 text-white" />
                         )}
                       </div>
+                      <span className="hidden md:inline text-sm font-semibold text-[#FF0808] max-w-[100px] truncate">
+                        {user.name}
+                      </span>
+                      <FiChevronDown
+                        className={`w-4 h-4 text-[#FF0808] transition-transform duration-300 ${
+                          showUserMenu ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
 
-                      {/* Menu Items */}
-                      <div className="py-2">
-                        <button
-                          onClick={() => {
-                            setShowUserMenu(false);
-                            router.push(
-                              user.role === 'seller' ? '/sell/settings' : '/profile'
-                            );
-                          }}
-                          className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-[#FF0808]/5 hover:text-[#FF0808] transition-colors duration-200 flex items-center gap-3 group"
-                        >
-                          <FiUser className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                          <span className="font-medium">Profile Settings</span>
-                        </button>
+                    {/* Enhanced Dropdown Menu */}
+                    {showUserMenu && (
+                      <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        {/* User Info Header */}
+                        <div className="px-4 py-4 bg-gradient-to-br from-[#FF0808] to-[#FF4040] text-white">
+                          <p className="text-sm font-bold truncate">
+                            {user.name}
+                          </p>
+                          <p className="text-xs text-white/90 truncate mt-0.5">
+                            {user.email}
+                          </p>
+                          {user.role === 'seller' &&
+                            user.sellerInfo?.businessName && (
+                              <div className="mt-2 px-2 py-1 bg-white/20 rounded-lg backdrop-blur-sm">
+                                <p className="text-xs font-medium truncate">
+                                  {user.sellerInfo.businessName}
+                                </p>
+                              </div>
+                            )}
+                        </div>
 
-                        <button
-                          onClick={() => {
-                            setShowUserMenu(false);
-                            router.push('/my-orders');
-                          }}
-                          className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-[#FF0808]/5 hover:text-[#FF0808] transition-colors duration-200 flex items-center gap-3 group"
-                        >
-                          <FiShoppingBag className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                          <span className="font-medium">My Orders</span>
-                        </button>
-
-                        {user.role === 'seller' && (
+                        {/* Menu Items */}
+                        <div className="py-2">
                           <button
                             onClick={() => {
                               setShowUserMenu(false);
-                              router.push('/sell');
+                              router.push(
+                                user.role === 'seller'
+                                  ? '/sell/settings'
+                                  : '/profile'
+                              );
                             }}
                             className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-[#FF0808]/5 hover:text-[#FF0808] transition-colors duration-200 flex items-center gap-3 group"
                           >
-                            <svg
-                              className="w-4 h-4 group-hover:scale-110 transition-transform"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                              />
-                            </svg>
-                            <span className="font-medium">Seller Dashboard</span>
+                            <FiUser className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                            <span className="font-medium">Dashboard</span>
                           </button>
-                        )}
 
-                        <div className="border-t border-gray-100 my-1"></div>
+                          <button
+                            onClick={() => {
+                              setShowUserMenu(false);
+                              router.push('/my-orders');
+                            }}
+                            className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-[#FF0808]/5 hover:text-[#FF0808] transition-colors duration-200 flex items-center gap-3 group"
+                          >
+                            <FiShoppingBag className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                            <span className="font-medium">My Orders</span>
+                          </button>
 
-                        <button
-                          onClick={() => {
-                            setShowUserMenu(false);
-                            logout();
-                          }}
-                          className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200 flex items-center gap-3 group"
-                        >
-                          <FiLogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                          <span className="font-medium">Logout</span>
-                        </button>
+                          {user.role === 'seller' && (
+                            <button
+                              onClick={() => {
+                                setShowUserMenu(false);
+                                router.push('/sell');
+                              }}
+                              className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-[#FF0808]/5 hover:text-[#FF0808] transition-colors duration-200 flex items-center gap-3 group"
+                            >
+                              <svg
+                                className="w-4 h-4 group-hover:scale-110 transition-transform"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                                />
+                              </svg>
+                              <span className="font-medium">
+                                Seller Dashboard
+                              </span>
+                            </button>
+                          )}
+
+                          <div className="border-t border-gray-100 my-1"></div>
+
+                          <button
+                            onClick={() => {
+                              setShowUserMenu(false);
+                              logout();
+                            }}
+                            className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200 flex items-center gap-3 group"
+                          >
+                            <FiLogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                            <span className="font-medium">Logout</span>
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                   </div>
                 </>
               ) : (
@@ -362,7 +391,9 @@ export default function Navbar() {
           <div className="lg:hidden border-t border-white/10 py-4 animate-in slide-in-from-top duration-300">
             <nav className="flex flex-col gap-2">
               {navItems.map(({ label, path }) => {
-                const isActive = pathname === path || (path !== '/' && pathname.startsWith(path));
+                const isActive =
+                  pathname === path ||
+                  (path !== '/' && pathname.startsWith(path));
                 return (
                   <Link
                     key={label}

@@ -88,6 +88,7 @@ export default function CheckoutPage() {
   }>>([]);
   const [giftCardError, setGiftCardError] = useState<string | null>(null);
   const [isValidatingGiftCard, setIsValidatingGiftCard] = useState(false);
+  const hasInitializedAddress = useRef(false);
 
   // Memoize parsed product and cartItems to prevent recreation on each render
   const { product, cartItems, fromCart } = useMemo(() => {
@@ -283,7 +284,7 @@ export default function CheckoutPage() {
       lastName: user?.name?.split(' ').slice(1).join(' ') || '',
       address: addr.address,
       city: addr.city,
-      province: '', // Add if available in your DB
+      province: addr.province || '',
       postalCode: addr.postalCode,
       country: addr.country,
       phone: '', // Add if available in your DB
@@ -606,10 +607,17 @@ export default function CheckoutPage() {
   ]);
 
   useEffect(() => {
-    // Set default selections
-    const defaultAddress = savedAddresses.find((addr) => addr.isDefault);
-
-    if (defaultAddress) setSelectedAddress(defaultAddress.id);
+    // Set default selections only on initial load
+    if (!hasInitializedAddress.current && savedAddresses.length > 0) {
+      const defaultAddress = savedAddresses.find((addr) => addr.isDefault);
+      if (defaultAddress) {
+        setSelectedAddress(defaultAddress.id);
+      } else {
+        // If no default, select first address
+        setSelectedAddress(savedAddresses[0].id);
+      }
+      hasInitializedAddress.current = true;
+    }
 
     // Debug: Log product data to see its structure
     if (product) {
@@ -621,6 +629,7 @@ export default function CheckoutPage() {
         typeof product.price
       );
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product, savedAddresses]);
 
   // Loading state
@@ -1016,7 +1025,7 @@ export default function CheckoutPage() {
                                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                             }`}
                           >
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between w-full">
                               <span className="font-medium">
                                 {address.label}
                               </span>

@@ -24,6 +24,7 @@ const userSchema = new Schema(
         label: { type: String }, // e.g., "Home", "Work"
         address: { type: String },
         city: { type: String },
+        province: { type: String },
         postalCode: { type: String },
         country: { type: String },
       },
