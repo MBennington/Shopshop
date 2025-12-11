@@ -17,14 +17,13 @@ router
 router
   .route(permissions.getReviews.path)
   .get(
-    validator.validateHeader(),
     validator.validateQueryParameters(schema.getReviewsQuery),
     controller.getReviews
   );
 
 router
   .route('/summary/:productId')
-  .get(validator.validateHeader(), controller.getReviewSummary);
+  .get(controller.getReviewSummary);
 
 router
   .route(permissions.updateReview.path)

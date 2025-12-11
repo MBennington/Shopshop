@@ -75,7 +75,7 @@ module.exports.getReviews = async (query) => {
       sortOptions = { rating: 1, createdAt: -1 };
       break;
     case 'helpful':
-      sortOptions = { helpfulCount: -1, createdAt: -1 };
+      sortOptions = { createdAt: -1 };
       break;
     default:
       sortOptions = { createdAt: -1 };
@@ -103,12 +103,11 @@ module.exports.getReviews = async (query) => {
         title: 1,
         content: 1,
         isVerified: 1,
-        helpfulCount: 1,
-        unhelpfulCount: 1,
         createdAt: 1,
+        'userData._id': 1,
         'userData.name': 1,
         'userData.email': 1,
-        'userData.avatar': 1,
+        'userData.profilePicture': 1,
       },
     },
     { $sort: sortOptions },
@@ -116,11 +115,20 @@ module.exports.getReviews = async (query) => {
     { $limit: parseInt(limit) },
   ]);
 
+  // Convert userData._id to string for each review
+  const formattedReviews = reviews.map((review) => ({
+    ...review,
+    userData: {
+      ...review.userData,
+      _id: review.userData._id?.toString() || review.userData._id,
+    },
+  }));
+
   // Get total count
   const total = await repository.countDocuments(ReviewModel, filter);
 
   return {
-    reviews,
+    reviews: formattedReviews,
     pagination: {
       page: parseInt(page),
       limit: parseInt(limit),
@@ -192,17 +200,25 @@ module.exports.getReviewSummary = async (productId, previewLimit = 5) => {
         title: 1,
         content: 1,
         isVerified: 1,
-        helpfulCount: 1,
-        unhelpfulCount: 1,
         createdAt: 1,
+        'userData._id': 1,
         'userData.name': 1,
         'userData.email': 1,
-        'userData.avatar': 1,
+        'userData.profilePicture': 1,
       },
     },
     { $sort: { createdAt: -1 } },
     { $limit: previewLimit },
   ]);
+
+  // Convert userData._id to string for each preview review
+  const formattedPreviewReviews = previewReviews.map((review) => ({
+    ...review,
+    userData: {
+      ...review.userData,
+      _id: review.userData._id?.toString() || review.userData._id,
+    },
+  }));
 
   const stats = ratingStats[0] || { averageRating: 0, totalReviews: 0 };
 
@@ -210,7 +226,7 @@ module.exports.getReviewSummary = async (productId, previewLimit = 5) => {
     averageRating: Math.round(stats.averageRating * 10) / 10, // Round to 1 decimal
     totalReviews: stats.totalReviews,
     ratingDistribution,
-    previewReviews,
+    previewReviews: formattedPreviewReviews,
   };
 };
 
