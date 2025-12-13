@@ -29,7 +29,26 @@ module.exports.getSubOrdersByMainOrder = async (req, res) => {
 module.exports.getSubOrdersBySeller = async (req, res) => {
   try {
     const { sellerId } = req.params;
-    const data = await subOrderService.getSubOrdersBySeller(sellerId, req.query);
+    const data = await subOrderService.getSubOrdersBySeller(
+      sellerId,
+      req.query
+    );
+    return successWithData(data, res);
+  } catch (error) {
+    return customError(`${error.message}`, res);
+  }
+};
+
+/**
+ * Get sub-order by ID
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.getSubOrderById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const data = await subOrderService.getSubOrderById(id);
     return successWithData(data, res);
   } catch (error) {
     return customError(`${error.message}`, res);
@@ -77,7 +96,33 @@ module.exports.updateTrackingNumber = async (req, res) => {
 module.exports.confirmDelivery = async (req, res) => {
   try {
     const { id } = req.params;
-    const data = await subOrderService.confirmDelivery(id, req.body.delivery_confirmed);
+    const data = await subOrderService.confirmDelivery(
+      id,
+      req.body.delivery_confirmed
+    );
+    return successWithData(data, res);
+  } catch (error) {
+    return customError(`${error.message}`, res);
+  }
+};
+
+/**
+ * Buyer confirms or disputes delivery
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.buyerConfirmDelivery = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { confirmed } = req.body;
+    const user_id = res.locals.user.id;
+
+    const data = await subOrderService.buyerConfirmDelivery(
+      id,
+      confirmed,
+      user_id
+    );
     return successWithData(data, res);
   } catch (error) {
     return customError(`${error.message}`, res);

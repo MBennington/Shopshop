@@ -52,11 +52,22 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Check if response is JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('Non-JSON response from backend:', text.substring(0, 200));
+      return NextResponse.json(
+        { error: 'Invalid response from server. Please check backend logs.' },
+        { status: 500 }
+      );
+    }
+
     const result = await response.json();
 
     if (!response.ok) {
       return NextResponse.json(
-        { error: result.msg || 'Failed to fetch sub-order details' },
+        { error: result.msg || result.error || 'Failed to fetch sub-order details' },
         { status: response.status }
       );
     }
@@ -87,7 +98,7 @@ export async function PUT(request: NextRequest) {
 
     if (!action) {
       return NextResponse.json(
-        { error: 'Action is required (status, tracking, confirm-delivery)' },
+        { error: 'Action is required (status, tracking, confirm-delivery, buyer-confirm-delivery)' },
         { status: 400 }
       );
     }
@@ -116,9 +127,12 @@ export async function PUT(request: NextRequest) {
       case 'confirm-delivery':
         url += 'confirm-delivery';
         break;
+      case 'buyer-confirm-delivery':
+        url += 'buyer-confirm-delivery';
+        break;
       default:
         return NextResponse.json(
-          { error: 'Invalid action. Use: status, tracking, or confirm-delivery' },
+          { error: 'Invalid action. Use: status, tracking, confirm-delivery, or buyer-confirm-delivery' },
           { status: 400 }
         );
     }
