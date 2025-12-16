@@ -48,7 +48,7 @@ interface SubOrder {
 export default function ConfirmDeliveryPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [subOrder, setSubOrder] = useState<SubOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -65,18 +65,38 @@ export default function ConfirmDeliveryPage() {
     }
   }, [confirmedParam]);
 
+  // Check authentication
   useEffect(() => {
-    if (subOrderId) {
+    if (!authLoading && !user) {
+      // User is not logged in, redirect to login with return URL
+      const currentUrl = window.location.href;
+      router.push(`/auth?returnUrl=${encodeURIComponent(currentUrl)}`);
+    }
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (subOrderId && user && !authLoading) {
       fetchSubOrder();
-    } else {
+    } else if (subOrderId && !user && !authLoading) {
+      // Wait for redirect to happen
+      return;
+    } else if (!subOrderId) {
       setError('Order ID is required');
       setLoading(false);
     }
-  }, [subOrderId]);
+  }, [subOrderId, user, authLoading]);
 
   const fetchSubOrder = async () => {
     try {
       const token = localStorage.getItem('token');
+      
+      if (!token) {
+        // No token, redirect to login
+        const currentUrl = window.location.href;
+        router.push(`/auth?returnUrl=${encodeURIComponent(currentUrl)}`);
+        return;
+      }
+
       const response = await fetch(`/api/suborder?subOrderId=${subOrderId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -88,6 +108,14 @@ export default function ConfirmDeliveryPage() {
         setSubOrder(data.data || data);
       } else {
         const result = await response.json();
+        
+        // If unauthorized, redirect to login
+        if (response.status === 401 || response.status === 403) {
+          const currentUrl = window.location.href;
+          router.push(`/auth?returnUrl=${encodeURIComponent(currentUrl)}`);
+          return;
+        }
+        
         setError(result.error || result.msg || 'Failed to load order details');
       }
     } catch (err) {
@@ -133,12 +161,43 @@ export default function ConfirmDeliveryPage() {
     }
   };
 
-  if (loading) {
+  // Show loading while checking authentication
+  if (authLoading || (loading && !user)) {
     return (
       <div className="min-h-screen bg-[#f7f8fa] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#121416] mx-auto mb-4"></div>
-          <p className="text-[#6a7581]">Loading order details...</p>
+          <p className="text-[#6a7581]">
+            {authLoading ? 'Checking authentication...' : 'Loading order details...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // If user is not logged in, show message (redirect should happen, but just in case)
+  if (!user && !authLoading) {
+    return (
+      <div className="min-h-screen bg-[#f7f8fa] flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl p-6 max-w-md w-full text-center">
+          <div className="text-yellow-500 mb-4">
+            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-[#121416] mb-2">Login Required</h1>
+          <p className="text-[#6a7581] mb-6">
+            Please log in to confirm your order delivery.
+          </p>
+          <button
+            onClick={() => {
+              const currentUrl = window.location.href;
+              router.push(`/auth?returnUrl=${encodeURIComponent(currentUrl)}`);
+            }}
+            className="bg-[#121416] text-white px-6 py-2 rounded-xl font-medium hover:bg-[#2a2d30] transition-colors"
+          >
+            Go to Login
+          </button>
         </div>
       </div>
     );
