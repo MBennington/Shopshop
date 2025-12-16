@@ -9,7 +9,11 @@ const {
   sellerPaymentStatus,
   deliveryStatus,
 } = require('../../config/suborder.config');
-const { orderStatus, paymentMethod, paymentStatus } = require('../../config/order.config');
+const {
+  orderStatus,
+  paymentMethod,
+  paymentStatus,
+} = require('../../config/order.config');
 const { roles } = require('../../config/role.config');
 const stockService = require('../../services/stock.service');
 const emailService = require('../../services/email.service');
@@ -506,8 +510,8 @@ module.exports.buyerConfirmDelivery = async (
   const buyerId = user_id;
   const subOrderBuyerId =
     subOrder.buyer_id._id?.toString() || subOrder.buyer_id._id;
-  console.log('buyer: ', buyerId);
-  console.log('subOrderBuyerId: ', subOrderBuyerId);
+  //console.log('buyer: ', buyerId);
+  //console.log('subOrderBuyerId: ', subOrderBuyerId);
 
   if (buyerId !== subOrderBuyerId) {
     throw new Error('You can only confirm delivery for your own orders');
@@ -557,7 +561,11 @@ module.exports.buyerConfirmDelivery = async (
           );
 
           // If payment method is COD and all sub-orders are delivered, update payment status to PAID
-          if (mainOrder && mainOrder.paymentMethod === paymentMethod.COD && allDelivered) {
+          if (
+            mainOrder &&
+            mainOrder.paymentMethod === paymentMethod.COD &&
+            allDelivered
+          ) {
             // Update payment record
             await repository.updateOne(
               PaymentModel,
@@ -593,6 +601,7 @@ module.exports.buyerConfirmDelivery = async (
     // Buyer says they did not receive the order
     const updateData = {
       delivery_status: deliveryStatus.DISPUTED,
+      notes: 'Buyer disputed the order through email',
     };
 
     const updatedSubOrder = await repository.updateOne(
