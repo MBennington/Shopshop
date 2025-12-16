@@ -452,6 +452,22 @@ export default function OrderDetailsPage() {
                             <p className="font-semibold capitalize">
                               {subOrder.orderStatus}
                             </p>
+                            {/* Payment Status Indicator */}
+                            {orderDetails?.paymentMethod === 'cod' ? (
+                              subOrder.orderStatus === 'delivered' ? (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <CheckCircle className="h-4 w-4 text-green-600" />
+                                  <p className="text-xs text-green-600 font-medium">Paid</p>
+                                </div>
+                              ) : (
+                                <p className="text-xs text-yellow-600 mt-1">Payment Pending</p>
+                              )
+                            ) : orderDetails?.paymentStatus === 'Paid' ? (
+                              <div className="flex items-center gap-1 mt-1">
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                <p className="text-xs text-green-600 font-medium">Paid</p>
+                              </div>
+                            ) : null}
                           </div>
                         </div>
 
@@ -498,6 +514,22 @@ export default function OrderDetailsPage() {
                               Shipping: LKR{' '}
                               {subOrder.shipping_fee?.toFixed(2) || '0.00'}
                             </p>
+                            {/* Payment Status Badge */}
+                            {orderDetails?.paymentMethod === 'cod' ? (
+                              subOrder.orderStatus === 'delivered' ? (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <CheckCircle className="h-4 w-4 text-green-600" />
+                                  <p className="text-xs text-green-600 font-medium">Payment Received</p>
+                                </div>
+                              ) : (
+                                <p className="text-xs text-yellow-600 mt-1">Payment Pending</p>
+                              )
+                            ) : orderDetails?.paymentStatus === 'Paid' ? (
+                              <div className="flex items-center gap-1 mt-1">
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                <p className="text-xs text-green-600 font-medium">Payment Received</p>
+                              </div>
+                            ) : null}
                           </div>
                           <div className="text-right">
                             <p className="text-sm text-gray-600">Package Total</p>
@@ -527,7 +559,7 @@ export default function OrderDetailsPage() {
                           </div>
                         )}
 
-                        {orderDetails?.paymentMethod === 'cod' && (
+                        {orderDetails?.paymentMethod === 'cod' && subOrder.orderStatus !== 'delivered' && (
                           <div className="mt-3 pt-3 border-t border-gray-200 bg-yellow-50 p-3 rounded-lg">
                             <div className="flex items-start gap-2">
                               <Truck className="h-5 w-5 text-yellow-600 mt-0.5" />

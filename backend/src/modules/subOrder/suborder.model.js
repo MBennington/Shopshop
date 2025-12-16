@@ -107,6 +107,18 @@ const subOrderSchema = new Schema(
       type: Date,
       default: null,
     },
+    seller_marked_as_delivered: {
+      type: Boolean,
+      default: false,
+    },
+    seller_marked_as_delivered_at: {
+      type: Date,
+      default: null,
+    },
+    notes: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: {

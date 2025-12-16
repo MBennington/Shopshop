@@ -544,6 +544,22 @@ export default function OrderSuccessPage() {
                             <p className="font-semibold capitalize">
                               {subOrder.orderStatus}
                             </p>
+                            {/* Payment Status Indicator */}
+                            {orderDetails?.paymentMethod === 'cod' ? (
+                              subOrder.orderStatus === 'delivered' ? (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <CheckCircle className="h-4 w-4 text-green-600" />
+                                  <p className="text-xs text-green-600 font-medium">Paid</p>
+                                </div>
+                              ) : (
+                                <p className="text-xs text-yellow-600 mt-1">Payment Pending</p>
+                              )
+                            ) : orderDetails?.paymentStatus === 'Paid' ? (
+                              <div className="flex items-center gap-1 mt-1">
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                <p className="text-xs text-green-600 font-medium">Paid</p>
+                              </div>
+                            ) : null}
                           </div>
                         </div>
 
@@ -613,6 +629,22 @@ export default function OrderSuccessPage() {
                                     Gift Card: -LKR {packageDiscount.toFixed(2)}
                                   </p>
                                 )}
+                                {/* Payment Status Badge */}
+                                {orderDetails?.paymentMethod === 'cod' ? (
+                                  subOrder.orderStatus === 'delivered' ? (
+                                    <div className="flex items-center gap-1 mt-1">
+                                      <CheckCircle className="h-4 w-4 text-green-600" />
+                                      <p className="text-xs text-green-600 font-medium">Payment Received</p>
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-yellow-600 mt-1">Payment Pending</p>
+                                  )
+                                ) : orderDetails?.paymentStatus === 'Paid' ? (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <CheckCircle className="h-4 w-4 text-green-600" />
+                                    <p className="text-xs text-green-600 font-medium">Payment Received</p>
+                                  </div>
+                                ) : null}
                               </div>
                               <div className="text-right">
                                 <p className="text-sm text-gray-600">Package Total</p>
@@ -651,7 +683,7 @@ export default function OrderSuccessPage() {
                         )}
 
                         {/* COD Payment Instructions */}
-                        {orderDetails?.paymentMethod === 'cod' && (() => {
+                        {orderDetails?.paymentMethod === 'cod' && subOrder.orderStatus !== 'delivered' && (() => {
                           // Calculate the amount to pay for this package after gift card discount
                           let codAmount = subOrder.finalTotal || 0;
                           

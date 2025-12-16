@@ -2,14 +2,153 @@ const mongoose = require('mongoose');
 const SubOrderModel = require('./suborder.model');
 const OrderModel = require('../order/order.model');
 const PaymentModel = require('../payment/payment.model');
+const UserModel = require('../users/user.model');
 const repository = require('../../services/repository.service');
 const {
   subOrderStatus,
   sellerPaymentStatus,
   deliveryStatus,
 } = require('../../config/suborder.config');
-const { orderStatus } = require('../../config/order.config');
+const {
+  orderStatus,
+  paymentMethod,
+  paymentStatus,
+} = require('../../config/order.config');
+const { roles } = require('../../config/role.config');
 const stockService = require('../../services/stock.service');
+const emailService = require('../../services/email.service');
+
+/**
+ * Generate email template for buyer delivery confirmation request
+ * @param {Object} subOrder - SubOrder with populated buyer and product info
+ * @returns {Object} - { subject, html }
+ */
+const generateBuyerDeliveryConfirmationEmail = (subOrder) => {
+  const subOrderId = subOrder._id.toString();
+  const confirmUrl = `${emailService.FRONTEND_URL}/order/confirm-delivery?subOrderId=${subOrderId}&confirmed=true`;
+  const disputeUrl = `${emailService.FRONTEND_URL}/order/confirm-delivery?subOrderId=${subOrderId}&confirmed=false`;
+  const buyerName = subOrder.buyer_id?.name || 'Customer';
+  const orderId = subOrderId.slice(-8);
+  const trackingNumber = subOrder.tracking_number || 'N/A';
+
+  const subject = 'Please Confirm Your Order Delivery';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Confirm Your Order Delivery</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #121416 0%, #2a2d30 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0;">📦 Order Delivery Confirmation</h1>
+      </div>
+      
+      <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+        <p style="font-size: 16px;">Hi ${buyerName},</p>
+        
+        <p style="font-size: 16px;">
+          The seller has marked your order as delivered. Please confirm if you have received your package.
+        </p>
+        
+        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #121416;">
+          <p style="margin: 5px 0;"><strong>Order ID:</strong> ${orderId}</p>
+          <p style="margin: 5px 0;"><strong>Tracking Number:</strong> ${trackingNumber}</p>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${confirmUrl}" style="display: inline-block; background: #10b981; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-right: 10px;">
+            ✅ Yes, I Received It
+          </a>
+          <a href="${disputeUrl}" style="display: inline-block; background: #ef4444; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+            ❌ No, I Did Not Receive It
+          </a>
+        </div>
+        
+        <p style="font-size: 14px; color: #666; margin-top: 30px;">
+          If you have any questions or concerns, please contact our support team.
+        </p>
+        
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+        
+        <p style="font-size: 12px; color: #999; text-align: center;">
+          This is an automated email from Shopshop. Please do not reply to this email.
+        </p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return { subject, html };
+};
+
+/**
+ * Generate email template for admin notification when buyer disputes delivery
+ * @param {Object} subOrder - SubOrder with populated buyer, seller, and product info
+ * @returns {Object} - { subject, html }
+ */
+const generateAdminDisputeNotificationEmail = (subOrder) => {
+  const subOrderId = subOrder._id.toString();
+  const orderId = subOrderId.slice(-8);
+  const buyerName = subOrder.buyer_id?.name || 'Unknown';
+  const buyerEmail = subOrder.buyer_id?.email || 'Unknown';
+  const sellerName = subOrder.seller_id?.name || 'Unknown';
+  const currentStatus = subOrder.orderStatus || 'Unknown';
+
+  const subject = `⚠️ Delivery Dispute - Order ${orderId}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Delivery Dispute Notification</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0;">⚠️ Delivery Dispute Alert</h1>
+      </div>
+      
+      <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+        <p style="font-size: 16px;">A buyer has reported that they did not receive their order.</p>
+        
+        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ef4444;">
+          <h3 style="margin-top: 0; color: #ef4444;">Order Details</h3>
+          <p style="margin: 5px 0;"><strong>Sub-Order ID:</strong> ${orderId}</p>
+          <p style="margin: 5px 0;"><strong>Current Order Status:</strong> ${currentStatus}</p>
+          <p style="margin: 5px 0;"><strong>Buyer Feedback:</strong> Not received</p>
+        </div>
+        
+        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="margin-top: 0;">Buyer Information</h3>
+          <p style="margin: 5px 0;"><strong>Name:</strong> ${buyerName}</p>
+          <p style="margin: 5px 0;"><strong>Email:</strong> ${buyerEmail}</p>
+        </div>
+        
+        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="margin-top: 0;">Seller Information</h3>
+          <p style="margin: 5px 0;"><strong>Name:</strong> ${sellerName}</p>
+        </div>
+        
+        <p style="font-size: 14px; color: #666; margin-top: 30px;">
+          Please review this case and take appropriate action.
+        </p>
+        
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+        
+        <p style="font-size: 12px; color: #999; text-align: center;">
+          This is an automated notification from Shopshop.
+        </p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return { subject, html };
+};
 
 /**
  * Create new sub-order
@@ -101,21 +240,28 @@ module.exports.getSubOrdersBySeller = async (sellerId, queryParams) => {
     .lean();
 
   // Get payment information for each main order
-  const mainOrderIds = [...new Set(subOrders.map(so => so.main_order_id?._id || so.main_order_id))];
+  const mainOrderIds = [
+    ...new Set(
+      subOrders.map((so) => so.main_order_id?._id || so.main_order_id)
+    ),
+  ];
   const payments = await PaymentModel.find({
-    order_id: { $in: mainOrderIds }
+    order_id: { $in: mainOrderIds },
   }).lean();
 
   // Create a map of order_id to payment
   const paymentMap = {};
-  payments.forEach(payment => {
+  payments.forEach((payment) => {
     const orderId = payment.order_id?.toString() || payment.order_id;
     paymentMap[orderId] = payment;
   });
 
   // Transform the data to match expected structure
   const transformedSubOrders = subOrders.map((subOrder) => {
-    const mainOrderId = subOrder.main_order_id?._id?.toString() || subOrder.main_order_id?.toString() || subOrder.main_order_id;
+    const mainOrderId =
+      subOrder.main_order_id?._id?.toString() ||
+      subOrder.main_order_id?.toString() ||
+      subOrder.main_order_id;
     const payment = paymentMap[mainOrderId];
 
     return {
@@ -132,16 +278,18 @@ module.exports.getSubOrdersBySeller = async (sellerId, queryParams) => {
         paymentStatus: subOrder.main_order_id?.paymentStatus,
         orderStatus: subOrder.main_order_id?.orderStatus,
       },
-      payment_info: payment ? {
-        paymentMethod: payment.paymentMethod,
-        paymentStatus: payment.paymentStatus,
-        amount: payment.amount,
-        payhere_payment_id: payment.payhere_payment_id,
-        method: payment.method,
-        status_message: payment.status_message,
-        created_at: payment.created_at,
-        updated_at: payment.updated_at,
-      } : null,
+      payment_info: payment
+        ? {
+            paymentMethod: payment.paymentMethod,
+            paymentStatus: payment.paymentStatus,
+            amount: payment.amount,
+            payhere_payment_id: payment.payhere_payment_id,
+            method: payment.method,
+            status_message: payment.status_message,
+            created_at: payment.created_at,
+            updated_at: payment.updated_at,
+          }
+        : null,
       products_list: subOrder.products_list.map((product) => ({
         ...product,
         product_name: product.product_id?.name || 'Product Name Not Available',
@@ -166,7 +314,50 @@ module.exports.updateSubOrderStatus = async (subOrderId, statusData) => {
     _id: subOrderId,
   });
 
-  // Update the sub-order
+  // Special handling for "delivered" status - seller marks as delivered
+  // Don't update orderStatus directly, instead set seller_marked_as_delivered
+  if (statusData.orderStatus === subOrderStatus.DELIVERED) {
+    const updateData = {
+      seller_marked_as_delivered: true,
+      seller_marked_as_delivered_at: new Date(),
+      // Don't update orderStatus - keep it as current status (usually "dispatched")
+    };
+
+    // Update the sub-order with seller delivery marking
+    const updatedSubOrder = await repository.updateOne(
+      SubOrderModel,
+      { _id: subOrderId },
+      updateData,
+      { new: true }
+    );
+
+    // Populate buyer info for email
+    const subOrderWithBuyer = await SubOrderModel.findById(subOrderId)
+      .populate('buyer_id', 'name email')
+      .populate('seller_id', 'name')
+      .lean();
+
+    // Send email to buyer to confirm delivery
+    try {
+      const emailTemplate =
+        generateBuyerDeliveryConfirmationEmail(subOrderWithBuyer);
+      await emailService.sendEmail({
+        to: subOrderWithBuyer.buyer_id?.email,
+        subject: emailTemplate.subject,
+        html: emailTemplate.html,
+      });
+    } catch (error) {
+      console.error(
+        `Error sending delivery confirmation email to buyer:`,
+        error
+      );
+      // Don't fail the operation if email fails
+    }
+
+    return updatedSubOrder;
+  }
+
+  // For all other statuses, update normally
   const updatedSubOrder = await repository.updateOne(
     SubOrderModel,
     { _id: subOrderId },
@@ -194,7 +385,7 @@ module.exports.updateSubOrderStatus = async (subOrderId, statusData) => {
   if (statusData.orderStatus && updatedSubOrder) {
     const mainOrderId = updatedSubOrder.main_order_id;
     const newStatus = statusData.orderStatus;
-    
+
     if (mainOrderId && newStatus !== subOrderStatus.CANCELLED) {
       // Get all sub-orders for this main order (excluding cancelled ones)
       const allSubOrders = await SubOrderModel.find({
@@ -293,10 +484,233 @@ module.exports.confirmDelivery = async (subOrderId, confirmed) => {
 };
 
 /**
- * Get sub-order by ID
+ * Buyer confirms or disputes delivery
+ * @param {String} subOrderId
+ * @param {Boolean} confirmed - true if buyer received, false if not received
+ * @returns {Promise<Object>}
+ */
+module.exports.buyerConfirmDelivery = async (
+  subOrderId,
+  confirmed,
+  user_id
+) => {
+  // Get current sub-order to check status
+  const subOrder = await SubOrderModel.findById(subOrderId)
+    .populate('buyer_id', 'name email')
+    .populate('seller_id', 'sellerInfo.businessName')
+    .lean();
+
+  if (!subOrder) {
+    throw new Error('Sub-order not found');
+  }
+
+  console.log('suborder: ', subOrder);
+
+  // Check if the authenticated user is the buyer
+  const buyerId = user_id;
+  const subOrderBuyerId =
+    subOrder.buyer_id._id?.toString() || subOrder.buyer_id._id;
+  //console.log('buyer: ', buyerId);
+  //console.log('subOrderBuyerId: ', subOrderBuyerId);
+
+  if (buyerId !== subOrderBuyerId) {
+    throw new Error('You can only confirm delivery for your own orders');
+  }
+
+  if (confirmed) {
+    // Buyer confirms delivery
+    const updateData = {
+      delivery_confirmed: true,
+      delivery_confirmed_at: new Date(),
+      delivery_status: deliveryStatus.CONFIRMED,
+    };
+
+    // Check current orderStatus - only update if not already delivered
+    if (subOrder.orderStatus !== subOrderStatus.DELIVERED) {
+      updateData.orderStatus = subOrderStatus.DELIVERED;
+      updateData.notes = 'Buyer confirmed the order through email';
+    }
+
+    const updatedSubOrder = await repository.updateOne(
+      SubOrderModel,
+      { _id: subOrderId },
+      updateData,
+      { new: true }
+    );
+
+    // If orderStatus was updated to delivered, check if all sub-orders are delivered
+    if (updateData.orderStatus === subOrderStatus.DELIVERED) {
+      const mainOrderId = subOrder.main_order_id;
+
+      if (mainOrderId) {
+        // Get main order to check payment method
+        const mainOrder = await repository.findOne(OrderModel, {
+          _id: mainOrderId,
+        });
+
+        // Get all sub-orders for this main order (excluding cancelled ones)
+        const allSubOrders = await SubOrderModel.find({
+          main_order_id: mainOrderId,
+          orderStatus: { $ne: subOrderStatus.CANCELLED },
+        }).lean();
+
+        // Check if all non-cancelled sub-orders are delivered
+        if (allSubOrders.length > 0) {
+          const allDelivered = allSubOrders.every(
+            (so) => so.orderStatus === subOrderStatus.DELIVERED
+          );
+
+          // If payment method is COD and all sub-orders are delivered, update payment status to PAID
+          if (
+            mainOrder &&
+            mainOrder.paymentMethod === paymentMethod.COD &&
+            allDelivered
+          ) {
+            // Update payment record
+            await repository.updateOne(
+              PaymentModel,
+              { order_id: mainOrderId },
+              { paymentStatus: paymentStatus.PAID },
+              { new: true }
+            );
+
+            // Update main order payment status
+            await repository.updateOne(
+              OrderModel,
+              { _id: mainOrderId },
+              { paymentStatus: paymentStatus.PAID },
+              { new: true }
+            );
+          }
+
+          // If all non-cancelled sub-orders are delivered, update main order status
+          if (allDelivered) {
+            await repository.updateOne(
+              OrderModel,
+              { _id: mainOrderId },
+              { orderStatus: orderStatus.DELIVERED },
+              { new: true }
+            );
+          }
+        }
+      }
+    }
+
+    return updatedSubOrder;
+  } else {
+    // Buyer says they did not receive the order
+    const updateData = {
+      delivery_status: deliveryStatus.DISPUTED,
+      notes: 'Buyer disputed the order through email',
+    };
+
+    const updatedSubOrder = await repository.updateOne(
+      SubOrderModel,
+      { _id: subOrderId },
+      updateData,
+      { new: true }
+    );
+
+    // Notify admin about the dispute
+    try {
+      // Get admin users
+      const adminUsers = await UserModel.find({ role: roles.admin })
+        .select('email')
+        .lean();
+
+      if (adminUsers && adminUsers.length > 0) {
+        const emailTemplate = generateAdminDisputeNotificationEmail(subOrder);
+
+        // Send email to all admin users
+        const emailPromises = adminUsers.map((admin) =>
+          emailService
+            .sendEmail({
+              to: admin.email,
+              subject: emailTemplate.subject,
+              html: emailTemplate.html,
+            })
+            .catch((error) => {
+              console.error(
+                `Error sending dispute email to admin ${admin.email}:`,
+                error
+              );
+            })
+        );
+
+        await Promise.all(emailPromises);
+      }
+    } catch (error) {
+      console.error('Error notifying admin about delivery dispute:', error);
+      // TODO: Implement admin notification email
+      // Don't fail the operation if email fails
+    }
+
+    return updatedSubOrder;
+  }
+};
+
+/**
+ * Get sub-order by ID with populated details
  * @param {String} subOrderId
  * @returns {Promise<Object>}
  */
 module.exports.getSubOrderById = async (subOrderId) => {
-  return await repository.findOne(SubOrderModel, { _id: subOrderId });
+  const subOrder = await SubOrderModel.findById(subOrderId)
+    .populate('buyer_id', 'name email profilePicture')
+    .populate('seller_id', 'name profilePicture sellerInfo.businessName')
+    .populate('main_order_id', 'paymentMethod paymentStatus orderStatus')
+    .populate('products_list.product_id', 'name images price')
+    .lean();
+
+  if (!subOrder) {
+    return null;
+  }
+
+  // Get payment information
+  const mainOrderId =
+    subOrder.main_order_id?._id?.toString() ||
+    subOrder.main_order_id?.toString() ||
+    subOrder.main_order_id;
+  const payment = await PaymentModel.findOne({
+    order_id: mainOrderId,
+  }).lean();
+
+  // Transform the data to match expected structure
+  return {
+    ...subOrder,
+    buyer_info: {
+      _id: subOrder.buyer_id?._id,
+      name: subOrder.buyer_id?.name,
+      email: subOrder.buyer_id?.email,
+      profilePicture: subOrder.buyer_id?.profilePicture,
+    },
+    seller_info: {
+      ...subOrder.seller_id,
+      businessName: subOrder.seller_id?.sellerInfo?.businessName,
+    },
+    main_order_info: {
+      _id: subOrder.main_order_id?._id || subOrder.main_order_id,
+      paymentMethod: subOrder.main_order_id?.paymentMethod,
+      paymentStatus: subOrder.main_order_id?.paymentStatus,
+      orderStatus: subOrder.main_order_id?.orderStatus,
+    },
+    payment_info: payment
+      ? {
+          paymentMethod: payment.paymentMethod,
+          paymentStatus: payment.paymentStatus,
+          amount: payment.amount,
+          payhere_payment_id: payment.payhere_payment_id,
+          method: payment.method,
+          status_message: payment.status_message,
+          created_at: payment.created_at,
+          updated_at: payment.updated_at,
+        }
+      : null,
+    products_list: subOrder.products_list.map((product) => ({
+      ...product,
+      product_name: product.product_id?.name || 'Product Name Not Available',
+      product_price: product.product_id?.price || 0,
+      product_images: product.product_id?.images || [],
+    })),
+  };
 };

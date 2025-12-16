@@ -9,6 +9,10 @@ module.exports.permissions = {
     path: '/seller/:sellerId',
     grantedUserRoles: [roles.admin, roles.seller],
   },
+  getSubOrderById: {
+    path: '/:id',
+    grantedUserRoles: [roles.admin, roles.seller, roles.buyer],
+  },
   updateSubOrderStatus: {
     path: '/:id/status',
     grantedUserRoles: [roles.admin, roles.seller],
@@ -20,5 +24,9 @@ module.exports.permissions = {
   confirmDelivery: {
     path: '/:id/confirm-delivery',
     grantedUserRoles: [roles.admin, roles.buyer],
+  },
+  buyerConfirmDelivery: {
+    path: '/:id/buyer-confirm-delivery',
+    grantedUserRoles: [roles.buyer],
   }
 };

@@ -22,3 +22,8 @@ module.exports.updateTrackingNumber = joi.object({
 module.exports.confirmDelivery = joi.object({
   delivery_confirmed: joi.boolean().required(),
 });
+
+// For PUT /api/suborder/:id/buyer-confirm-delivery - validates req.body
+module.exports.buyerConfirmDelivery = joi.object({
+  confirmed: joi.boolean().required(),
+});

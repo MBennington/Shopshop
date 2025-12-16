@@ -24,6 +24,14 @@ router
     controller.getSubOrdersBySeller
   );
 
+// GET endpoint - get single sub-order by ID
+router
+  .route(permissions.getSubOrderById.path)
+  .get(
+    validator.validateHeader(permissions.getSubOrderById.grantedUserRoles),
+    controller.getSubOrderById
+  );
+
 // PUT endpoints - validates req.body
 router
   .route(permissions.updateSubOrderStatus.path)
@@ -47,6 +55,14 @@ router
     validator.validateHeader(permissions.confirmDelivery.grantedUserRoles),
     validator.validateBody(schema.confirmDelivery),
     controller.confirmDelivery
+  );
+
+router
+  .route(permissions.buyerConfirmDelivery.path)
+  .put(
+    validator.validateHeader(permissions.buyerConfirmDelivery.grantedUserRoles),
+    validator.validateBody(schema.buyerConfirmDelivery),
+    controller.buyerConfirmDelivery
   );
 
 module.exports = router;

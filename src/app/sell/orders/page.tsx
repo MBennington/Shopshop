@@ -75,6 +75,9 @@ interface SubOrder {
   delivery_status: 'pending' | 'confirmed' | 'disputed';
   delivery_confirmed: boolean;
   delivery_confirmed_at?: string;
+  seller_marked_as_delivered?: boolean;
+  seller_marked_as_delivered_at?: string;
+  notes?: string;
   created_at: string;
   updated_at: string;
 }
@@ -90,6 +93,7 @@ export default function OrdersPage() {
   const [isUpdatingTracking, setIsUpdatingTracking] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showTrackingModal, setShowTrackingModal] = useState(false);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?._id) {
@@ -118,6 +122,7 @@ export default function OrdersPage() {
   };
 
   const updateOrderStatus = async (subOrderId: string, newStatus: string) => {
+    setUpdatingOrderId(subOrderId);
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`/api/suborder?subOrderId=${subOrderId}&action=status`, {
@@ -138,6 +143,8 @@ export default function OrdersPage() {
       }
     } catch (error) {
       console.error('Failed to update order status:', error);
+    } finally {
+      setUpdatingOrderId(null);
     }
   };
 
@@ -286,6 +293,20 @@ export default function OrdersPage() {
   };
 
   const getPaymentStatus = (order: SubOrder) => {
+    // Get payment method
+    const paymentMethod = order.payment_info?.paymentMethod || order.main_order_info?.paymentMethod;
+    
+    // For COD orders, payment status depends on suborder delivery status
+    if (paymentMethod === 'cod' || paymentMethod === 'COD') {
+      // If suborder is delivered, payment is considered paid for COD
+      if (order.orderStatus === 'delivered') {
+        return 'Paid';
+      }
+      // Otherwise, payment is still pending
+      return 'Pending';
+    }
+    
+    // For non-COD orders, use the actual payment status
     if (order.payment_info?.paymentStatus) {
       return order.payment_info.paymentStatus;
     }
@@ -479,9 +500,19 @@ export default function OrdersPage() {
                             {formatDateTime(order.created_at)}
                           </td>
                           <td className="px-4 py-3 text-sm font-normal leading-normal">
-                            <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(order.orderStatus)}`}>
-                              {order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1)}
-                            </span>
+                            <div className="flex flex-col gap-1">
+                              <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(order.orderStatus)}`}>
+                                {order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1)}
+                              </span>
+                              {order.seller_marked_as_delivered && order.orderStatus !== 'delivered' && (
+                                <span className="inline-flex items-center gap-1 text-xs text-blue-600">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  Awaiting buyer confirmation
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-sm font-normal leading-normal">
                             <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${getPaymentStatusColor(getPaymentStatus(order))}`}>
@@ -753,7 +784,8 @@ export default function OrdersPage() {
                         {selectedOrder.orderStatus === 'pending' && (
                           <button
                             onClick={() => updateOrderStatus(selectedOrder._id, 'processing')}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-blue-700 transition-colors"
+                            disabled={updatingOrderId === selectedOrder._id}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Mark as Processing
                           </button>
@@ -761,7 +793,8 @@ export default function OrdersPage() {
                         {selectedOrder.orderStatus === 'processing' && (
                           <button
                             onClick={() => updateOrderStatus(selectedOrder._id, 'packed')}
-                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+                            disabled={updatingOrderId === selectedOrder._id}
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Mark as Packed
                           </button>
@@ -789,10 +822,10 @@ export default function OrdersPage() {
                                 }
                                 updateOrderStatus(selectedOrder._id, 'dispatched');
                               }}
-                              disabled={!selectedOrder.tracking_number || selectedOrder.tracking_number.trim() === ''}
+                              disabled={updatingOrderId === selectedOrder._id || !selectedOrder.tracking_number || selectedOrder.tracking_number.trim() === ''}
                               className={`px-4 py-2 rounded-xl font-medium transition-colors ${
-                                !selectedOrder.tracking_number || selectedOrder.tracking_number.trim() === ''
-                                  ? 'bg-gray-400 text-white cursor-not-allowed'
+                                !selectedOrder.tracking_number || selectedOrder.tracking_number.trim() === '' || updatingOrderId === selectedOrder._id
+                                  ? 'bg-gray-400 text-white cursor-not-allowed opacity-50'
                                   : 'bg-purple-600 text-white hover:bg-purple-700'
                               }`}
                               title={!selectedOrder.tracking_number || selectedOrder.tracking_number.trim() === '' 
@@ -808,18 +841,44 @@ export default function OrdersPage() {
                             )}
                           </>
                         )}
-                        {selectedOrder.orderStatus === 'dispatched' && (
+                        {selectedOrder.orderStatus === 'dispatched' && !selectedOrder.seller_marked_as_delivered && (
                           <button
                             onClick={() => updateOrderStatus(selectedOrder._id, 'delivered')}
-                            className="bg-green-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-green-700 transition-colors"
+                            disabled={updatingOrderId === selectedOrder._id}
+                            className="bg-green-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Mark as Delivered
                           </button>
                         )}
+                        {selectedOrder.seller_marked_as_delivered && selectedOrder.orderStatus !== 'delivered' && (
+                          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0 mt-0.5">
+                                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="text-sm font-semibold text-blue-900 mb-1">
+                                  Delivery Marked - Awaiting Buyer Confirmation
+                                </h4>
+                                <p className="text-sm text-blue-700 mb-2">
+                                  You have marked this order as delivered. The system will automatically update the order status to "Delivered" once the buyer confirms receipt.
+                                </p>
+                                {selectedOrder.seller_marked_as_delivered_at && (
+                                  <p className="text-xs text-blue-600">
+                                    Marked on: {formatDateTime(selectedOrder.seller_marked_as_delivered_at)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                         {!['cancelled', 'delivered'].includes(selectedOrder.orderStatus) && (
                           <button
                             onClick={() => cancelOrder(selectedOrder._id)}
-                            className="bg-red-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-red-700 transition-colors"
+                            disabled={updatingOrderId === selectedOrder._id}
+                            className="bg-red-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Cancel Order
                           </button>
@@ -830,14 +889,22 @@ export default function OrdersPage() {
                     {/* Additional Notes */}
                     <div>
                       <h3 className="text-lg font-semibold text-[#121416] mb-4">Additional Notes</h3>
-                      <div className="bg-[#f1f2f4] rounded-xl p-4">
-                        <p className="text-[#6a7581] text-sm">
-                          {selectedOrder.tracking_number ? (
-                            <>Tracking Number: <span className="font-medium text-[#121416]">{selectedOrder.tracking_number}</span></>
-                          ) : (
-                            'No additional notes or special instructions.'
-                          )}
-                        </p>
+                      <div className="bg-[#f1f2f4] rounded-xl p-4 space-y-2">
+                        {selectedOrder.tracking_number && (
+                          <p className="text-[#6a7581] text-sm">
+                            Tracking Number: <span className="font-medium text-[#121416]">{selectedOrder.tracking_number}</span>
+                          </p>
+                        )}
+                        {selectedOrder.notes && (
+                          <p className="text-[#6a7581] text-sm">
+                            System Note: <span className="font-medium text-[#121416]">{selectedOrder.notes}</span>
+                          </p>
+                        )}
+                        {!selectedOrder.tracking_number && !selectedOrder.notes && (
+                          <p className="text-[#6a7581] text-sm">
+                            No additional notes or special instructions.
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
