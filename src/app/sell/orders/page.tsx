@@ -93,6 +93,7 @@ export default function OrdersPage() {
   const [isUpdatingTracking, setIsUpdatingTracking] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showTrackingModal, setShowTrackingModal] = useState(false);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?._id) {
@@ -121,6 +122,7 @@ export default function OrdersPage() {
   };
 
   const updateOrderStatus = async (subOrderId: string, newStatus: string) => {
+    setUpdatingOrderId(subOrderId);
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`/api/suborder?subOrderId=${subOrderId}&action=status`, {
@@ -141,6 +143,8 @@ export default function OrdersPage() {
       }
     } catch (error) {
       console.error('Failed to update order status:', error);
+    } finally {
+      setUpdatingOrderId(null);
     }
   };
 
@@ -780,7 +784,8 @@ export default function OrdersPage() {
                         {selectedOrder.orderStatus === 'pending' && (
                           <button
                             onClick={() => updateOrderStatus(selectedOrder._id, 'processing')}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-blue-700 transition-colors"
+                            disabled={updatingOrderId === selectedOrder._id}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Mark as Processing
                           </button>
@@ -788,7 +793,8 @@ export default function OrdersPage() {
                         {selectedOrder.orderStatus === 'processing' && (
                           <button
                             onClick={() => updateOrderStatus(selectedOrder._id, 'packed')}
-                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+                            disabled={updatingOrderId === selectedOrder._id}
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Mark as Packed
                           </button>
@@ -816,10 +822,10 @@ export default function OrdersPage() {
                                 }
                                 updateOrderStatus(selectedOrder._id, 'dispatched');
                               }}
-                              disabled={!selectedOrder.tracking_number || selectedOrder.tracking_number.trim() === ''}
+                              disabled={updatingOrderId === selectedOrder._id || !selectedOrder.tracking_number || selectedOrder.tracking_number.trim() === ''}
                               className={`px-4 py-2 rounded-xl font-medium transition-colors ${
-                                !selectedOrder.tracking_number || selectedOrder.tracking_number.trim() === ''
-                                  ? 'bg-gray-400 text-white cursor-not-allowed'
+                                !selectedOrder.tracking_number || selectedOrder.tracking_number.trim() === '' || updatingOrderId === selectedOrder._id
+                                  ? 'bg-gray-400 text-white cursor-not-allowed opacity-50'
                                   : 'bg-purple-600 text-white hover:bg-purple-700'
                               }`}
                               title={!selectedOrder.tracking_number || selectedOrder.tracking_number.trim() === '' 
@@ -838,7 +844,8 @@ export default function OrdersPage() {
                         {selectedOrder.orderStatus === 'dispatched' && !selectedOrder.seller_marked_as_delivered && (
                           <button
                             onClick={() => updateOrderStatus(selectedOrder._id, 'delivered')}
-                            className="bg-green-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-green-700 transition-colors"
+                            disabled={updatingOrderId === selectedOrder._id}
+                            className="bg-green-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Mark as Delivered
                           </button>
@@ -870,7 +877,8 @@ export default function OrdersPage() {
                         {!['cancelled', 'delivered'].includes(selectedOrder.orderStatus) && (
                           <button
                             onClick={() => cancelOrder(selectedOrder._id)}
-                            className="bg-red-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-red-700 transition-colors"
+                            disabled={updatingOrderId === selectedOrder._id}
+                            className="bg-red-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Cancel Order
                           </button>
