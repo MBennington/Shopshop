@@ -87,7 +87,7 @@ const giftCardPaymentSchema = new Schema(
 );
 
 // Indexes for performance
-giftCardPaymentSchema.index({ payment_id: 1 });
+// Note: payment_id field already has unique: true which creates an index
 giftCardPaymentSchema.index({ user_id: 1 });
 giftCardPaymentSchema.index({ gift_card_id: 1 });
 giftCardPaymentSchema.index({ paymentStatus: 1 });

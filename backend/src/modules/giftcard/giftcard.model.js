@@ -86,7 +86,7 @@ const giftCardSchema = new Schema(
 );
 
 // Indexes for performance
-giftCardSchema.index({ code: 1 });
+// Note: code field already has unique: true which creates an index
 giftCardSchema.index({ purchasedBy: 1 });
 giftCardSchema.index({ receiverEmail: 1 });
 giftCardSchema.index({ redeemedBy: 1 });

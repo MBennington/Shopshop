@@ -10,7 +10,7 @@ const {
 const { paymentStatus } = require('../../config/order.config');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
-const md5 = require('md5');
+const md5 = require('crypto-js/md5');
 
 /**
  * Generate unique gift card code
