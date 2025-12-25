@@ -151,6 +151,103 @@ const generateAdminDisputeNotificationEmail = (subOrder) => {
 };
 
 /**
+ * Sync main order status with sub-orders status
+ * Updates main order status if all non-cancelled sub-orders have the same status
+ * @param {String} mainOrderId
+ * @returns {Promise<void>}
+ */
+module.exports.syncMainOrderStatusWithSubOrders = async (mainOrderId) => {
+  if (!mainOrderId || !mongoose.Types.ObjectId.isValid(mainOrderId)) {
+    return;
+  }
+
+  try {
+    // Get all sub-orders for this main order (excluding cancelled ones)
+    const allSubOrders = await SubOrderModel.find({
+      main_order_id: new mongoose.Types.ObjectId(mainOrderId),
+      orderStatus: { $ne: subOrderStatus.CANCELLED }, // Exclude cancelled sub-orders
+    }).lean();
+
+    // If no non-cancelled sub-orders exist, don't update
+    if (!allSubOrders || allSubOrders.length === 0) {
+      return;
+    }
+
+    // Get the status of the first sub-order
+    const firstStatus = allSubOrders[0].orderStatus;
+
+    // Check if all non-cancelled sub-orders have the same status
+    const allSameStatus = allSubOrders.every(
+      (subOrder) => subOrder.orderStatus === firstStatus
+    );
+
+    // If all non-cancelled sub-orders have the same status, update main order status
+    if (allSameStatus) {
+      // Map sub-order status to main order status
+      let mainOrderStatus;
+      switch (firstStatus) {
+        case subOrderStatus.PENDING:
+          mainOrderStatus = orderStatus.PENDING;
+          break;
+        case subOrderStatus.PROCESSING:
+          mainOrderStatus = orderStatus.PROCESSING;
+          break;
+        case subOrderStatus.PACKED:
+          mainOrderStatus = orderStatus.PACKED;
+          break;
+        case subOrderStatus.DISPATCHED:
+          mainOrderStatus = orderStatus.DISPATCHED;
+          break;
+        case subOrderStatus.DELIVERED:
+          mainOrderStatus = orderStatus.DELIVERED;
+          break;
+        default:
+          // Default to PENDING for any other status
+          mainOrderStatus = orderStatus.PENDING;
+      }
+
+      await repository.updateOne(
+        OrderModel,
+        { _id: new mongoose.Types.ObjectId(mainOrderId) },
+        { orderStatus: mainOrderStatus },
+        { new: true }
+      );
+
+      // If all sub-orders are delivered and payment method is COD, update payment status to PAID
+      if (firstStatus === subOrderStatus.DELIVERED) {
+        const mainOrder = await repository.findOne(OrderModel, {
+          _id: new mongoose.Types.ObjectId(mainOrderId),
+        });
+
+        if (mainOrder && mainOrder.paymentMethod === paymentMethod.COD) {
+          // Update payment record
+          await repository.updateOne(
+            PaymentModel,
+            { order_id: new mongoose.Types.ObjectId(mainOrderId) },
+            { paymentStatus: paymentStatus.PAID },
+            { new: true }
+          );
+
+          // Update main order payment status
+          await repository.updateOne(
+            OrderModel,
+            { _id: new mongoose.Types.ObjectId(mainOrderId) },
+            { paymentStatus: paymentStatus.PAID },
+            { new: true }
+          );
+        }
+      }
+    }
+  } catch (error) {
+    console.error(
+      `Error syncing main order status for order ${mainOrderId}:`,
+      error
+    );
+    // Don't throw - this is a background sync operation
+  }
+};
+
+/**
  * Create new sub-order
  * @param {Object} subOrderData
  * @returns {Promise<Object>}
@@ -381,58 +478,11 @@ module.exports.updateSubOrderStatus = async (subOrderId, statusData) => {
     }
   }
 
-  // If orderStatus was updated, check if all sub-orders have the same status
+  // Sync main order status with sub-orders after status update
   if (statusData.orderStatus && updatedSubOrder) {
     const mainOrderId = updatedSubOrder.main_order_id;
-    const newStatus = statusData.orderStatus;
-
-    if (mainOrderId && newStatus !== subOrderStatus.CANCELLED) {
-      // Get all sub-orders for this main order (excluding cancelled ones)
-      const allSubOrders = await SubOrderModel.find({
-        main_order_id: mainOrderId,
-        orderStatus: { $ne: subOrderStatus.CANCELLED }, // Exclude cancelled sub-orders
-      }).lean();
-
-      // Check if all non-cancelled sub-orders have the same status
-      if (allSubOrders.length > 0) {
-        const allSameStatus = allSubOrders.every(
-          (subOrder) => subOrder.orderStatus === newStatus
-        );
-
-        // If all non-cancelled sub-orders have the same status, update main order status
-        if (allSameStatus) {
-          // Main order now has the same statuses as sub-orders, so we can use directly
-          // Map sub-order status to main order status (they now match)
-          let mainOrderStatus;
-          switch (newStatus) {
-            case subOrderStatus.PENDING:
-              mainOrderStatus = orderStatus.PENDING;
-              break;
-            case subOrderStatus.PROCESSING:
-              mainOrderStatus = orderStatus.PROCESSING;
-              break;
-            case subOrderStatus.PACKED:
-              mainOrderStatus = orderStatus.PACKED;
-              break;
-            case subOrderStatus.DISPATCHED:
-              mainOrderStatus = orderStatus.DISPATCHED;
-              break;
-            case subOrderStatus.DELIVERED:
-              mainOrderStatus = orderStatus.DELIVERED;
-              break;
-            default:
-              // Default to PENDING for any other status
-              mainOrderStatus = orderStatus.PENDING;
-          }
-
-          await repository.updateOne(
-            OrderModel,
-            { _id: mainOrderId },
-            { orderStatus: mainOrderStatus },
-            { new: true }
-          );
-        }
-      }
+    if (mainOrderId) {
+      await module.exports.syncMainOrderStatusWithSubOrders(mainOrderId);
     }
   }
 
@@ -538,61 +588,14 @@ module.exports.buyerConfirmDelivery = async (
       { new: true }
     );
 
-    // If orderStatus was updated to delivered, check if all sub-orders are delivered
+    // If orderStatus was updated to delivered, sync main order
+    // The sync function will handle COD payment status update if all suborders are delivered
     if (updateData.orderStatus === subOrderStatus.DELIVERED) {
       const mainOrderId = subOrder.main_order_id;
 
       if (mainOrderId) {
-        // Get main order to check payment method
-        const mainOrder = await repository.findOne(OrderModel, {
-          _id: mainOrderId,
-        });
-
-        // Get all sub-orders for this main order (excluding cancelled ones)
-        const allSubOrders = await SubOrderModel.find({
-          main_order_id: mainOrderId,
-          orderStatus: { $ne: subOrderStatus.CANCELLED },
-        }).lean();
-
-        // Check if all non-cancelled sub-orders are delivered
-        if (allSubOrders.length > 0) {
-          const allDelivered = allSubOrders.every(
-            (so) => so.orderStatus === subOrderStatus.DELIVERED
-          );
-
-          // If payment method is COD and all sub-orders are delivered, update payment status to PAID
-          if (
-            mainOrder &&
-            mainOrder.paymentMethod === paymentMethod.COD &&
-            allDelivered
-          ) {
-            // Update payment record
-            await repository.updateOne(
-              PaymentModel,
-              { order_id: mainOrderId },
-              { paymentStatus: paymentStatus.PAID },
-              { new: true }
-            );
-
-            // Update main order payment status
-            await repository.updateOne(
-              OrderModel,
-              { _id: mainOrderId },
-              { paymentStatus: paymentStatus.PAID },
-              { new: true }
-            );
-          }
-
-          // If all non-cancelled sub-orders are delivered, update main order status
-          if (allDelivered) {
-            await repository.updateOne(
-              OrderModel,
-              { _id: mainOrderId },
-              { orderStatus: orderStatus.DELIVERED },
-              { new: true }
-            );
-          }
-        }
+        // Sync main order status with sub-orders (includes COD payment status update)
+        await module.exports.syncMainOrderStatusWithSubOrders(mainOrderId);
       }
     }
 
@@ -713,4 +716,29 @@ module.exports.getSubOrderById = async (subOrderId) => {
       product_images: product.product_id?.images || [],
     })),
   };
+};
+
+/**
+ * Get suborders for a user that contain a specific product
+ * Used for review eligibility checking
+ * @param {String} userId
+ * @param {String} productId
+ * @returns {Promise<Array>}
+ */
+module.exports.getUserSubOrdersForProduct = async (userId, productId) => {
+  if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(productId)) {
+    return [];
+  }
+
+  // Find suborders where:
+  // 1. buyer_id matches userId
+  // 2. products_list contains the productId
+  const subOrders = await SubOrderModel.find({
+    buyer_id: new mongoose.Types.ObjectId(userId),
+    'products_list.product_id': new mongoose.Types.ObjectId(productId),
+  })
+    .select('_id orderStatus products_list main_order_id')
+    .lean();
+
+  return subOrders;
 };

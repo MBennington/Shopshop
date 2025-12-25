@@ -128,3 +128,44 @@ module.exports.buyerConfirmDelivery = async (req, res) => {
     return customError(`${error.message}`, res);
   }
 };
+
+/**
+ * Check if user has suborders for a product (for review eligibility)
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.checkReviewEligibility = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const userId = res.locals.user.id;
+    const { subOrderStatus } = require('../../config/suborder.config');
+
+    const subOrders = await subOrderService.getUserSubOrdersForProduct(userId, productId);
+
+    if (!subOrders || subOrders.length === 0) {
+      return successWithData({
+        eligible: false,
+        hasSubOrders: false,
+        message: 'You must have purchased this product to leave a review.',
+      }, res);
+    }
+
+    // Check order statuses
+    const allDelivered = subOrders.every(so => so.orderStatus === subOrderStatus.DELIVERED);
+    const nonDeliveredSubOrders = subOrders.filter(so => so.orderStatus !== subOrderStatus.DELIVERED);
+
+    return successWithData({
+      eligible: true,
+      hasSubOrders: true,
+      allDelivered,
+      nonDeliveredSubOrderIds: nonDeliveredSubOrders.map(so => so._id.toString()),
+      subOrders: subOrders.map(so => ({
+        _id: so._id.toString(),
+        orderStatus: so.orderStatus,
+      })),
+    }, res);
+  } catch (error) {
+    return customError(`${error.message}`, res);
+  }
+};

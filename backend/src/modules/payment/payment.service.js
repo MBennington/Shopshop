@@ -255,6 +255,12 @@ module.exports.updatePaymentStatus = async (data) => {
       subOrderUpdateData,
       { new: true }
     );
+
+    // Sync main order status with sub-orders after status update
+    if (subOrderUpdateData.orderStatus) {
+      const subOrderService = require('../subOrder/suborder.service');
+      await subOrderService.syncMainOrderStatusWithSubOrders(order_id);
+    }
   }
 
   // Deduct stock and clear cart only if payment is successful and order is valid
