@@ -24,6 +24,14 @@ router
     controller.getSubOrdersBySeller
   );
 
+// GET endpoint - check review eligibility (must be before /:id route)
+router
+  .route(permissions.checkReviewEligibility.path)
+  .get(
+    validator.validateHeader(permissions.checkReviewEligibility.grantedUserRoles),
+    controller.checkReviewEligibility
+  );
+
 // GET endpoint - get single sub-order by ID
 router
   .route(permissions.getSubOrderById.path)

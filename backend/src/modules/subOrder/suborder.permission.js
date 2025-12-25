@@ -28,5 +28,9 @@ module.exports.permissions = {
   buyerConfirmDelivery: {
     path: '/:id/buyer-confirm-delivery',
     grantedUserRoles: [roles.buyer],
+  },
+  checkReviewEligibility: {
+    path: '/check-review-eligibility/:productId',
+    grantedUserRoles: [roles.buyer],
   }
 };

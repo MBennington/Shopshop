@@ -94,7 +94,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
   const [quantity, setQuantity] = useState(1);
   const [stockError, setStockError] = useState<string | null>(null);
   const router = useRouter();
-  
+
   // Review states
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [allReviews, setAllReviews] = useState<Review[]>([]);
@@ -109,6 +109,14 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [editingReview, setEditingReview] = useState<Review | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [reviewEligibility, setReviewEligibility] = useState<{
+    eligible: boolean;
+    hasSubOrders: boolean;
+    allDelivered?: boolean;
+    nonDeliveredSubOrderIds?: string[];
+    message?: string;
+  } | null>(null);
+  const [checkingEligibility, setCheckingEligibility] = useState(false);
 
   // Get current user ID
   useEffect(() => {
@@ -155,7 +163,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
   useEffect(() => {
     const fetchReviews = async () => {
       if (!id) return;
-      
+
       try {
         const response = await fetch(
           `http://localhost:5000/api/reviews?product=${id}&page=${currentPage}&limit=10&sort=${sortBy}`
@@ -281,6 +289,51 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
     );
   };
 
+  // Check review eligibility
+  const checkReviewEligibility = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/auth');
+      return;
+    }
+
+    setCheckingEligibility(true);
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/suborder/check-review-eligibility/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Eligibility check failed:', response.status, errorData);
+        throw new Error(
+          errorData.msg || errorData.message || 'Failed to check eligibility'
+        );
+      }
+
+      const data = await response.json();
+      setReviewEligibility(data.data);
+      return data.data;
+    } catch (error: any) {
+      console.error('Error checking eligibility:', error);
+      setReviewEligibility({
+        eligible: false,
+        hasSubOrders: false,
+        message:
+          error.message ||
+          `It looks like you haven't purchased this item yet. Reviews are available after purchase.`,
+      });
+      return null;
+    } finally {
+      setCheckingEligibility(false);
+    }
+  };
+
   // Handle review form submission
   const handleSubmitReview = async () => {
     const token = localStorage.getItem('token');
@@ -299,7 +352,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
       const url = editingReview
         ? `http://localhost:5000/api/reviews/${editingReview._id}`
         : 'http://localhost:5000/api/reviews';
-      
+
       const method = editingReview ? 'PUT' : 'POST';
       const body = editingReview
         ? {
@@ -325,14 +378,32 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.msg || error.message || 'Failed to submit review');
+        throw new Error(
+          error.msg || error.message || 'Failed to submit review'
+        );
+      }
+
+      const result = await response.json();
+      const hasUpdatedOrders = result.data?.updatedSubOrders || false;
+      const updatedCount = result.data?.updatedSubOrderCount || 0;
+
+      // Show success message with order update info if applicable
+      if (hasUpdatedOrders) {
+        const action = editingReview ? 'updated' : 'submitted';
+        alert(
+          `Review ${action} successfully! ${updatedCount} order(s) have been marked as delivered.`
+        );
+      } else {
+        const action = editingReview ? 'updated' : 'submitted';
+        alert(`Review ${action} successfully!`);
       }
 
       // Reset form and refresh
       setShowReviewForm(false);
       setEditingReview(null);
       setReviewFormData({ rating: 5, title: '', content: '' });
-      
+      setReviewEligibility(null);
+
       // Refresh product details and reviews
       const productResponse = await fetch(
         `http://localhost:5000/api/products/details/${id}`
@@ -341,7 +412,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
         const productData = await productResponse.json();
         setProductData(productData.data);
       }
-      
+
       // Refresh reviews list
       const reviewsResponse = await fetch(
         `http://localhost:5000/api/reviews?product=${id}&page=${currentPage}&limit=10&sort=${sortBy}`
@@ -391,7 +462,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
         const productData = await productResponse.json();
         setProductData(productData.data);
       }
-      
+
       // Refresh reviews list
       const reviewsResponse = await fetch(
         `http://localhost:5000/api/reviews?product=${id}&page=${currentPage}&limit=10&sort=${sortBy}`
@@ -832,7 +903,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
               Customer Reviews
             </h3>
             <button
-              onClick={() => {
+              onClick={async () => {
                 const token = localStorage.getItem('token');
                 if (!token) {
                   router.push('/auth');
@@ -840,7 +911,15 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                 }
                 setEditingReview(null);
                 setReviewFormData({ rating: 5, title: '', content: '' });
-                setShowReviewForm(true);
+
+                // Check eligibility before showing form
+                const eligibility = await checkReviewEligibility();
+                if (eligibility && eligibility.eligible) {
+                  setShowReviewForm(true);
+                } else {
+                  // Don't show form if not eligible, but eligibility state is set for display
+                  setShowReviewForm(true); // Still show form to display the message
+                }
               }}
               className="px-4 py-2 bg-[#528bc5] text-white rounded-lg hover:bg-[#4a7bb3] text-sm font-medium"
             >
@@ -923,9 +1002,13 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
           {allReviews.length > 0 ? (
             <div className="flex flex-col gap-8 overflow-x-hidden bg-white p-4">
               {allReviews.map((review) => {
-                const isOwnReview = currentUserId && review.userData._id === currentUserId;
+                const isOwnReview =
+                  currentUserId && review.userData._id === currentUserId;
                 return (
-                  <div key={review._id} className="flex flex-col gap-3 bg-white border-b border-[#dde0e3] pb-6 last:border-0">
+                  <div
+                    key={review._id}
+                    className="flex flex-col gap-3 bg-white border-b border-[#dde0e3] pb-6 last:border-0"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 bg-gray-200 flex items-center justify-center">
@@ -1037,7 +1120,9 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                 Page {currentPage} of {totalPages}
               </span>
               <button
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
                 disabled={currentPage === totalPages}
                 className={`px-4 py-2 rounded-lg border ${
                   currentPage === totalPages
@@ -1059,6 +1144,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                   setShowReviewForm(false);
                   setEditingReview(null);
                   setReviewFormData({ rating: 5, title: '', content: '' });
+                  setReviewEligibility(null);
                 }}
               />
               <div className="fixed inset-0 flex items-center justify-center z-[9999]">
@@ -1071,7 +1157,12 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                       onClick={() => {
                         setShowReviewForm(false);
                         setEditingReview(null);
-                        setReviewFormData({ rating: 5, title: '', content: '' });
+                        setReviewFormData({
+                          rating: 5,
+                          title: '',
+                          content: '',
+                        });
+                        setReviewEligibility(null);
                       }}
                       className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
                     >
@@ -1080,6 +1171,59 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                   </div>
 
                   <div className="space-y-4">
+                    {/* Eligibility Messages */}
+                    {reviewEligibility && !reviewEligibility.eligible && (
+                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-yellow-800 text-sm mb-3">
+                          {reviewEligibility.message ||
+                            'You must have purchased this product to leave a review.'}
+                        </p>
+                        <Link
+                          href={`/report-issue?productId=${id}`}
+                          className="inline-block px-4 py-2 bg-[#528bc5] text-white rounded-lg hover:bg-[#4a7bb3] text-sm font-medium"
+                        >
+                          Report an Issue
+                        </Link>
+                      </div>
+                    )}
+
+                    {reviewEligibility &&
+                      reviewEligibility.eligible &&
+                      !reviewEligibility.allDelivered && (
+                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="text-blue-800 text-sm mb-2">
+                            Note: Your order(s) will be marked as delivered
+                            after you submit this review.
+                          </p>
+                          <Link
+                            href={`/report-issue?productId=${id}`}
+                            className="text-blue-600 hover:underline text-sm font-medium"
+                          >
+                            Report an issue instead
+                          </Link>
+                        </div>
+                      )}
+
+                    {reviewEligibility &&
+                      reviewEligibility.eligible &&
+                      reviewEligibility.allDelivered && (
+                        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                          <p className="text-green-800 text-sm">
+                            ✓ You have purchased this product. Your review will
+                            be marked as verified.
+                          </p>
+                        </div>
+                      )}
+
+                    {checkingEligibility && (
+                      <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
+                        <div className="w-5 h-5 border-2 border-[#528bc5] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                        <p className="text-gray-600 text-sm">
+                          Checking eligibility...
+                        </p>
+                      </div>
+                    )}
+
                     {/* Rating */}
                     <div>
                       <label className="block text-sm font-medium text-[#121416] mb-2">
@@ -1094,6 +1238,9 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                               setReviewFormData({ ...reviewFormData, rating })
                             }
                             className="focus:outline-none"
+                            disabled={
+                              reviewEligibility ? !reviewEligibility.eligible : false
+                            }
                           >
                             <Star
                               className={`w-8 h-8 ${
@@ -1159,7 +1306,11 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                         onClick={() => {
                           setShowReviewForm(false);
                           setEditingReview(null);
-                          setReviewFormData({ rating: 5, title: '', content: '' });
+                          setReviewFormData({
+                            rating: 5,
+                            title: '',
+                            content: '',
+                          });
                         }}
                         className="px-4 py-2 border border-[#dde0e3] rounded-lg text-[#121416] hover:bg-gray-50"
                       >
@@ -1167,9 +1318,17 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                       </button>
                       <button
                         onClick={handleSubmitReview}
-                        disabled={isSubmittingReview || !reviewFormData.content.trim()}
+                        disabled={
+                          isSubmittingReview ||
+                          !reviewFormData.content.trim() ||
+                          (reviewEligibility && !reviewEligibility.eligible) ||
+                          checkingEligibility
+                        }
                         className={`px-6 py-2 rounded-lg font-medium ${
-                          isSubmittingReview || !reviewFormData.content.trim()
+                          isSubmittingReview ||
+                          !reviewFormData.content.trim() ||
+                          (reviewEligibility && !reviewEligibility.eligible) ||
+                          checkingEligibility
                             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                             : 'bg-[#528bc5] text-white hover:bg-[#4a7bb3]'
                         }`}
