@@ -140,7 +140,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
         setError(null);
 
         const response = await fetch(
-          `http://localhost:5000/api/products/details/${id}`
+          `/api/products/details/${id}`
         );
 
         if (!response.ok) {
@@ -166,7 +166,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
 
       try {
         const response = await fetch(
-          `http://localhost:5000/api/reviews?product=${id}&page=${currentPage}&limit=10&sort=${sortBy}`
+          `/api/reviews?product=${id}&page=${currentPage}&limit=10&sort=${sortBy}`
         );
 
         if (response.ok) {
@@ -300,7 +300,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
     setCheckingEligibility(true);
     try {
       const response = await fetch(
-        `http://localhost:5000/api/suborder/check-review-eligibility/${id}`,
+        `/api/suborder/check-review-eligibility/${id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -350,8 +350,8 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
     setIsSubmittingReview(true);
     try {
       const url = editingReview
-        ? `http://localhost:5000/api/reviews/${editingReview._id}`
-        : 'http://localhost:5000/api/reviews';
+        ? `/api/reviews/${editingReview._id}`
+        : `/api/reviews`;
 
       const method = editingReview ? 'PUT' : 'POST';
       const body = editingReview
@@ -406,7 +406,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
 
       // Refresh product details and reviews
       const productResponse = await fetch(
-        `http://localhost:5000/api/products/details/${id}`
+        `/api/products/details/${id}`
       );
       if (productResponse.ok) {
         const productData = await productResponse.json();
@@ -415,7 +415,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
 
       // Refresh reviews list
       const reviewsResponse = await fetch(
-        `http://localhost:5000/api/reviews?product=${id}&page=${currentPage}&limit=10&sort=${sortBy}`
+        `/api/reviews?product=${id}&page=${currentPage}&limit=10&sort=${sortBy}`
       );
       if (reviewsResponse.ok) {
         const reviewsData = await reviewsResponse.json();
@@ -441,7 +441,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/reviews/${reviewId}`,
+        `/api/reviews/${reviewId}`,
         {
           method: 'DELETE',
           headers: {
@@ -456,7 +456,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
 
       // Refresh product details and reviews
       const productResponse = await fetch(
-        `http://localhost:5000/api/products/details/${id}`
+        `/api/products/details/${id}`
       );
       if (productResponse.ok) {
         const productData = await productResponse.json();
@@ -465,7 +465,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
 
       // Refresh reviews list
       const reviewsResponse = await fetch(
-        `http://localhost:5000/api/reviews?product=${id}&page=${currentPage}&limit=10&sort=${sortBy}`
+        `/api/reviews?product=${id}&page=${currentPage}&limit=10&sort=${sortBy}`
       );
       if (reviewsResponse.ok) {
         const reviewsData = await reviewsResponse.json();

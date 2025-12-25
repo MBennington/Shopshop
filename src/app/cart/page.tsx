@@ -61,7 +61,7 @@ export default function CartPage() {
       try {
         const token = localStorage.getItem('token'); // get token
 
-        const res = await fetch(`http://localhost:5000/api/cart/`, {
+        const res = await fetch('/api/cart', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -133,7 +133,7 @@ export default function CartPage() {
       });
       if (item.size) params.append('size', item.size);
       const res = await fetch(
-        `http://localhost:5000/api/cart?${params.toString()}`,
+        `/api/cart?${params.toString()}`,
         {
           method: 'DELETE',
           headers: {

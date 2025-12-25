@@ -44,7 +44,6 @@ interface Seller {
   };
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 export default function ShopDetailsPage({
   params,
@@ -105,7 +104,7 @@ export default function ShopDetailsPage({
 
         // Fetch products
         const productsResponse = await fetch(
-          `${API_BASE_URL}/api/products/products-by-seller-id/${id}`
+          `/api/products/products-by-seller-id/${id}`
         );
 
         if (!productsResponse.ok) {

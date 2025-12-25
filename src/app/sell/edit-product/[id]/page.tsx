@@ -80,7 +80,7 @@ export default function EditProductPage() {
       setIsLoading(true);
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `http://localhost:5000/api/products/${productId}`,
+        `/api/products/${productId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -228,7 +228,7 @@ export default function EditProductPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/products/${productId}`, {
+      const res = await fetch(`/api/products/${productId}`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,

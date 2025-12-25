@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || "http://localhost:5000";
+import { BACKEND_URL } from '@/lib/config';
 
 export async function POST(request: NextRequest) {
   try {
@@ -80,7 +79,7 @@ export async function POST(request: NextRequest) {
         };
 
         console.log('=== Calling Backend ===');
-        console.log('BACKEND_URL from env:', process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'http://localhost:5000');
+        console.log('BACKEND_URL:', BACKEND_URL);
         console.log('Full URL:', `${BACKEND_URL}/api/gift-cards/payment/update-status`);
         console.log('Payload:', JSON.stringify(updatePayload, null, 2));
 

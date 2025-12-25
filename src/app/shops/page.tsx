@@ -12,7 +12,6 @@ interface Seller {
   };
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 export default function ShopsPage() {
   const [search, setSearch] = useState('');
@@ -24,9 +23,7 @@ export default function ShopsPage() {
     const fetchSellers = async () => {
       try {
         setLoading(true);
-        const response = await fetch(
-          `${API_BASE_URL}/api/users/get-all-sellers`
-        );
+        const response = await fetch('/api/get-all-sellers');
 
         if (!response.ok) {
           throw new Error('Failed to fetch sellers');

@@ -3,18 +3,8 @@ import { BACKEND_URL } from '@/lib/config';
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('sellerId');
-    
-    if (!id) {
-      return NextResponse.json(
-        { error: 'Seller ID is required' },
-        { status: 400 }
-      );
-    }
-
-    // Fetch seller data from backend
-    const response = await fetch(`${BACKEND_URL}/api/users/get-seller-data-for-shop/${id}`, {
+    // Fetch all sellers from backend
+    const response = await fetch(`${BACKEND_URL}/api/users/get-all-sellers`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -29,10 +19,11 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Seller data fetch error:', error);
+    console.error('Sellers fetch error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch seller data' },
+      { error: 'Failed to fetch sellers' },
       { status: 500 }
     );
   }
 }
+

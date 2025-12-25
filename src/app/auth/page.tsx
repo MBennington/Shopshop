@@ -49,12 +49,12 @@ export default function AuthPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch('http://localhost:5000/api/users/login', {
+      const res = await fetch('/api/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(loginForm),
+        body: JSON.stringify({ action: 'login', ...loginForm }),
       });
 
       const data = await res.json();
@@ -108,12 +108,12 @@ export default function AuthPage() {
     };
 
     try {
-      const res = await fetch('http://localhost:5000/api/users', {
+      const res = await fetch('/api/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ action: 'signup', ...payload }),
       });
 
       const data = await res.json();
