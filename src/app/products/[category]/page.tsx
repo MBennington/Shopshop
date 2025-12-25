@@ -90,7 +90,7 @@ export default function ProductCatalogue({
       }
 
       const response = await fetch(
-        `http://localhost:5000/api/products/?${queryParams}`
+        `/api/products?${queryParams}`
       );
 
       if (!response.ok) {
@@ -180,7 +180,7 @@ export default function ProductCatalogue({
         }
 
         const response = await fetch(
-          `http://localhost:5000/api/products/?${queryParams}`
+          `/api/products?${queryParams}`
         );
 
         if (!response.ok) {

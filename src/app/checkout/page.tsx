@@ -350,7 +350,7 @@ export default function CheckoutPage() {
             return;
           }
 
-          const res = await fetch(`http://localhost:5000/api/cart/`, {
+          const res = await fetch('/api/cart', {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
@@ -444,7 +444,7 @@ export default function CheckoutPage() {
       const fetchProductDetails = async () => {
         try {
           const res = await fetch(
-            `http://localhost:5000/api/products/details/${product.id}`
+            `/api/products/details/${product.id}`
           );
           const json = await res.json();
           if (res.ok && json.data && json.data.seller) {

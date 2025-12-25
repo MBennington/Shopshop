@@ -53,7 +53,7 @@ export default function ProductsPage() {
       setLoading(true);
       const token = localStorage.getItem('token');
       const response = await fetch(
-        'http://localhost:5000/api/products/products-by-seller',
+        `/api/products/products-by-seller`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -107,7 +107,7 @@ export default function ProductsPage() {
       setDeleting(true);
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `http://localhost:5000/api/products/${deleteDialog.productId}`,
+        `/api/products/${deleteDialog.productId}`,
         {
           method: 'DELETE',
           headers: {
