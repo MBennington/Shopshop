@@ -21,8 +21,15 @@ const deliveryStatus = Object.freeze({
   DISPUTED: 'disputed',
 });
 
+// Auto-confirm delivery threshold (in days)
+// Can be overridden via environment variable AUTO_CONFIRM_DELIVERY_THRESHOLD_DAYS
+const AUTO_CONFIRM_DELIVERY_THRESHOLD_DAYS = process.env.AUTO_CONFIRM_DELIVERY_THRESHOLD_DAYS
+  ? parseInt(process.env.AUTO_CONFIRM_DELIVERY_THRESHOLD_DAYS, 10)
+  : 7; // Default 7 days
+
 module.exports = {
   subOrderStatus,
   sellerPaymentStatus,
   deliveryStatus,
+  AUTO_CONFIRM_DELIVERY_THRESHOLD_DAYS,
 };

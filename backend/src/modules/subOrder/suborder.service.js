@@ -8,6 +8,7 @@ const {
   subOrderStatus,
   sellerPaymentStatus,
   deliveryStatus,
+  AUTO_CONFIRM_DELIVERY_THRESHOLD_DAYS,
 } = require('../../config/suborder.config');
 const {
   orderStatus,
@@ -84,7 +85,8 @@ module.exports.syncMainOrderStatusWithSubOrders = async (mainOrderId) => {
 
       // If all sub-orders are delivered and payment method is COD, update payment status to PAID
       if (firstStatus === subOrderStatus.DELIVERED) {
-        const mainOrder = await repository.findOne(OrderModel, {
+        // Use OrderModel directly for populate support
+        const mainOrder = await OrderModel.findOne({
           _id: new mongoose.Types.ObjectId(mainOrderId),
         })
           .populate('user_id', 'name email')
@@ -490,6 +492,113 @@ module.exports.buyerConfirmDelivery = async (
   }
 
   return updatedSubOrder;
+};
+
+/**
+ * Auto-confirm delivery after threshold period
+ * System automatically confirms delivery if seller marked as delivered and threshold days have passed
+ * @param {String} subOrderId
+ * @param {Number} thresholdDays - Number of days threshold (default from config)
+ * @returns {Promise<Object|null>}
+ */
+module.exports.autoConfirmDeliveryAfterThreshold = async (
+  subOrderId,
+  thresholdDays
+) => {
+  try {
+    // Get threshold from config if not provided
+    const daysThreshold = thresholdDays || AUTO_CONFIRM_DELIVERY_THRESHOLD_DAYS;
+
+    // Get current sub-order
+    const subOrder = await SubOrderModel.findById(subOrderId).lean();
+
+    if (!subOrder) {
+      throw new Error('Sub-order not found');
+    }
+
+    // Validate conditions
+    if (subOrder.delivery_status !== deliveryStatus.PENDING) {
+      // Already confirmed or disputed, skip
+      return null;
+    }
+
+    if (!subOrder.seller_marked_as_delivered) {
+      // Seller hasn't marked as delivered, skip
+      return null;
+    }
+
+    if (!subOrder.seller_marked_as_delivered_at) {
+      // Missing timestamp, skip
+      return null;
+    }
+
+    // Calculate days since seller marked as delivered
+    const markedDate = new Date(subOrder.seller_marked_as_delivered_at);
+    const currentDate = new Date();
+    const daysDiff = Math.floor(
+      (currentDate - markedDate) / (1000 * 60 * 60 * 24)
+    );
+
+    // Check if threshold has been reached
+    if (daysDiff < daysThreshold) {
+      // Threshold not reached yet, skip
+      return null;
+    }
+
+    // Build update data
+    const updateData = {
+      delivery_confirmed: true,
+      delivery_confirmed_at: new Date(),
+      delivery_status: deliveryStatus.CONFIRMED,
+    };
+
+    // Update orderStatus to DELIVERED if not already
+    if (subOrder.orderStatus !== subOrderStatus.DELIVERED) {
+      updateData.orderStatus = subOrderStatus.DELIVERED;
+    }
+
+    // Build note message
+    const markedDateStr = markedDate.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    const systemMessage = `System automatically confirmed delivery after ${daysThreshold} days threshold (seller marked as delivered on ${markedDateStr}).`;
+    
+    // Preserve existing notes if present
+    if (subOrder.notes) {
+      updateData.notes = `${systemMessage} Original note: ${subOrder.notes}`;
+    } else {
+      updateData.notes = systemMessage;
+    }
+
+    // Update the sub-order
+    const updatedSubOrder = await repository.updateOne(
+      SubOrderModel,
+      { _id: subOrderId },
+      updateData,
+      { new: true }
+    );
+
+    // If orderStatus was updated to delivered, sync main order
+    // The sync function will handle COD payment status update if all suborders are delivered
+    if (updateData.orderStatus === subOrderStatus.DELIVERED) {
+      const mainOrderId = subOrder.main_order_id;
+
+      if (mainOrderId) {
+        // Sync main order status with sub-orders (includes COD payment status update)
+        await module.exports.syncMainOrderStatusWithSubOrders(mainOrderId);
+      }
+    }
+
+    return updatedSubOrder;
+  } catch (error) {
+    console.error(
+      `Error auto-confirming delivery for sub-order ${subOrderId}:`,
+      error
+    );
+    throw error;
+  }
 };
 
 /**
