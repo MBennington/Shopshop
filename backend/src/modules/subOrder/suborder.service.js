@@ -17,140 +17,7 @@ const {
 const { roles } = require('../../config/role.config');
 const stockService = require('../../services/stock.service');
 const emailService = require('../../services/email.service');
-
-/**
- * Generate email template for buyer delivery confirmation request
- * @param {Object} subOrder - SubOrder with populated buyer and product info
- * @returns {Object} - { subject, html }
- */
-const generateBuyerDeliveryConfirmationEmail = (subOrder) => {
-  const subOrderId = subOrder._id.toString();
-  const confirmUrl = `${emailService.FRONTEND_URL}/order/confirm-delivery?subOrderId=${subOrderId}&confirmed=true`;
-  const reportIssueUrl = `${emailService.FRONTEND_URL}/report-issue`;
-  const buyerName = subOrder.buyer_id?.name || 'Customer';
-  const orderId = subOrderId.slice(-8);
-  const trackingNumber = subOrder.tracking_number || 'N/A';
-
-  const subject = 'Please Confirm Your Order Delivery';
-
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Confirm Your Order Delivery</title>
-    </head>
-    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="background: linear-gradient(135deg, #121416 0%, #2a2d30 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-        <h1 style="color: white; margin: 0;">📦 Order Delivery Confirmation</h1>
-      </div>
-      
-      <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
-        <p style="font-size: 16px;">Hi ${buyerName},</p>
-        
-        <p style="font-size: 16px;">
-          The seller has marked your order as delivered. Please confirm if you have received your package.
-        </p>
-        
-        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #121416;">
-          <p style="margin: 5px 0;"><strong>Order ID:</strong> ${orderId}</p>
-          <p style="margin: 5px 0;"><strong>Tracking Number:</strong> ${trackingNumber}</p>
-        </div>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${confirmUrl}" style="display: inline-block; background: #10b981; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-            ✅ Yes, I Received It
-          </a>
-        </div>
-        
-        <div style="text-align: center; margin: 20px 0;">
-          <p style="font-size: 14px; color: #666; margin-bottom: 10px;">
-            Having issues with your order?
-          </p>
-          <a href="${reportIssueUrl}" style="display: inline-block; color: #121416; text-decoration: underline; font-size: 14px;">
-            Report an Issue
-          </a>
-        </div>
-        
-        <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
-        
-        <p style="font-size: 12px; color: #999; text-align: center;">
-          This is an automated email from Shopshop. Please do not reply to this email.
-        </p>
-      </div>
-    </body>
-    </html>
-  `;
-
-  return { subject, html };
-};
-
-/**
- * Generate email template for admin notification when buyer disputes delivery
- * @param {Object} subOrder - SubOrder with populated buyer, seller, and product info
- * @returns {Object} - { subject, html }
- */
-const generateAdminDisputeNotificationEmail = (subOrder) => {
-  const subOrderId = subOrder._id.toString();
-  const orderId = subOrderId.slice(-8);
-  const buyerName = subOrder.buyer_id?.name || 'Unknown';
-  const buyerEmail = subOrder.buyer_id?.email || 'Unknown';
-  const sellerName = subOrder.seller_id?.name || 'Unknown';
-  const currentStatus = subOrder.orderStatus || 'Unknown';
-
-  const subject = `⚠️ Delivery Dispute - Order ${orderId}`;
-
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Delivery Dispute Notification</title>
-    </head>
-    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-        <h1 style="color: white; margin: 0;">⚠️ Delivery Dispute Alert</h1>
-      </div>
-      
-      <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
-        <p style="font-size: 16px;">A buyer has reported that they did not receive their order.</p>
-        
-        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ef4444;">
-          <h3 style="margin-top: 0; color: #ef4444;">Order Details</h3>
-          <p style="margin: 5px 0;"><strong>Sub-Order ID:</strong> ${orderId}</p>
-          <p style="margin: 5px 0;"><strong>Current Order Status:</strong> ${currentStatus}</p>
-          <p style="margin: 5px 0;"><strong>Buyer Feedback:</strong> Not received</p>
-        </div>
-        
-        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="margin-top: 0;">Buyer Information</h3>
-          <p style="margin: 5px 0;"><strong>Name:</strong> ${buyerName}</p>
-          <p style="margin: 5px 0;"><strong>Email:</strong> ${buyerEmail}</p>
-        </div>
-        
-        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="margin-top: 0;">Seller Information</h3>
-          <p style="margin: 5px 0;"><strong>Name:</strong> ${sellerName}</p>
-        </div>
-        
-        <p style="font-size: 14px; color: #666; margin-top: 30px;">
-          Please review this case and take appropriate action.
-        </p>
-        
-        <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
-        
-        <p style="font-size: 12px; color: #999; text-align: center;">
-          This is an automated notification from Shopshop.
-        </p>
-      </div>
-    </body>
-    </html>
-  `;
-
-  return { subject, html };
-};
+const emailTemplateService = require('../../services/email-template.service');
 
 /**
  * Sync main order status with sub-orders status
@@ -219,7 +86,24 @@ module.exports.syncMainOrderStatusWithSubOrders = async (mainOrderId) => {
       if (firstStatus === subOrderStatus.DELIVERED) {
         const mainOrder = await repository.findOne(OrderModel, {
           _id: new mongoose.Types.ObjectId(mainOrderId),
-        });
+        })
+          .populate('user_id', 'name email')
+          .lean();
+
+        // Send order delivered email to buyer
+        try {
+          if (mainOrder && mainOrder.user_id && mainOrder.user_id.email) {
+            const emailTemplate = emailTemplateService.generateOrderDeliveredEmail(mainOrder);
+            await emailService.sendEmail({
+              to: mainOrder.user_id.email,
+              subject: emailTemplate.subject,
+              html: emailTemplate.html,
+            });
+          }
+        } catch (error) {
+          console.error(`Error sending order delivered email to buyer for order ${mainOrderId}:`, error);
+          // Don't fail the operation if email fails
+        }
 
         if (mainOrder && mainOrder.paymentMethod === paymentMethod.COD) {
           // Update payment record
@@ -439,7 +323,7 @@ module.exports.updateSubOrderStatus = async (subOrderId, statusData) => {
     // Send email to buyer to confirm delivery
     try {
       const emailTemplate =
-        generateBuyerDeliveryConfirmationEmail(subOrderWithBuyer);
+        emailTemplateService.generateBuyerDeliveryConfirmationEmail(subOrderWithBuyer);
       await emailService.sendEmail({
         to: subOrderWithBuyer.buyer_id?.email,
         subject: emailTemplate.subject,

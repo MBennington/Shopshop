@@ -2,6 +2,7 @@ const GiftCardModel = require('./giftcard.model');
 const GiftCardPaymentModel = require('./giftcard-payment.model');
 const repository = require('../../services/repository.service');
 const emailService = require('../../services/email.service');
+const emailTemplateService = require('../../services/email-template.service');
 const pdfService = require('../../services/pdf.service');
 const {
   giftCardStatus,
@@ -473,46 +474,15 @@ module.exports.createGiftCardAfterPayment = async (payment_id) => {
     });
 
     // Send email with PDF attachment (simplified message)
+    const emailTemplate = emailTemplateService.generateGiftCardNotificationEmail({
+      recipientName,
+      senderName,
+    });
+    
     await emailService.sendEmail({
       to: recipientEmail.toLowerCase().trim(),
-      subject: `🎁 You've Received a Gift Card from ${senderName}!`,
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>You've Received a Gift Card!</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #FF0808 0%, #FF4040 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0;">🎁 You've Received a Gift Card!</h1>
-          </div>
-          
-          <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
-            <p style="font-size: 16px;">Hi ${recipientName || 'there'},</p>
-            
-            <p style="font-size: 16px;">
-              <strong>${senderName}</strong> has sent you a gift card!
-            </p>
-            
-            <p style="font-size: 16px;">
-              Your gift card PDF is attached to this email. You can use the gift card code from the PDF at checkout to apply the balance to your purchase.
-            </p>
-            
-            <p style="font-size: 16px; margin-top: 20px;">
-              Happy shopping! 🛍️
-            </p>
-            
-            <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
-            
-            <p style="font-size: 12px; color: #999; text-align: center;">
-              This is an automated email from Shopshop. Please do not reply to this email.
-            </p>
-          </div>
-        </body>
-        </html>
-      `,
+      subject: emailTemplate.subject,
+      html: emailTemplate.html,
       attachments: [
         {
           filename: `GiftCard-${giftCard.code}.pdf`,
