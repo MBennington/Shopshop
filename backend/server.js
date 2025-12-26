@@ -5,11 +5,15 @@ const cors = require('cors');
 const http = require('http');
 
 const { createDBConnection } = require('./src/services/db-connection.service');
+const { startCronJobs } = require('./src/jobs');
 
 const httpPort = process.env.HTTP_PORT || 5000;
 
 // Connect to database
 createDBConnection();
+
+// Initialize cron jobs
+startCronJobs();
 
 // Create express server
 const server = express();
