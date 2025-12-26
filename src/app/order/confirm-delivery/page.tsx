@@ -60,8 +60,9 @@ export default function ConfirmDeliveryPage() {
   const confirmedParam = searchParams.get('confirmed');
 
   useEffect(() => {
-    if (confirmedParam === 'true' || confirmedParam === 'false') {
-      setConfirmedStatus(confirmedParam === 'true');
+    // Only handle confirmed=true, ignore confirmed=false
+    if (confirmedParam === 'true') {
+      setConfirmedStatus(true);
     }
   }, [confirmedParam]);
 
@@ -264,12 +265,10 @@ export default function ConfirmDeliveryPage() {
                 </svg>
                 <div>
                   <h3 className="text-sm font-semibold text-green-900 mb-1">
-                    {confirmedStatus ? 'Delivery Confirmed!' : 'Dispute Recorded'}
+                    Delivery Confirmed!
                   </h3>
                   <p className="text-sm text-green-700">
-                    {confirmedStatus
-                      ? 'Thank you for confirming. Your order status has been updated.'
-                      : 'Your dispute has been recorded. Our team will review this case and contact you shortly.'}
+                    Thank you for confirming. Your order status has been updated.
                   </p>
                 </div>
               </div>
@@ -372,11 +371,11 @@ export default function ConfirmDeliveryPage() {
               <p className="text-sm font-medium text-[#121416] mb-4 text-center">
                 Have you received this order?
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col items-center gap-4">
                 <button
                   onClick={() => handleConfirm(true)}
                   disabled={submitting}
-                  className="bg-green-600 text-white px-6 py-4 rounded-xl font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="bg-green-600 text-white px-6 py-4 rounded-xl font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 w-full md:w-auto min-w-[200px]"
                 >
                   {submitting && confirmedStatus === true ? (
                     <>
@@ -392,25 +391,17 @@ export default function ConfirmDeliveryPage() {
                     </>
                   )}
                 </button>
-                <button
-                  onClick={() => handleConfirm(false)}
-                  disabled={submitting}
-                  className="bg-red-600 text-white px-6 py-4 rounded-xl font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {submitting && confirmedStatus === false ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      <span>Submitting...</span>
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      <span>No, I Did Not Receive It</span>
-                    </>
-                  )}
-                </button>
+                <div className="text-center">
+                  <p className="text-sm text-[#6a7581] mb-2">
+                    Having issues with your order?
+                  </p>
+                  <a
+                    href="/report-issue"
+                    className="text-[#121416] hover:underline text-sm font-medium"
+                  >
+                    Report an Issue
+                  </a>
+                </div>
               </div>
             </div>
           )}

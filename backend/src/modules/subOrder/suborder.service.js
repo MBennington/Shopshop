@@ -26,7 +26,7 @@ const emailService = require('../../services/email.service');
 const generateBuyerDeliveryConfirmationEmail = (subOrder) => {
   const subOrderId = subOrder._id.toString();
   const confirmUrl = `${emailService.FRONTEND_URL}/order/confirm-delivery?subOrderId=${subOrderId}&confirmed=true`;
-  const disputeUrl = `${emailService.FRONTEND_URL}/order/confirm-delivery?subOrderId=${subOrderId}&confirmed=false`;
+  const reportIssueUrl = `${emailService.FRONTEND_URL}/report-issue`;
   const buyerName = subOrder.buyer_id?.name || 'Customer';
   const orderId = subOrderId.slice(-8);
   const trackingNumber = subOrder.tracking_number || 'N/A';
@@ -59,17 +59,19 @@ const generateBuyerDeliveryConfirmationEmail = (subOrder) => {
         </div>
         
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${confirmUrl}" style="display: inline-block; background: #10b981; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-right: 10px;">
+          <a href="${confirmUrl}" style="display: inline-block; background: #10b981; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
             ✅ Yes, I Received It
-          </a>
-          <a href="${disputeUrl}" style="display: inline-block; background: #ef4444; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-            ❌ No, I Did Not Receive It
           </a>
         </div>
         
-        <p style="font-size: 14px; color: #666; margin-top: 30px;">
-          If you have any questions or concerns, please contact our support team.
-        </p>
+        <div style="text-align: center; margin: 20px 0;">
+          <p style="font-size: 14px; color: #666; margin-bottom: 10px;">
+            Having issues with your order?
+          </p>
+          <a href="${reportIssueUrl}" style="display: inline-block; color: #121416; text-decoration: underline; font-size: 14px;">
+            Report an Issue
+          </a>
+        </div>
         
         <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
         
@@ -534,9 +536,10 @@ module.exports.confirmDelivery = async (subOrderId, confirmed) => {
 };
 
 /**
- * Buyer confirms or disputes delivery
+ * Buyer confirms delivery
  * @param {String} subOrderId
- * @param {Boolean} confirmed - true if buyer received, false if not received
+ * @param {Boolean} confirmed - true if buyer received the order
+ * @param {String} user_id - ID of the authenticated user
  * @returns {Promise<Object>}
  */
 module.exports.buyerConfirmDelivery = async (
@@ -560,96 +563,49 @@ module.exports.buyerConfirmDelivery = async (
   const buyerId = user_id;
   const subOrderBuyerId =
     subOrder.buyer_id._id?.toString() || subOrder.buyer_id._id;
-  //console.log('buyer: ', buyerId);
-  //console.log('subOrderBuyerId: ', subOrderBuyerId);
 
   if (buyerId !== subOrderBuyerId) {
     throw new Error('You can only confirm delivery for your own orders');
   }
 
-  if (confirmed) {
-    // Buyer confirms delivery
-    const updateData = {
-      delivery_confirmed: true,
-      delivery_confirmed_at: new Date(),
-      delivery_status: deliveryStatus.CONFIRMED,
-    };
-
-    // Check current orderStatus - only update if not already delivered
-    if (subOrder.orderStatus !== subOrderStatus.DELIVERED) {
-      updateData.orderStatus = subOrderStatus.DELIVERED;
-      updateData.notes = 'Buyer confirmed the order through email';
-    }
-
-    const updatedSubOrder = await repository.updateOne(
-      SubOrderModel,
-      { _id: subOrderId },
-      updateData,
-      { new: true }
-    );
-
-    // If orderStatus was updated to delivered, sync main order
-    // The sync function will handle COD payment status update if all suborders are delivered
-    if (updateData.orderStatus === subOrderStatus.DELIVERED) {
-      const mainOrderId = subOrder.main_order_id;
-
-      if (mainOrderId) {
-        // Sync main order status with sub-orders (includes COD payment status update)
-        await module.exports.syncMainOrderStatusWithSubOrders(mainOrderId);
-      }
-    }
-
-    return updatedSubOrder;
-  } else {
-    // Buyer says they did not receive the order
-    const updateData = {
-      delivery_status: deliveryStatus.DISPUTED,
-      notes: 'Buyer disputed the order through email',
-    };
-
-    const updatedSubOrder = await repository.updateOne(
-      SubOrderModel,
-      { _id: subOrderId },
-      updateData,
-      { new: true }
-    );
-
-    // Notify admin about the dispute
-    try {
-      // Get admin users
-      const adminUsers = await UserModel.find({ role: roles.admin })
-        .select('email')
-        .lean();
-
-      if (adminUsers && adminUsers.length > 0) {
-        const emailTemplate = generateAdminDisputeNotificationEmail(subOrder);
-
-        // Send email to all admin users
-        const emailPromises = adminUsers.map((admin) =>
-          emailService
-            .sendEmail({
-              to: admin.email,
-              subject: emailTemplate.subject,
-              html: emailTemplate.html,
-            })
-            .catch((error) => {
-              console.error(
-                `Error sending dispute email to admin ${admin.email}:`,
-                error
-              );
-            })
-        );
-
-        await Promise.all(emailPromises);
-      }
-    } catch (error) {
-      console.error('Error notifying admin about delivery dispute:', error);
-      // TODO: Implement admin notification email
-      // Don't fail the operation if email fails
-    }
-
-    return updatedSubOrder;
+  // Only handle confirmation (confirmed = true)
+  // Dispute flow has been removed - users should use the report issue page instead
+  if (!confirmed) {
+    throw new Error('Invalid request. Please use the report issue page if you have concerns about your order.');
   }
+
+  // Buyer confirms delivery
+  const updateData = {
+    delivery_confirmed: true,
+    delivery_confirmed_at: new Date(),
+    delivery_status: deliveryStatus.CONFIRMED,
+  };
+
+  // Check current orderStatus - only update if not already delivered
+  if (subOrder.orderStatus !== subOrderStatus.DELIVERED) {
+    updateData.orderStatus = subOrderStatus.DELIVERED;
+    updateData.notes = 'Buyer confirmed the order through email';
+  }
+
+  const updatedSubOrder = await repository.updateOne(
+    SubOrderModel,
+    { _id: subOrderId },
+    updateData,
+    { new: true }
+  );
+
+  // If orderStatus was updated to delivered, sync main order
+  // The sync function will handle COD payment status update if all suborders are delivered
+  if (updateData.orderStatus === subOrderStatus.DELIVERED) {
+    const mainOrderId = subOrder.main_order_id;
+
+    if (mainOrderId) {
+      // Sync main order status with sub-orders (includes COD payment status update)
+      await module.exports.syncMainOrderStatusWithSubOrders(mainOrderId);
+    }
+  }
+
+  return updatedSubOrder;
 };
 
 /**
