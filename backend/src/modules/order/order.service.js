@@ -15,6 +15,10 @@ const userService = require('../users/user.service');
 const { calculatePlatformCharges } = require('../../services/platform-charges.service');
 const stockService = require('../../services/stock.service');
 const giftCardService = require('../giftcard/giftcard.service');
+const emailService = require('../../services/email.service');
+const emailTemplateService = require('../../services/email-template.service');
+const SubOrderModel = require('../subOrder/suborder.model');
+const UserModel = require('../users/user.model');
 
 module.exports.createOrder = async (user_id, body) => {
   const { address, paymentMethod, fromCart, product, giftCards = [] } = body;
@@ -218,6 +222,26 @@ module.exports.createOrder = async (user_id, body) => {
 
     const subOrder = await subOrderService.createSubOrder(subOrderData);
     subOrders.push(subOrder);
+
+    // Send email notification to seller about new order
+    try {
+      const subOrderWithDetails = await SubOrderModel.findById(subOrder._id)
+        .populate('seller_id', 'name email sellerInfo.businessName')
+        .populate('buyer_id', 'name')
+        .lean();
+
+      if (subOrderWithDetails && subOrderWithDetails.seller_id && subOrderWithDetails.seller_id.email) {
+        const emailTemplate = emailTemplateService.generateSellerNewOrderEmail(subOrderWithDetails);
+        await emailService.sendEmail({
+          to: subOrderWithDetails.seller_id.email,
+          subject: emailTemplate.subject,
+          html: emailTemplate.html,
+        });
+      }
+    } catch (error) {
+      console.error(`Error sending new order email to seller ${sellerId}:`, error);
+      // Don't fail the operation if email fails
+    }
   }
 
   // Apply gift cards to order and update gift card balances

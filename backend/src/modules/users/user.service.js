@@ -8,6 +8,8 @@ const {
 const extractPublicIdFromUrl = require('../../utils/extractPublicIdFromUrl.util');
 const { log } = require('console');
 const { roles } = require('../../config/role.config');
+const emailService = require('../../services/email.service');
+const emailTemplateService = require('../../services/email-template.service');
 
 /**
  * Process user data with profile picture upload
@@ -165,6 +167,23 @@ module.exports.createUser = async (body) => {
 
   user = user.toObject();
   delete user.password;
+
+  // Send registration success email
+  try {
+    const emailTemplate = emailTemplateService.generateRegistrationSuccessEmail({
+      userName: user.name,
+      userEmail: user.email,
+      role: user.role,
+    });
+    await emailService.sendEmail({
+      to: user.email,
+      subject: emailTemplate.subject,
+      html: emailTemplate.html,
+    });
+  } catch (error) {
+    console.error('Error sending registration email:', error);
+    // Don't fail the registration if email fails
+  }
 
   return user;
 };

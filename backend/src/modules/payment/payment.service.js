@@ -8,6 +8,8 @@ const SubOrderModel = require('../subOrder/suborder.model');
 const Cart = require('../cart/cart.model');
 const stockService = require('../../services/stock.service');
 const giftCardService = require('../giftcard/giftcard.service');
+const emailService = require('../../services/email.service');
+const emailTemplateService = require('../../services/email-template.service');
 const md5 = require('crypto-js/md5');
 const mongoose = require('mongoose');
 
@@ -81,6 +83,34 @@ module.exports.createPayment = async (paymentInfo) => {
         );
       } catch (error) {
         console.error('Error clearing cart after order creation:', error);
+      }
+
+      // Send order success email to buyer
+      try {
+        const order = await repository.findOne(OrderModel, { _id: order_id })
+          .populate('user_id', 'name email')
+          .lean();
+        
+        if (order && order.user_id) {
+          // Get sub-orders for the email
+          const subOrderService = require('../subOrder/suborder.service');
+          const subOrders = await subOrderService.getSubOrdersByMainOrder(order_id);
+          
+          const orderWithSubOrders = {
+            ...order,
+            sub_orders_details: subOrders,
+          };
+
+          const emailTemplate = emailTemplateService.generateOrderSuccessEmail(orderWithSubOrders);
+          await emailService.sendEmail({
+            to: order.user_id.email,
+            subject: emailTemplate.subject,
+            html: emailTemplate.html,
+          });
+        }
+      } catch (error) {
+        console.error('Error sending order success email:', error);
+        // Don't fail the operation if email fails
       }
     }
 
@@ -344,6 +374,36 @@ module.exports.updatePaymentStatus = async (data) => {
             },
             { new: true }
           );
+
+          // Send order success email to buyer
+          try {
+            const orderWithUser = await repository.findOne(OrderModel, {
+              _id: new mongoose.Types.ObjectId(order_id),
+            })
+              .populate('user_id', 'name email')
+              .lean();
+            
+            if (orderWithUser && orderWithUser.user_id) {
+              // Get sub-orders for the email
+              const subOrderService = require('../subOrder/suborder.service');
+              const subOrders = await subOrderService.getSubOrdersByMainOrder(order_id);
+              
+              const orderWithSubOrders = {
+                ...orderWithUser,
+                sub_orders_details: subOrders,
+              };
+
+              const emailTemplate = emailTemplateService.generateOrderSuccessEmail(orderWithSubOrders);
+              await emailService.sendEmail({
+                to: orderWithUser.user_id.email,
+                subject: emailTemplate.subject,
+                html: emailTemplate.html,
+              });
+            }
+          } catch (error) {
+            console.error('Error sending order success email:', error);
+            // Don't fail the operation if email fails
+          }
         } else {
           console.warn(
             `Order ${order_id} payment succeeded but order remains cancelled due to stock unavailability`
