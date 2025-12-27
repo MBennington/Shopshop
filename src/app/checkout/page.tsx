@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { Gift, X } from 'lucide-react';
+import { BACKEND_URL } from '@/lib/config';
 
 interface Address {
   id: string;
@@ -81,11 +82,13 @@ export default function CheckoutPage() {
     profilePicture?: string | null;
   } | null>(null);
   const [giftCardCode, setGiftCardCode] = useState<string>('');
-  const [appliedGiftCards, setAppliedGiftCards] = useState<Array<{ 
-    code: string; 
-    amount: number; 
-    remainingBalance: number;
-  }>>([]);
+  const [appliedGiftCards, setAppliedGiftCards] = useState<
+    Array<{
+      code: string;
+      amount: number;
+      remainingBalance: number;
+    }>
+  >([]);
   const [giftCardError, setGiftCardError] = useState<string | null>(null);
   const [isValidatingGiftCard, setIsValidatingGiftCard] = useState(false);
   const hasInitializedAddress = useRef(false);
@@ -182,10 +185,10 @@ export default function CheckoutPage() {
   // Platform fees are NOT applied when gift cards are used
   const calculateGiftCardDiscount = useMemo(() => {
     if (appliedGiftCards.length === 0) return 0;
-    
+
     // Gift cards apply to products + shipping only (no platform fees)
     const orderTotalBeforeGiftCard = displaySubtotal;
-    
+
     let discount = 0;
     let remainingTotal = orderTotalBeforeGiftCard;
 
@@ -200,7 +203,7 @@ export default function CheckoutPage() {
   }, [appliedGiftCards, displaySubtotal]);
 
   const giftCardDiscount = calculateGiftCardDiscount;
-  
+
   // Calculate if fully covered - check if final total after all charges is 0 or less
   const isFullyCovered = useMemo(() => {
     if (giftCardDiscount === 0) return false;
@@ -443,9 +446,7 @@ export default function CheckoutPage() {
     if (!fromCart && product?.id) {
       const fetchProductDetails = async () => {
         try {
-          const res = await fetch(
-            `/api/products/details/${product.id}`
-          );
+          const res = await fetch(`/api/products/details/${product.id}`);
           const json = await res.json();
           if (res.ok && json.data && json.data.seller) {
             // Update shipping fee from seller's baseShippingFee or use platform default
@@ -521,7 +522,7 @@ export default function CheckoutPage() {
 
     // Calculate order total before gift card discount (products + shipping)
     const orderTotalBeforeGiftCard = displaySubtotal;
-    
+
     // Apply gift card discount first
     const remainingAfterGiftCard = orderTotalBeforeGiftCard - giftCardDiscount;
 
@@ -553,7 +554,11 @@ export default function CheckoutPage() {
 
     // Platform fees ALWAYS apply for online payments (card), even if gift cards partially cover
     // Platform fees are calculated on product subtotal, then added to remaining amount after gift card
-    if (platformChargesConfig && platformChargesConfig.buyerFees && selectedPayment === 'card') {
+    if (
+      platformChargesConfig &&
+      platformChargesConfig.buyerFees &&
+      selectedPayment === 'card'
+    ) {
       // Calculate platform fees on product subtotal (not on remaining after gift card)
       const charges: { [key: string]: number } = {};
       let totalCharges = 0;
@@ -725,8 +730,7 @@ export default function CheckoutPage() {
       return_url:
         window.location.origin + `/order-success?orderId=${data.orderId}`, // success page with order ID
       cancel_url: window.location.origin + '/cart', // temporary cancel page
-      notify_url:
-        'https://isothiocyano-edmund-isentropic.ngrok-free.dev/api/payment/webhook', // placeholder, replace later
+      notify_url: `${BACKEND_URL}/api/payment/webhook`, // placeholder, replace later
       order_id: data.orderId,
       items: 'Order Payment',
       amount: Number(data.amount).toFixed(2),
@@ -735,8 +739,8 @@ export default function CheckoutPage() {
       first_name: newAddress.firstName || user?.name?.split(' ')[0] || '',
       last_name:
         newAddress.lastName || user?.name?.split(' ').slice(1).join(' ') || '',
-      email: user?.email || 'nuwanthikasadaruwani98@gmail.com',
-      phone: newAddress.phone || '0771234567',
+      email: user?.email,
+      phone: newAddress.phone || '',
       address: newAddress.address || '',
       city: newAddress.city || '',
       country: newAddress.country || 'Sri Lanka',
@@ -1074,7 +1078,9 @@ export default function CheckoutPage() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       onKeyPress={(e) => {
                         if (e.key === 'Enter') {
-                          document.getElementById('gift-card-pin-checkout')?.focus();
+                          document
+                            .getElementById('gift-card-pin-checkout')
+                            ?.focus();
                         }
                       }}
                     />
@@ -1103,7 +1109,9 @@ export default function CheckoutPage() {
                           className="flex items-center justify-between bg-green-50 border border-green-200 p-3 rounded"
                         >
                           <div>
-                            <p className="font-medium text-green-800">{gc.code}</p>
+                            <p className="font-medium text-green-800">
+                              {gc.code}
+                            </p>
                             <p className="text-sm text-green-600">
                               Balance: LKR {gc.remainingBalance.toFixed(2)}
                             </p>
@@ -1147,51 +1155,51 @@ export default function CheckoutPage() {
                         }`}
                         onClick={() => setSelectedPayment('cod')}
                       >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                        <span className="text-green-600 text-sm font-bold">
-                          $
-                        </span>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                            <span className="text-green-600 text-sm font-bold">
+                              $
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              Cash on Delivery
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              Pay when you receive your order
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          Cash on Delivery
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Pay when you receive your order
-                        </p>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Card Payment Option */}
-                  <div
-                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                      selectedPayment === 'card'
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                    onClick={() => {
-                      setSelectedPayment('card');
-                      // Redirect to card payment page - implement later
-                      console.log('Redirecting to card payment page...');
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <span className="text-blue-600 text-xs">💳</span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          Credit/Debit Card
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Secure online payment
-                        </p>
+                      {/* Card Payment Option */}
+                      <div
+                        className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                          selectedPayment === 'card'
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                        onClick={() => {
+                          setSelectedPayment('card');
+                          // Redirect to card payment page - implement later
+                          console.log('Redirecting to card payment page...');
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <span className="text-blue-600 text-xs">💳</span>
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              Credit/Debit Card
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              Secure online payment
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
                   </>
                 )}
               </CardContent>
@@ -1492,9 +1500,7 @@ export default function CheckoutPage() {
                   {isFullyCovered ? (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Platform Fee</span>
-                      <span className="font-medium text-gray-500">
-                        No fees
-                      </span>
+                      <span className="font-medium text-gray-500">No fees</span>
                     </div>
                   ) : selectedPayment === 'cod' ? (
                     <div className="flex justify-between text-sm">
@@ -1556,7 +1562,9 @@ export default function CheckoutPage() {
                   onClick={handlePlaceOrder}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3"
                   disabled={
-                    !isAddressComplete() || (!isFullyCovered && !selectedPayment) || isPlacingOrder
+                    !isAddressComplete() ||
+                    (!isFullyCovered && !selectedPayment) ||
+                    isPlacingOrder
                   }
                 >
                   {isPlacingOrder ? (

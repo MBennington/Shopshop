@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Gift, Check } from 'lucide-react';
+import { BACKEND_URL } from '@/lib/config';
 
 const PRESET_AMOUNTS = [500, 1000, 2000, 5000, 10000, 50000];
 
@@ -170,7 +171,7 @@ export default function PurchaseGiftCardPage() {
         window.location.origin +
         `/gift-cards/purchase?paymentId=${data.paymentId}`,
       cancel_url: window.location.origin + '/gift-cards/purchase',
-      notify_url: `https://isothiocyano-edmund-isentropic.ngrok-free.dev/api/gift-cards/payment/update-status`,
+      notify_url: `${BACKEND_URL}/api/gift-cards/payment/update-status`,
       order_id: data.paymentId,
       items: 'Gift Card Purchase',
       amount: Number(data.amount).toFixed(2),
@@ -179,7 +180,7 @@ export default function PurchaseGiftCardPage() {
       first_name: user?.name?.split(' ')[0] || '',
       last_name: user?.name?.split(' ').slice(1).join(' ') || '',
       email: user?.email || '',
-      phone: user?.phone || '0771234567',
+      phone: user?.phone || '',
       address: '',
       city: '',
       country: 'Sri Lanka',
