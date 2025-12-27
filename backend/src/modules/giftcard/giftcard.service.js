@@ -11,7 +11,7 @@ const {
 const { paymentStatus } = require('../../config/order.config');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
-const md5 = require('md5');
+const md5 = require('crypto-js/md5');
 
 /**
  * Generate unique gift card code
@@ -329,7 +329,9 @@ module.exports.initiateGiftCardPurchase = async (body, user_id) => {
 
   // Validate recipient email is required (always sending to others)
   if (!recipientEmail || !recipientEmail.trim()) {
-    throw new Error('Recipient email is required. Gift cards are always sent to others.');
+    throw new Error(
+      'Recipient email is required. Gift cards are always sent to others.'
+    );
   }
 
   // Validate email format
@@ -429,7 +431,9 @@ module.exports.createGiftCardAfterPayment = async (payment_id) => {
     receiverEmail: recipientEmail.toLowerCase().trim(),
     recipientName: recipientName || null,
     // Only set personalMessage if provided, otherwise let model default apply
-    ...(personalMessage && personalMessage.trim() ? { personalMessage: personalMessage.trim() } : {}),
+    ...(personalMessage && personalMessage.trim()
+      ? { personalMessage: personalMessage.trim() }
+      : {}),
     expiryDate,
     status: giftCardStatus.ACTIVE,
   });
@@ -474,11 +478,12 @@ module.exports.createGiftCardAfterPayment = async (payment_id) => {
     });
 
     // Send email with PDF attachment (simplified message)
-    const emailTemplate = emailTemplateService.generateGiftCardNotificationEmail({
-      recipientName,
-      senderName,
-    });
-    
+    const emailTemplate =
+      emailTemplateService.generateGiftCardNotificationEmail({
+        recipientName,
+        senderName,
+      });
+
     await emailService.sendEmail({
       to: recipientEmail.toLowerCase().trim(),
       subject: emailTemplate.subject,
