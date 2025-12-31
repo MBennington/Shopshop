@@ -19,6 +19,40 @@ const { roles } = require('../../config/role.config');
 const stockService = require('../../services/stock.service');
 const emailService = require('../../services/email.service');
 const emailTemplateService = require('../../services/email-template.service');
+const sellerWalletService = require('../sellerWallet/seller-wallet.service');
+
+/**
+ * Update seller wallet when delivery is confirmed
+ * Moves seller share from pending to available balance
+ * @param {Object} subOrder - Sub-order object (can be lean or full)
+ * @returns {Promise<void>}
+ */
+module.exports.updateWalletOnDeliveryConfirmation = async (subOrder) => {
+  try {
+    // Only update wallet if delivery is confirmed and order is delivered
+    if (!subOrder.delivery_confirmed || subOrder.orderStatus !== subOrderStatus.DELIVERED) {
+      return;
+    }
+
+    // Check if this is an online payment (not COD)
+    // For COD, customer pays directly to seller, so no wallet update needed
+    const mainOrder = await OrderModel.findById(subOrder.main_order_id).lean();
+    if (mainOrder && mainOrder.paymentMethod === paymentMethod.COD) {
+      return; // Skip wallet update for COD
+    }
+
+    const sellerId = subOrder.seller_id?.toString() || subOrder.seller_id;
+    const sellerShare = subOrder.finalTotal || 0;
+
+    if (sellerShare > 0 && sellerId) {
+      await sellerWalletService.movePendingToAvailable(sellerId, sellerShare);
+      console.log(`Moved ${sellerShare} from pending to available for seller ${sellerId} (delivery confirmed)`);
+    }
+  } catch (error) {
+    console.error(`Error updating wallet on delivery confirmation:`, error);
+    // Don't fail the delivery confirmation if wallet update fails
+  }
+};
 
 /**
  * Sync main order status with sub-orders status
@@ -123,6 +157,8 @@ module.exports.syncMainOrderStatusWithSubOrders = async (mainOrderId) => {
             { paymentStatus: paymentStatus.PAID },
             { new: true }
           );
+          // Note: COD payments are handled directly between customer and seller, 
+          // so no wallet updates needed
         }
       }
     }
@@ -482,13 +518,17 @@ module.exports.buyerConfirmDelivery = async (
 
   // If orderStatus was updated to delivered, sync main order
   // The sync function will handle COD payment status update if all suborders are delivered
-  if (updateData.orderStatus === subOrderStatus.DELIVERED) {
+  if (updateData.orderStatus === subOrderStatus.DELIVERED && updatedSubOrder) {
     const mainOrderId = subOrder.main_order_id;
 
     if (mainOrderId) {
       // Sync main order status with sub-orders (includes COD payment status update)
       await module.exports.syncMainOrderStatusWithSubOrders(mainOrderId);
     }
+
+    // Move seller share from pending to available balance when delivery is confirmed
+    const updatedSubOrderData = updatedSubOrder.toObject ? updatedSubOrder.toObject() : updatedSubOrder;
+    await module.exports.updateWalletOnDeliveryConfirmation(updatedSubOrderData);
   }
 
   return updatedSubOrder;
@@ -582,13 +622,17 @@ module.exports.autoConfirmDeliveryAfterThreshold = async (
 
     // If orderStatus was updated to delivered, sync main order
     // The sync function will handle COD payment status update if all suborders are delivered
-    if (updateData.orderStatus === subOrderStatus.DELIVERED) {
+    if (updateData.orderStatus === subOrderStatus.DELIVERED && updatedSubOrder) {
       const mainOrderId = subOrder.main_order_id;
 
       if (mainOrderId) {
         // Sync main order status with sub-orders (includes COD payment status update)
         await module.exports.syncMainOrderStatusWithSubOrders(mainOrderId);
       }
+
+      // Move seller share from pending to available balance when delivery is confirmed
+      const updatedSubOrderData = updatedSubOrder.toObject ? updatedSubOrder.toObject() : updatedSubOrder;
+      await module.exports.updateWalletOnDeliveryConfirmation(updatedSubOrderData);
     }
 
     return updatedSubOrder;
