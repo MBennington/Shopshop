@@ -33,3 +33,4 @@ module.exports.getWalletBySellerId = async (req, res) => {
     return customError(`${error.message}`, res);
   }
 };
+

@@ -64,8 +64,9 @@ const userSchema = new Schema(
       },
       payouts: {
         paymentMethod: { type: String },
-        accountNumber: { type: String },
-        routingNumber: { type: String },
+        bankAccountNumber: { type: String },
+        bankAccountName: { type: String },
+        bankName: { type: String },
       },
       baseShippingFee: {
         type: Number,

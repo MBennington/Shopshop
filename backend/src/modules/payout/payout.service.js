@@ -40,9 +40,10 @@ module.exports.createPayoutRequest = async (
     currency: wallet.currency || 'LKR',
     status: 'PENDING',
     method: method,
-    bank_name: seller.sellerInfo.payouts?.paymentMethod || null,
-    bank_account_number: seller.sellerInfo.payouts?.accountNumber || null,
-    bank_account_name: seller.name || null, // Use seller's name as account name
+    bank_name: seller.sellerInfo.payouts?.bankName || null,
+    bank_account_number: seller.sellerInfo.payouts?.bankAccountNumber || null,
+    bank_account_name:
+      seller.sellerInfo.payouts?.bankAccountName || seller.name || null,
     requested_at: new Date(),
   };
 
@@ -64,21 +65,32 @@ module.exports.createPayoutRequest = async (
  * @returns {Promise<Object>}
  */
 module.exports.getPayoutById = async (payout_id, role, user_id) => {
-  const payout = await repository
-    .findOne(PayoutModel, { _id: payout_id })
+  const payout = await PayoutModel.findOne({ _id: payout_id })
     .populate(
       'seller_id',
-      'name email sellerInfo.businessName sellerInfo.payouts'
-    );
+      '_id name email sellerInfo.businessName sellerInfo.payouts'
+    )
+    .lean();
+
+  console.log('Payout fetched:', payout);
 
   if (!payout) {
     throw new Error('Payout not found');
   }
 
-  if (
-    role !== roles.admin &&
-    payout.seller_id.toString() !== user_id.toString()
-  ) {
+  // Safely get seller_id - handle both populated object and ObjectId
+  const sellerIdValue = payout.seller_id?._id
+    ? payout.seller_id._id.toString()
+    : payout.seller_id
+    ? payout.seller_id.toString()
+    : null;
+
+  if (!sellerIdValue) {
+    throw new Error('Payout seller information is missing');
+  }
+  console.log('Payout seller ID:', sellerIdValue);
+
+  if (role !== roles.admin && sellerIdValue !== user_id.toString()) {
     throw new Error('You are not authorized to view this payout');
   }
 
@@ -100,13 +112,13 @@ module.exports.getPayoutsBySeller = async (seller_id, options = {}) => {
     query.status = status;
   }
 
-  const payouts = await repository.findMany(PayoutModel, query, {
+  const payouts = await repository.findMany(PayoutModel, query, null, {
     skip,
     limit,
     sort: { created_at: -1 },
   });
 
-  const total = await repository.count(PayoutModel, query);
+  const total = await repository.countDocuments(PayoutModel, query);
 
   return {
     payouts,
@@ -136,15 +148,14 @@ module.exports.getAllPayouts = async (options = {}) => {
     query.seller_id = seller_id;
   }
 
-  const payouts = await repository
-    .findMany(PayoutModel, query, {
-      skip,
-      limit,
-      sort: { created_at: -1 },
-    })
-    .populate('seller_id', 'name email sellerInfo.businessName');
+  const payouts = await PayoutModel.find(query)
+    .skip(skip)
+    .limit(limit)
+    .sort({ created_at: -1 })
+    .populate('seller_id', 'name email sellerInfo.businessName')
+    .lean();
 
-  const total = await repository.count(PayoutModel, query);
+  const total = await repository.countDocuments(PayoutModel, query);
 
   return {
     payouts,
@@ -198,8 +209,15 @@ module.exports.rejectPayout = async (payout_id, admin_note) => {
   }
 
   // Return the amount to available balance
+  // Safely get seller_id - handle both populated object and ObjectId
+  const sellerIdValue = payout.seller_id?._id
+    ? payout.seller_id._id.toString()
+    : payout.seller_id
+    ? payout.seller_id.toString()
+    : null;
+
   await sellerWalletService.returnToAvailableBalance(
-    payout.seller_id.toString(),
+    sellerIdValue,
     payout.amount_requested
   );
 
@@ -239,8 +257,15 @@ module.exports.markPayoutAsPaid = async (
   }
 
   // Complete the payout (update total_withdrawn)
+  // Safely get seller_id - handle both populated object and ObjectId
+  const sellerIdValue = payout.seller_id?._id
+    ? payout.seller_id._id.toString()
+    : payout.seller_id
+    ? payout.seller_id.toString()
+    : null;
+
   await sellerWalletService.completePayout(
-    payout.seller_id.toString(),
+    sellerIdValue,
     amount_paid || payout.amount_requested
   );
 
@@ -266,10 +291,24 @@ module.exports.markPayoutAsPaid = async (
  * @param {String} seller_id
  * @returns {Promise<Object>}
  */
-module.exports.cancelPayout = async (payout_id, seller_id) => {
-  const payout = await this.getPayoutById(payout_id);
+module.exports.cancelPayout = async (payout_id, role, seller_id) => {
+  console.log('in cancel payout');
 
-  if (payout.seller_id.toString() !== seller_id) {
+  const payout = await this.getPayoutById(payout_id, role, seller_id);
+  console.log('Payout fetched for cancellation:', payout);
+
+  if (!payout) {
+    throw new Error('Payout not found');
+  }
+
+  // Safely get seller_id - handle both populated object and ObjectId
+  const sellerIdValue = payout.seller_id?._id
+    ? payout.seller_id._id.toString()
+    : payout.seller_id
+    ? payout.seller_id.toString()
+    : null;
+
+  if (sellerIdValue !== seller_id) {
     throw new Error('You can only cancel your own payout requests');
   }
 
@@ -287,7 +326,7 @@ module.exports.cancelPayout = async (payout_id, seller_id) => {
     PayoutModel,
     { _id: payout_id },
     {
-      status: 'REJECTED',
+      status: 'CANCELLED',
       admin_note: 'Cancelled by seller',
     },
     { new: true }

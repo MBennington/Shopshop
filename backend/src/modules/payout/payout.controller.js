@@ -143,8 +143,9 @@ module.exports.markPayoutAsPaid = async (req, res) => {
 module.exports.cancelPayout = async (req, res) => {
   try {
     const { id } = req.params;
-    const seller_id = res.locals.user.id.toString();
-    const data = await payoutService.cancelPayout(id, seller_id);
+    const { role } = res.locals.user.role;
+    const seller_id = res.locals.user.id;
+    const data = await payoutService.cancelPayout(id, role, seller_id);
     return successWithData(data, res);
   } catch (error) {
     return customError(`${error.message}`, res);

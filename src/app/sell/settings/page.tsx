@@ -44,8 +44,9 @@ interface FormData {
     };
     payouts?: {
       paymentMethod?: string;
-      accountNumber?: string;
-      routingNumber?: string;
+      bankAccountNumber?: string;
+      bankAccountName?: string;
+      bankName?: string;
     };
     baseShippingFee?: number | null;
   };
@@ -79,8 +80,9 @@ export default function SettingsPage() {
       },
       payouts: {
         paymentMethod: '',
-        accountNumber: '',
-        routingNumber: '',
+        bankAccountNumber: '',
+        bankAccountName: '',
+        bankName: '',
       },
       baseShippingFee: null,
     },
@@ -134,8 +136,9 @@ export default function SettingsPage() {
           },
           payouts: {
             paymentMethod: user.sellerInfo?.payouts?.paymentMethod || '',
-            accountNumber: user.sellerInfo?.payouts?.accountNumber || '',
-            routingNumber: user.sellerInfo?.payouts?.routingNumber || '',
+            bankAccountNumber: user.sellerInfo?.payouts?.bankAccountNumber || '',
+            bankAccountName: user.sellerInfo?.payouts?.bankAccountName || '',
+            bankName: user.sellerInfo?.payouts?.bankName || '',
           },
           baseShippingFee: user.sellerInfo?.baseShippingFee ?? null,
         },
@@ -196,8 +199,9 @@ export default function SettingsPage() {
       }));
     } else if (
       name === 'paymentMethod' ||
-      name === 'accountNumber' ||
-      name === 'routingNumber'
+      name === 'bankAccountNumber' ||
+      name === 'bankAccountName' ||
+      name === 'bankName'
     ) {
       setFormData((prev) => ({
         ...prev,
@@ -384,14 +388,19 @@ export default function SettingsPage() {
         payoutsDiff.paymentMethod = payouts.paymentMethod;
       }
       if (
-        isChangedNonEmpty(payouts.accountNumber, originalPayouts.accountNumber)
+        isChangedNonEmpty(payouts.bankAccountNumber, originalPayouts.bankAccountNumber)
       ) {
-        payoutsDiff.accountNumber = payouts.accountNumber;
+        payoutsDiff.bankAccountNumber = payouts.bankAccountNumber;
       }
       if (
-        isChangedNonEmpty(payouts.routingNumber, originalPayouts.routingNumber)
+        isChangedNonEmpty(payouts.bankAccountName, originalPayouts.bankAccountName)
       ) {
-        payoutsDiff.routingNumber = payouts.routingNumber;
+        payoutsDiff.bankAccountName = payouts.bankAccountName;
+      }
+      if (
+        isChangedNonEmpty(payouts.bankName, originalPayouts.bankName)
+      ) {
+        payoutsDiff.bankName = payouts.bankName;
       }
       if (Object.keys(payoutsDiff).length > 0) {
         sellerInfoDiff.payouts = payoutsDiff;
@@ -982,23 +991,22 @@ export default function SettingsPage() {
                           className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#121416] focus:outline-0 focus:ring-0 border border-[#dde0e3] bg-white focus:border-[#dde0e3] h-14 placeholder:text-[#6a7581] p-[15px] text-base font-normal leading-normal"
                         >
                           <option value="">Select payment method</option>
-                          <option value="bank">Bank Transfer</option>
-                          <option value="paypal">PayPal</option>
-                          <option value="stripe">Stripe</option>
+                          <option value="BANK_TRANSFER">Bank Transfer</option>
                         </select>
                       </label>
                     </div>
                     <div className="flex max-w-[480px] flex-wrap items-end gap-4 px-4 py-3">
                       <label className="flex flex-col min-w-40 flex-1">
                         <p className="text-[#121416] text-base font-medium leading-normal pb-2">
-                          Account Number
+                          Bank Name
                         </p>
                         <input
-                          name="accountNumber"
+                          name="bankName"
                           value={
-                            formData.sellerInfo?.payouts?.accountNumber || ''
+                            formData.sellerInfo?.payouts?.bankName || ''
                           }
                           onChange={handleInputChange}
+                          placeholder="Enter bank name"
                           className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#121416] focus:outline-0 focus:ring-0 border border-[#dde0e3] bg-white focus:border-[#dde0e3] h-14 placeholder:text-[#6a7581] p-[15px] text-base font-normal leading-normal"
                         />
                       </label>
@@ -1006,14 +1014,31 @@ export default function SettingsPage() {
                     <div className="flex max-w-[480px] flex-wrap items-end gap-4 px-4 py-3">
                       <label className="flex flex-col min-w-40 flex-1">
                         <p className="text-[#121416] text-base font-medium leading-normal pb-2">
-                          Routing Number
+                          Bank Account Number
                         </p>
                         <input
-                          name="routingNumber"
+                          name="bankAccountNumber"
                           value={
-                            formData.sellerInfo?.payouts?.routingNumber || ''
+                            formData.sellerInfo?.payouts?.bankAccountNumber || ''
                           }
                           onChange={handleInputChange}
+                          placeholder="Enter account number"
+                          className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#121416] focus:outline-0 focus:ring-0 border border-[#dde0e3] bg-white focus:border-[#dde0e3] h-14 placeholder:text-[#6a7581] p-[15px] text-base font-normal leading-normal"
+                        />
+                      </label>
+                    </div>
+                    <div className="flex max-w-[480px] flex-wrap items-end gap-4 px-4 py-3">
+                      <label className="flex flex-col min-w-40 flex-1">
+                        <p className="text-[#121416] text-base font-medium leading-normal pb-2">
+                          Bank Account Name
+                        </p>
+                        <input
+                          name="bankAccountName"
+                          value={
+                            formData.sellerInfo?.payouts?.bankAccountName || ''
+                          }
+                          onChange={handleInputChange}
+                          placeholder="Enter account holder name"
                           className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#121416] focus:outline-0 focus:ring-0 border border-[#dde0e3] bg-white focus:border-[#dde0e3] h-14 placeholder:text-[#6a7581] p-[15px] text-base font-normal leading-normal"
                         />
                       </label>

@@ -22,7 +22,7 @@ interface Payout {
   amount_requested: number;
   amount_paid: number;
   currency: string;
-  status: 'PENDING' | 'APPROVED' | 'PAID' | 'REJECTED' | 'FAILED';
+  status: 'PENDING' | 'APPROVED' | 'PAID' | 'REJECTED' | 'FAILED' | 'CANCELLED';
   method: string;
   bank_name?: string;
   bank_account_number?: string;
@@ -83,7 +83,7 @@ export default function PayoutsPage() {
   const fetchPayouts = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/payout?page=1&limit=50', {
+      const response = await fetch('/api/payout/seller?page=1&limit=50', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -203,6 +203,8 @@ export default function PayoutsPage() {
         return 'bg-red-100 text-red-800';
       case 'FAILED':
         return 'bg-gray-100 text-gray-800';
+      case 'CANCELLED':
+        return 'bg-orange-100 text-orange-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -210,7 +212,7 @@ export default function PayoutsPage() {
 
   const pendingPayouts = payouts.filter(p => p.status === 'PENDING' || p.status === 'APPROVED');
   const completedPayouts = payouts.filter(p => p.status === 'PAID');
-  const rejectedPayouts = payouts.filter(p => p.status === 'REJECTED' || p.status === 'FAILED');
+  const rejectedPayouts = payouts.filter(p => p.status === 'REJECTED' || p.status === 'FAILED' || p.status === 'CANCELLED');
 
   return (
     <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden">
@@ -318,7 +320,10 @@ export default function PayoutsPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => setCancelDialog({ show: true, payoutId: payout._id })}
+                              onClick={() => {
+                                setError('');
+                                setCancelDialog({ show: true, payoutId: payout._id });
+                              }}
                               className="ml-2"
                             >
                               Cancel
@@ -363,7 +368,7 @@ export default function PayoutsPage() {
               {rejectedPayouts.length > 0 && (
                 <div className="mt-4 rounded-xl border border-[#dde0e3] bg-white p-4">
                   <h2 className="text-[#121416] text-lg font-bold leading-tight mb-4">
-                    Rejected/Failed Payouts ({rejectedPayouts.length})
+                    Rejected/Cancelled Payouts ({rejectedPayouts.length})
                   </h2>
                   <div className="space-y-4">
                     {rejectedPayouts.map((payout) => (
@@ -392,13 +397,28 @@ export default function PayoutsPage() {
       {/* Create Payout Request Dialog */}
       {showRequestDialog && (
         <>
-          <div className="fixed inset-0 bg-black bg-opacity-30 z-[9998]" onClick={() => setShowRequestDialog(false)} />
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-30 z-[9998]" 
+            onClick={() => {
+              setShowRequestDialog(false);
+              setError('');
+              setRequestAmount('');
+            }} 
+          />
           <div className="fixed inset-0 flex items-center justify-center z-[9999]">
             <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl border border-gray-200">
               <h3 className="text-lg font-semibold text-[#121416] mb-2">Request Payout</h3>
               <p className="text-sm text-[#6a7581] mb-4">
                 Enter the amount you want to withdraw from your available balance.
               </p>
+              
+              {/* Error message inside dialog */}
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                  {error}
+                </div>
+              )}
+              
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-[#121416]">Available Balance</label>
@@ -417,7 +437,10 @@ export default function PayoutsPage() {
                     min="0"
                     max={wallet?.available_balance || 0}
                     value={requestAmount}
-                    onChange={(e) => setRequestAmount(e.target.value)}
+                    onChange={(e) => {
+                      setRequestAmount(e.target.value);
+                      if (error) setError(''); // Clear error when user starts typing
+                    }}
                     placeholder="0.00"
                   />
                   <p className="text-xs text-[#6a7581]">
@@ -435,12 +458,19 @@ export default function PayoutsPage() {
                     className="w-full h-10 px-3 rounded-md border border-gray-300"
                   >
                     <option value="BANK_TRANSFER">Bank Transfer</option>
-                    <option value="PAYHERE_PAYOUT">PayHere Payout</option>
                   </select>
                 </div>
               </div>
               <div className="flex gap-3 mt-6">
-                <Button variant="outline" onClick={() => setShowRequestDialog(false)} className="flex-1">
+                <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowRequestDialog(false);
+                  setError('');
+                  setRequestAmount('');
+                }} 
+                className="flex-1"
+              >
                   Cancel
                 </Button>
                 <Button
@@ -459,15 +489,36 @@ export default function PayoutsPage() {
       {/* Cancel Payout Dialog */}
       {cancelDialog.show && (
         <>
-          <div className="fixed inset-0 bg-black bg-opacity-30 z-[9998]" onClick={() => setCancelDialog({ show: false, payoutId: null })} />
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-30 z-[9998]" 
+            onClick={() => {
+              setCancelDialog({ show: false, payoutId: null });
+              setError('');
+            }} 
+          />
           <div className="fixed inset-0 flex items-center justify-center z-[9999]">
             <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl border border-gray-200">
               <h3 className="text-lg font-semibold text-[#121416] mb-2">Cancel Payout Request</h3>
-              <p className="text-sm text-[#6a7581] mb-6">
+              <p className="text-sm text-[#6a7581] mb-4">
                 Are you sure you want to cancel this payout request? The amount will be returned to your available balance.
               </p>
+              
+              {/* Error message inside dialog */}
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                  {error}
+                </div>
+              )}
+              
               <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setCancelDialog({ show: false, payoutId: null })} className="flex-1">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setCancelDialog({ show: false, payoutId: null });
+                    setError('');
+                  }} 
+                  className="flex-1"
+                >
                   Keep Request
                 </Button>
                 <Button onClick={handleCancelPayout} className="flex-1 bg-red-600 hover:bg-red-700">
