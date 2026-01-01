@@ -224,23 +224,27 @@ module.exports.createOrder = async (user_id, body) => {
     subOrders.push(subOrder);
 
     // Send email notification to seller about new order
-    try {
-      const subOrderWithDetails = await SubOrderModel.findById(subOrder._id)
-        .populate('seller_id', 'name email sellerInfo.businessName')
-        .populate('buyer_id', 'name')
-        .lean();
+    // For online payments (card), skip email here - will be sent after payment confirmation
+    // For COD and gift card, send immediately since payment is confirmed
+    if (paymentMethod !== 'card') {
+      try {
+        const subOrderWithDetails = await SubOrderModel.findById(subOrder._id)
+          .populate('seller_id', 'name email sellerInfo.businessName')
+          .populate('buyer_id', 'name')
+          .lean();
 
-      if (subOrderWithDetails && subOrderWithDetails.seller_id && subOrderWithDetails.seller_id.email) {
-        const emailTemplate = emailTemplateService.generateSellerNewOrderEmail(subOrderWithDetails);
-        await emailService.sendEmail({
-          to: subOrderWithDetails.seller_id.email,
-          subject: emailTemplate.subject,
-          html: emailTemplate.html,
-        });
+        if (subOrderWithDetails && subOrderWithDetails.seller_id && subOrderWithDetails.seller_id.email) {
+          const emailTemplate = emailTemplateService.generateSellerNewOrderEmail(subOrderWithDetails);
+          await emailService.sendEmail({
+            to: subOrderWithDetails.seller_id.email,
+            subject: emailTemplate.subject,
+            html: emailTemplate.html,
+          });
+        }
+      } catch (error) {
+        console.error(`Error sending new order email to seller ${sellerId}:`, error);
+        // Don't fail the operation if email fails
       }
-    } catch (error) {
-      console.error(`Error sending new order email to seller ${sellerId}:`, error);
-      // Don't fail the operation if email fails
     }
   }
 
