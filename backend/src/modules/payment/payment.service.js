@@ -122,11 +122,11 @@ module.exports.createPayment = async (paymentInfo) => {
 
       // Send order success email to buyer
       try {
-        const order = await repository.findOne(OrderModel, { _id: order_id })
+        const order = await OrderModel.findOne({ _id: order_id })
           .populate('user_id', 'name email')
           .lean();
         
-        if (order && order.user_id) {
+        if (order && order.user_id && order.user_id.email) {
           // Get sub-orders for the email
           const subOrderService = require('../subOrder/suborder.service');
           const subOrders = await subOrderService.getSubOrdersByMainOrder(order_id);
@@ -142,9 +142,11 @@ module.exports.createPayment = async (paymentInfo) => {
             subject: emailTemplate.subject,
             html: emailTemplate.html,
           });
+        } else {
+          console.warn(`Order ${order_id} found but user_id or email is missing for buyer email (COD/Gift Card)`);
         }
       } catch (error) {
-        console.error('Error sending order success email:', error);
+        console.error('Error sending order success email to buyer:', error);
         // Don't fail the operation if email fails
       }
     }
@@ -448,13 +450,13 @@ module.exports.updatePaymentStatus = async (data) => {
 
           // Send order success email to buyer
           try {
-            const orderWithUser = await repository.findOne(OrderModel, {
+            const orderWithUser = await OrderModel.findOne({
               _id: new mongoose.Types.ObjectId(order_id),
             })
               .populate('user_id', 'name email')
               .lean();
             
-            if (orderWithUser && orderWithUser.user_id) {
+            if (orderWithUser && orderWithUser.user_id && orderWithUser.user_id.email) {
               // Get sub-orders for the email
               const subOrders = await subOrderService.getSubOrdersByMainOrder(order_id);
               
@@ -469,9 +471,43 @@ module.exports.updatePaymentStatus = async (data) => {
                 subject: emailTemplate.subject,
                 html: emailTemplate.html,
               });
+            } else {
+              console.warn(`Order ${order_id} found but user_id or email is missing for buyer email`);
             }
           } catch (error) {
-            console.error('Error sending order success email:', error);
+            console.error('Error sending order success email to buyer:', error);
+            // Don't fail the operation if email fails
+          }
+
+          // Send order confirmation email to sellers (after payment is confirmed)
+          try {
+            const subOrders = await SubOrderModel.find({
+              main_order_id: new mongoose.Types.ObjectId(order_id),
+            })
+              .populate('seller_id', 'name email sellerInfo.businessName')
+              .populate('buyer_id', 'name')
+              .lean();
+
+            if (subOrders && subOrders.length > 0) {
+              // Send email to each seller
+              for (const subOrder of subOrders) {
+                if (subOrder.seller_id && subOrder.seller_id.email) {
+                  try {
+                    const emailTemplate = emailTemplateService.generateSellerNewOrderEmail(subOrder);
+                    await emailService.sendEmail({
+                      to: subOrder.seller_id.email,
+                      subject: emailTemplate.subject,
+                      html: emailTemplate.html,
+                    });
+                  } catch (error) {
+                    console.error(`Error sending order confirmation email to seller ${subOrder.seller_id._id}:`, error);
+                    // Continue with other sellers even if one fails
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error sending order confirmation emails to sellers:', error);
             // Don't fail the operation if email fails
           }
         } else {
