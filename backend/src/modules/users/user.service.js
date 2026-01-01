@@ -10,6 +10,7 @@ const { log } = require('console');
 const { roles } = require('../../config/role.config');
 const emailService = require('../../services/email.service');
 const emailTemplateService = require('../../services/email-template.service');
+const SellerWalletModel = require('../sellerWallet/seller-wallet.model');
 
 /**
  * Process user data with profile picture upload
@@ -167,6 +168,31 @@ module.exports.createUser = async (body) => {
 
   user = user.toObject();
   delete user.password;
+
+  // Create seller wallet if user is a seller
+  if (role === roles.seller) {
+    try {
+      const existingWallet = await repository.findOne(SellerWalletModel, {
+        seller_id: user._id,
+      });
+
+      if (!existingWallet) {
+        const newWallet = new SellerWalletModel({
+          seller_id: user._id,
+          available_balance: 0,
+          pending_balance: 0,
+          total_earned: 0,
+          total_withdrawn: 0,
+          currency: 'LKR',
+        });
+        await repository.save(newWallet);
+        console.log(`Seller wallet created for seller ${user._id}`);
+      }
+    } catch (error) {
+      console.error('Error creating seller wallet:', error);
+      // Don't fail the registration if wallet creation fails
+    }
+  }
 
   // Send registration success email
   try {

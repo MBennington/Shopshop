@@ -9,5 +9,7 @@ router.use('/suborder', require('./src/modules/subOrder/suborder.router'));
 router.use('/payment', require('./src/modules/payment/payment.router'));
 router.use('/gift-cards', require('./src/modules/giftcard/giftcard.router'));
 router.use('/config/platform-charges', require('./src/modules/platformCharges/platformCharges.router'));
+router.use('/seller-wallet', require('./src/modules/sellerWallet/seller-wallet.router'));
+router.use('/payout', require('./src/modules/payout/payout.router'));
 
 module.exports = router;

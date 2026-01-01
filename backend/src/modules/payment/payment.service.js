@@ -10,6 +10,8 @@ const stockService = require('../../services/stock.service');
 const giftCardService = require('../giftcard/giftcard.service');
 const emailService = require('../../services/email.service');
 const emailTemplateService = require('../../services/email-template.service');
+const sellerWalletService = require('../sellerWallet/seller-wallet.service');
+const subOrderService = require('../subOrder/suborder.service');
 const md5 = require('crypto-js/md5');
 const mongoose = require('mongoose');
 
@@ -53,6 +55,39 @@ module.exports.createPayment = async (paymentInfo) => {
         { seller_payment_status: sellerPaymentStatus.HELD },
         { new: true }
       );
+
+      // Add seller share to pending balance for gift card payments
+      try {
+        const subOrders = await SubOrderModel.find({
+          main_order_id: order_id,
+        }).lean();
+
+        if (subOrders && subOrders.length > 0) {
+          // Group by seller and sum their finalTotal
+          const sellerAmounts = {};
+          for (const subOrder of subOrders) {
+            const sellerId = subOrder.seller_id.toString();
+            if (!sellerAmounts[sellerId]) {
+              sellerAmounts[sellerId] = 0;
+            }
+            sellerAmounts[sellerId] += subOrder.finalTotal || 0;
+          }
+
+          // Add to pending balance for each seller
+          for (const [sellerId, amount] of Object.entries(sellerAmounts)) {
+            if (amount > 0) {
+              try {
+                await sellerWalletService.addToPendingBalance(sellerId, amount);
+                console.log(`Added ${amount} to pending balance for seller ${sellerId} (gift card payment)`);
+              } catch (error) {
+                console.error(`Error adding to pending balance for seller ${sellerId}:`, error);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error updating seller wallets for gift card payment:', error);
+      }
     } else if (payment_method === paymentMethod.COD) {
       // For COD, order is accepted but payment is pending
       // Set order status to pending (sellers will update it)
@@ -288,8 +323,44 @@ module.exports.updatePaymentStatus = async (data) => {
 
     // Sync main order status with sub-orders after status update
     if (subOrderUpdateData.orderStatus) {
-      const subOrderService = require('../subOrder/suborder.service');
       await subOrderService.syncMainOrderStatusWithSubOrders(order_id);
+    }
+  }
+
+  // Add seller share to pending balance when payment is successful
+  if (status === paymentStatus.PAID) {
+    try {
+      const subOrders = await SubOrderModel.find({
+        main_order_id: new mongoose.Types.ObjectId(order_id),
+      }).lean();
+
+      if (subOrders && subOrders.length > 0) {
+        // Group by seller and sum their finalTotal
+        const sellerAmounts = {};
+        for (const subOrder of subOrders) {
+          const sellerId = subOrder.seller_id.toString();
+          if (!sellerAmounts[sellerId]) {
+            sellerAmounts[sellerId] = 0;
+          }
+          sellerAmounts[sellerId] += subOrder.finalTotal || 0;
+        }
+
+        // Add to pending balance for each seller
+        for (const [sellerId, amount] of Object.entries(sellerAmounts)) {
+          if (amount > 0) {
+            try {
+              await sellerWalletService.addToPendingBalance(sellerId, amount);
+              console.log(`Added ${amount} to pending balance for seller ${sellerId}`);
+            } catch (error) {
+              console.error(`Error adding to pending balance for seller ${sellerId}:`, error);
+              // Don't fail the payment update if wallet update fails
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error updating seller wallets after payment:', error);
+      // Don't fail the payment update if wallet update fails
     }
   }
 
@@ -385,7 +456,6 @@ module.exports.updatePaymentStatus = async (data) => {
             
             if (orderWithUser && orderWithUser.user_id) {
               // Get sub-orders for the email
-              const subOrderService = require('../subOrder/suborder.service');
               const subOrders = await subOrderService.getSubOrdersByMainOrder(order_id);
               
               const orderWithSubOrders = {

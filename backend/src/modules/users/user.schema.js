@@ -20,8 +20,9 @@ const contactDetailsSchema = joi.object({
 
 const payoutsSchema = joi.object({
   paymentMethod: joi.string(),
-  accountNumber: joi.string(),
-  routingNumber: joi.string(),
+  bankAccountNumber: joi.string(),
+  bankAccountName: joi.string(),
+  bankName: joi.string(),
 });
 
 const sellerInfoSchema = joi.object({

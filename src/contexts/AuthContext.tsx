@@ -48,8 +48,9 @@ interface User {
     };
     payouts?: {
       paymentMethod?: string;
-      accountNumber?: string;
-      routingNumber?: string;
+      bankAccountNumber?: string;
+      bankAccountName?: string;
+      bankName?: string;
     };
   };
 }

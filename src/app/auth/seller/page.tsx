@@ -125,8 +125,7 @@ export default function SellerAuthPage() {
         setTimeout(() => {
           setSuccessMessage('');
         }, 3000);
-        localStorage.setItem('token', data.token);
-        router.push('/sell');
+        // Note: login() function in AuthContext already handles token storage and redirect
       } else {
         setErrorMessage(data.msg || 'Signup failed');
         setTimeout(() => {

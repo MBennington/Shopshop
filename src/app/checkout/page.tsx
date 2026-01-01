@@ -730,7 +730,8 @@ export default function CheckoutPage() {
       return_url:
         window.location.origin + `/order-success?orderId=${data.orderId}`, // success page with order ID
       cancel_url: window.location.origin + '/cart', // temporary cancel page
-      notify_url: `${BACKEND_URL}/api/payment/webhook`, // placeholder, replace later
+      //notify_url: `${BACKEND_URL}/api/payment/webhook`, // placeholder, replace later
+      notify_url: `https://isothiocyano-edmund-isentropic.ngrok-free.dev/api/payment/webhook`,
       order_id: data.orderId,
       items: 'Order Payment',
       amount: Number(data.amount).toFixed(2),

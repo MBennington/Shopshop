@@ -4,7 +4,8 @@ const UserModel = require('../users/user.model');
 const subOrderService = require('../subOrder/suborder.service');
 const repository = require('../../services/repository.service');
 const mongoose = require('mongoose');
-const { subOrderStatus } = require('../../config/suborder.config');
+const { subOrderStatus, deliveryStatus } = require('../../config/suborder.config');
+const SubOrderModel = require('../subOrder/suborder.model');
 
 /**
  * Create a new review
@@ -42,26 +43,36 @@ module.exports.createReview = async (reviewData, userId) => {
   // Check if any suborder was already delivered (for isVerified flag)
   const hadDeliveredOrders = subOrders.some(so => so.orderStatus === subOrderStatus.DELIVERED);
 
-  // Update non-delivered suborders to delivered after review submission
+  // Update non-delivered suborders to delivered and confirm delivery after review submission
   const nonDeliveredSubOrders = subOrders.filter(
     so => so.orderStatus !== subOrderStatus.DELIVERED
   );
 
   if (nonDeliveredSubOrders.length > 0) {
-    const SubOrderModel = require('../subOrder/suborder.model');
-    const subOrderService = require('../subOrder/suborder.service');
-    
-    // Update all non-delivered suborders
-    await Promise.all(
-      nonDeliveredSubOrders.map(subOrder =>
-        repository.updateOne(
-          SubOrderModel,
-          { _id: subOrder._id },
-          { orderStatus: subOrderStatus.DELIVERED },
-          { new: true }
-        )
-      )
-    );
+    // Update all non-delivered suborders - mark as delivered and confirm delivery
+    const updatedSubOrders = [];
+    for (const subOrder of nonDeliveredSubOrders) {
+      const updated = await repository.updateOne(
+        SubOrderModel,
+        { _id: subOrder._id },
+        {
+          orderStatus: subOrderStatus.DELIVERED,
+          delivery_confirmed: true,
+          delivery_confirmed_at: new Date(),
+          delivery_status: deliveryStatus.CONFIRMED,
+          notes: subOrder.notes 
+            ? `${subOrder.notes} Delivery auto-confirmed after review submission.`
+            : 'Delivery auto-confirmed after review submission.',
+        },
+        { new: true }
+      );
+      // Store updated suborder data for wallet update
+      if (updated) {
+        updatedSubOrders.push(updated.toObject ? updated.toObject() : updated);
+      } else {
+        updatedSubOrders.push(subOrder);
+      }
+    }
 
     // Sync main order status for each unique main order
     const mainOrderIds = [
@@ -76,6 +87,16 @@ module.exports.createReview = async (reviewData, userId) => {
     for (const mainOrderId of mainOrderIds) {
       if (mainOrderId) {
         await subOrderService.syncMainOrderStatusWithSubOrders(mainOrderId);
+      }
+    }
+
+    // Update seller wallets for all updated suborders
+    for (const updatedSubOrder of updatedSubOrders) {
+      try {
+        await subOrderService.updateWalletOnDeliveryConfirmation(updatedSubOrder);
+      } catch (error) {
+        console.error(`Error updating wallet for suborder ${updatedSubOrder._id} after review:`, error);
+        // Don't fail the review creation if wallet update fails
       }
     }
   }
@@ -315,25 +336,36 @@ module.exports.updateReview = async (reviewId, updateData, userId) => {
     so => so.orderStatus === subOrderStatus.DELIVERED
   );
 
-  // Update non-delivered suborders to delivered after review update
+  // Update non-delivered suborders to delivered and confirm delivery after review update
   const nonDeliveredSubOrders = subOrders.filter(
     so => so.orderStatus !== subOrderStatus.DELIVERED
   );
 
   if (nonDeliveredSubOrders.length > 0) {
-    const SubOrderModel = require('../subOrder/suborder.model');
-    
-    // Update all non-delivered suborders
-    await Promise.all(
-      nonDeliveredSubOrders.map(subOrder =>
-        repository.updateOne(
-          SubOrderModel,
-          { _id: subOrder._id },
-          { orderStatus: subOrderStatus.DELIVERED },
-          { new: true }
-        )
-      )
-    );
+    // Update all non-delivered suborders - mark as delivered and confirm delivery
+    const updatedSubOrders = [];
+    for (const subOrder of nonDeliveredSubOrders) {
+      const updated = await repository.updateOne(
+        SubOrderModel,
+        { _id: subOrder._id },
+        {
+          orderStatus: subOrderStatus.DELIVERED,
+          delivery_confirmed: true,
+          delivery_confirmed_at: new Date(),
+          delivery_status: deliveryStatus.CONFIRMED,
+          notes: subOrder.notes 
+            ? `${subOrder.notes} Delivery auto-confirmed after review update.`
+            : 'Delivery auto-confirmed after review update.',
+        },
+        { new: true }
+      );
+      // Store updated suborder data for wallet update
+      if (updated) {
+        updatedSubOrders.push(updated.toObject ? updated.toObject() : updated);
+      } else {
+        updatedSubOrders.push(subOrder);
+      }
+    }
 
     // Sync main order status for each unique main order
     const mainOrderIds = [
@@ -348,6 +380,16 @@ module.exports.updateReview = async (reviewId, updateData, userId) => {
     for (const mainOrderId of mainOrderIds) {
       if (mainOrderId) {
         await subOrderService.syncMainOrderStatusWithSubOrders(mainOrderId);
+      }
+    }
+
+    // Update seller wallets for all updated suborders
+    for (const updatedSubOrder of updatedSubOrders) {
+      try {
+        await subOrderService.updateWalletOnDeliveryConfirmation(updatedSubOrder);
+      } catch (error) {
+        console.error(`Error updating wallet for suborder ${updatedSubOrder._id} after review update:`, error);
+        // Don't fail the review update if wallet update fails
       }
     }
   }
