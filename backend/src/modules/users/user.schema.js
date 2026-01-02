@@ -130,4 +130,17 @@ module.exports.getAllUsers = joi.object().keys({
   page: joi.number().integer().min(1).default(1),
   limit: joi.number().integer().min(1).max(100).default(10),
   search: joi.string().trim().min(1).optional(),
+  role: joi.string().valid(...Object.values(roles)).optional(),
+});
+
+module.exports.updateUserByAdmin = joi.object({
+  name: joi.string().optional(),
+  email: joi.string().email().optional(),
+  role: joi.string().valid(...Object.values(roles)).optional(),
+  sellerInfo: sellerInfoSchema.optional(),
+  notifications: notificationsSchema.optional(),
+  privacySettings: privacySettingsSchema.optional(),
+  accountPreferences: accountPreferencesSchema.optional(),
+  savedAddresses: joi.array().items(addressSchema).optional(),
+  profilePicture: joi.string().uri().optional(),
 });

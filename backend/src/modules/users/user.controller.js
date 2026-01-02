@@ -126,12 +126,13 @@ module.exports.deleteUser = async (req, res) => {
  */
 module.exports.getAllUsers = async (req, res) => {
   try {
-    const { page, limit, search } = req.query;
+    const { page, limit, search, role } = req.query;
 
     const data = await userService.getAllUsers(
       parseInt(page) || 1,
       parseInt(limit) || 10,
-      search || ''
+      search || '',
+      role || ''
     );
 
     return successWithData(data, res);
@@ -209,6 +210,42 @@ module.exports.getSellerDataForShop = async (req, res) => {
     const sellerId = req.params.id;
 
     const data = await userService.getSellerDataForShop(sellerId);
+    return successWithData(data, res);
+  } catch (error) {
+    return customError(`${error.message}`, res);
+  }
+};
+
+/**
+ * Delete user by admin (no password required)
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.deleteUserByAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const adminId = res.locals.user.id;
+
+    const data = await userService.deleteUserByAdmin(id, adminId);
+    return successWithData(data, res);
+  } catch (error) {
+    return customError(`${error.message}`, res);
+  }
+};
+
+/**
+ * Update user by admin
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.updateUserByAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const files = req.file ? [req.file] : null;
+
+    const data = await userService.updateUserByAdmin(id, req.body, files);
     return successWithData(data, res);
   } catch (error) {
     return customError(`${error.message}`, res);

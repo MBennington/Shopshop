@@ -61,27 +61,44 @@ router
 //   );
 
 // Admin routes
-// router
-//   .route(permissions.getAllUsers.path)
-//   .get(
-//     validator.validateHeader(permissions.getAllUsers.grantedUserRoles),
-//     validator.validateQueryParameters(schema.getAllUsers),
-//     controller.getAllUsers
-//   );
+router
+  .route(permissions.getAllUsers.path)
+  .get(
+    validator.validateHeader(permissions.getAllUsers.grantedUserRoles),
+    validator.validateQueryParameters(schema.getAllUsers),
+    controller.getAllUsers
+  );
 
-// router
-//   .route(permissions.getUserById.path)
-//   .get(
-//     validator.validateHeader(permissions.getUserById.grantedUserRoles),
-//     controller.getUserById
-//   );
+router
+  .route(permissions.getUserById.path)
+  .get(
+    validator.validateHeader(permissions.getUserById.grantedUserRoles),
+    controller.getUserById
+  );
 
-// router
-//   .route(permissions.updateUserRole.path)
-//   .put(
-//     validator.validateHeader(permissions.updateUserRole.grantedUserRoles),
-//     validator.validateBody(schema.updateUserRole),
-//     controller.updateUserRole
-//   );
+router
+  .route(permissions.updateUserRole.path)
+  .put(
+    validator.validateHeader(permissions.updateUserRole.grantedUserRoles),
+    validator.validateBody(schema.updateUserRole),
+    controller.updateUserRole
+  );
+
+router
+  .route(permissions.deleteUserByAdmin.path)
+  .delete(
+    validator.validateHeader(permissions.deleteUserByAdmin.grantedUserRoles),
+    controller.deleteUserByAdmin
+  );
+
+router
+  .route(permissions.updateUserByAdmin.path)
+  .put(
+    upload.single('profilePicture'),
+    parseJSONFields,
+    validator.validateHeader(permissions.updateUserByAdmin.grantedUserRoles),
+    validator.validateBody(schema.updateUserByAdmin),
+    controller.updateUserByAdmin
+  );
 
 module.exports = router;
