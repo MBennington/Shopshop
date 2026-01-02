@@ -196,11 +196,13 @@ module.exports.createUser = async (body) => {
 
   // Send registration success email
   try {
-    const emailTemplate = emailTemplateService.generateRegistrationSuccessEmail({
-      userName: user.name,
-      userEmail: user.email,
-      role: user.role,
-    });
+    const emailTemplate = emailTemplateService.generateRegistrationSuccessEmail(
+      {
+        userName: user.name,
+        userEmail: user.email,
+        role: user.role,
+      }
+    );
     await emailService.sendEmail({
       to: user.email,
       subject: emailTemplate.subject,
@@ -515,29 +517,51 @@ module.exports.deleteUser = async (user_id, password) => {
  * @param page
  * @param limit
  * @param search
+ * @param role
  * @returns {Promise<*>}
  */
-module.exports.getAllUsers = async (page = 1, limit = 10, search = '') => {
+module.exports.getAllUsers = async (
+  page = 1,
+  limit = 10,
+  search = '',
+  role = ''
+) => {
   const skip = (page - 1) * limit;
 
   let query = {};
-  if (search) {
+
+  // Build query with role and search filters
+  if (role && search) {
+    // Both role and search filters
+    query = {
+      role: role,
+      $or: [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { 'sellerInfo.businessName': { $regex: search, $options: 'i' } },
+      ],
+    };
+  } else if (role) {
+    // Only role filter
+    query.role = role;
+  } else if (search) {
+    // Only search filter
     query = {
       $or: [
         { name: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
-        { businessName: { $regex: search, $options: 'i' } },
+        { 'sellerInfo.businessName': { $regex: search, $options: 'i' } },
       ],
     };
   }
 
-  const users = await repository.findMany(UserModel, query, {
+  const users = await repository.findMany(UserModel, query, null, {
     skip,
     limit,
     sort: { created_at: -1 },
   });
 
-  const total = await repository.count(UserModel, query);
+  const total = await repository.countDocuments(UserModel, query);
 
   // Remove passwords from response
   const usersWithoutPassword = users.map((user) => {
@@ -555,4 +579,77 @@ module.exports.getAllUsers = async (page = 1, limit = 10, search = '') => {
       pages: Math.ceil(total / limit),
     },
   };
+};
+
+/**
+ * Delete user by admin (no password required)
+ * @param userId
+ * @returns {Promise<*>}
+ */
+module.exports.deleteUserByAdmin = async (userId, adminId) => {
+  // Get user
+  const user = await this.getUserById(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Convert both IDs to strings for comparison (user._id is ObjectId, adminId is string)
+  if (user._id.toString() === adminId.toString()) {
+    throw new Error('You cannot delete your own account');
+  }
+
+  // Delete profile picture from Cloudinary if exists
+  if (user.profilePicture) {
+    try {
+      const publicId = extractPublicIdFromUrl(user.profilePicture);
+      if (publicId) {
+        await deleteFromCloudinary(publicId);
+        console.log('Deleted profile picture:', publicId);
+      }
+    } catch (error) {
+      console.error('Failed to delete profile picture:', error);
+      // Don't throw error for deletion failures
+    }
+  }
+
+  // Delete user
+  const deletedUser = await repository.deleteOne(UserModel, {
+    _id: userId,
+  });
+  console.log('Deleted user:', deletedUser);
+  if (!deletedUser) {
+    throw new Error('Failed to delete user');
+  }
+
+  const userResponse = deletedUser.toObject();
+  delete userResponse.password;
+
+  return userResponse;
+};
+
+/**
+ * Update user by admin
+ * @param userId
+ * @param body
+ * @param files
+ * @returns {Promise<*>}
+ */
+module.exports.updateUserByAdmin = async (userId, body, files) => {
+  const existingUser = await this.getUserById(userId);
+  if (!existingUser) throw new Error('User not found');
+
+  const processedData = await this.processUserData(body, files, existingUser);
+
+  const updatedUser = await repository.updateOne(
+    UserModel,
+    { _id: userId },
+    processedData,
+    { new: true }
+  );
+
+  if (!updatedUser) throw new Error('Failed to update user');
+
+  const user = updatedUser.toObject();
+  delete user.password;
+  return user;
 };

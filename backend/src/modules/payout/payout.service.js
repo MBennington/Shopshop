@@ -175,7 +175,7 @@ module.exports.getAllPayouts = async (options = {}) => {
  * @returns {Promise<Object>}
  */
 module.exports.approvePayout = async (payout_id, admin_note = null) => {
-  const payout = await this.getPayoutById(payout_id);
+  const payout = await this.getPayoutById(payout_id, roles.admin, null);
 
   if (payout.status !== 'PENDING') {
     throw new Error(`Cannot approve payout with status ${payout.status}`);
@@ -202,7 +202,7 @@ module.exports.approvePayout = async (payout_id, admin_note = null) => {
  * @returns {Promise<Object>}
  */
 module.exports.rejectPayout = async (payout_id, admin_note) => {
-  const payout = await this.getPayoutById(payout_id);
+  const payout = await this.getPayoutById(payout_id, roles.admin, null);
 
   if (payout.status !== 'PENDING') {
     throw new Error(`Cannot reject payout with status ${payout.status}`);
@@ -248,7 +248,7 @@ module.exports.markPayoutAsPaid = async (
   receipt_urls = [],
   admin_note = null
 ) => {
-  const payout = await this.getPayoutById(payout_id);
+  const payout = await this.getPayoutById(payout_id, roles.admin, null);
 
   if (payout.status !== 'APPROVED') {
     throw new Error(

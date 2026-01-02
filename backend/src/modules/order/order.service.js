@@ -315,7 +315,9 @@ module.exports.createOrder = async (user_id, body) => {
 };
 
 module.exports.findOrderById = async (order_id) => {
-  const order = await repository.findOne(OrderModel, { _id: order_id });
+  const order = await OrderModel.findById(order_id)
+    .populate('user_id', 'name email profilePicture')
+    .lean();
 
   if (!order) {
     return null;
@@ -325,8 +327,18 @@ module.exports.findOrderById = async (order_id) => {
   const subOrders = await subOrderService.getSubOrdersByMainOrder(order_id);
 
   // Convert to plain object and add sub-orders
-  const orderObj = order.toObject();
+  const orderObj = order;
   orderObj.sub_orders_details = subOrders;
+  
+  // Add user_info for admin/customer view
+  if (order.user_id) {
+    orderObj.user_info = {
+      _id: order.user_id._id || order.user_id,
+      name: order.user_id.name || 'Unknown User',
+      email: order.user_id.email || 'N/A',
+      profilePicture: order.user_id.profilePicture,
+    };
+  }
   
   // Remove redundant products_list since we only display sub-orders
   delete orderObj.products_list;
@@ -361,6 +373,70 @@ module.exports.getOrdersByUser = async (user_id, queryParams = {}) => {
       
       return {
         ...order,
+        sub_orders_count: subOrders.length,
+        sub_orders_summary: subOrders.map(so => ({
+          _id: so._id,
+          orderStatus: so.orderStatus,
+          seller_name: so.seller_info?.businessName || so.seller_info?.name || 'Unknown Seller',
+        })),
+      };
+    })
+  );
+
+  return {
+    orders: ordersWithSummary,
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+};
+
+/**
+ * Get all orders (for admin)
+ * @param {Object} queryParams - Query parameters (page, limit, status, userId)
+ * @returns {Promise<Object>}
+ */
+module.exports.getAllOrders = async (queryParams = {}) => {
+  const { page = 1, limit = 10, status, userId } = queryParams;
+  const skip = (page - 1) * limit;
+
+  const filter = {};
+  
+  if (status) {
+    filter.orderStatus = status;
+  }
+
+  if (userId) {
+    filter.user_id = new mongoose.Types.ObjectId(userId);
+  }
+
+  // Find orders with pagination
+  const orders = await OrderModel.find(filter)
+    .populate('user_id', 'name email profilePicture')
+    .sort({ created_at: -1 })
+    .skip(skip)
+    .limit(parseInt(limit))
+    .lean();
+
+  // Get total count for pagination
+  const total = await OrderModel.countDocuments(filter);
+
+  // For each order, get a summary of sub-orders (just count and status)
+  const ordersWithSummary = await Promise.all(
+    orders.map(async (order) => {
+      const subOrders = await subOrderService.getSubOrdersByMainOrder(order._id.toString());
+      
+      return {
+        ...order,
+        user_info: {
+          _id: order.user_id?._id || order.user_id,
+          name: order.user_id?.name || 'Unknown User',
+          email: order.user_id?.email || 'N/A',
+          profilePicture: order.user_id?.profilePicture,
+        },
         sub_orders_count: subOrders.length,
         sub_orders_summary: subOrders.map(so => ({
           _id: so._id,

@@ -31,4 +31,12 @@ router
     controller.getOrdersByUser
   );
 
+router
+  .route(permissions.getAllOrders.path)
+  .get(
+    validator.validateHeader(permissions.getAllOrders.grantedUserRoles),
+    validator.validateQueryParameters(schema.getAllOrders),
+    controller.getAllOrders
+  );
+
 module.exports = router;

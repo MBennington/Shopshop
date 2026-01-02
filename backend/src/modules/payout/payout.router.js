@@ -4,6 +4,7 @@ const validator = require('../../services/validator.service');
 const { permissions } = require('./payout.permission');
 const controller = require('./payout.controller');
 const schema = require('./payout.schema');
+const uploadReceipt = require('../../services/multer-receipt.service');
 
 // Seller routes
 router
@@ -62,6 +63,14 @@ router
     controller.markPayoutAsPaid
   );
 
+router
+  .route(permissions.uploadReceipts.path)
+  .post(
+    validator.validateHeader(permissions.uploadReceipts.grantedUserRoles),
+    uploadReceipt.array('receipts', 5),
+    controller.uploadReceipts
+  );
+
 // Shared routes (seller and admin)
 router
   .route(permissions.getPayoutById.path)
@@ -71,4 +80,5 @@ router
   );
 
 module.exports = router;
+
 

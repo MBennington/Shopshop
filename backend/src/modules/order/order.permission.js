@@ -13,4 +13,8 @@ module.exports.permissions = {
     path: '/user-orders',
     grantedUserRoles: [roles.admin, roles.buyer, roles.seller],
   },
+  getAllOrders: {
+    path: '/admin/all-orders',
+    grantedUserRoles: [roles.admin],
+  },
 };

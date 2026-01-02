@@ -65,3 +65,27 @@ module.exports.getOrdersByUser = async (req, res) => {
     return customError(`${error.message}`, res);
   }
 };
+
+/**
+ * Get all orders (admin only)
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.getAllOrders = async (req, res) => {
+  try {
+    const queryParams = {
+      page: req.query.page,
+      limit: req.query.limit,
+      status: req.query.status,
+      userId: req.query.userId,
+    };
+
+    const data = await orderService.getAllOrders(queryParams);
+
+    return successWithData(data, res);
+  } catch (error) {
+    console.error('Getting all orders error:', error);
+    return customError(`${error.message}`, res);
+  }
+};
