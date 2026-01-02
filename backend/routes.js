@@ -12,5 +12,6 @@ router.use('/config/platform-charges', require('./src/modules/platformCharges/pl
 router.use('/seller-wallet', require('./src/modules/sellerWallet/seller-wallet.router'));
 router.use('/payout', require('./src/modules/payout/payout.router'));
 router.use('/admin', require('./src/modules/admin/admin.router'));
+router.use('/seller', require('./src/modules/seller/seller.router'));
 
 module.exports = router;
