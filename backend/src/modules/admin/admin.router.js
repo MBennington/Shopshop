@@ -12,6 +12,34 @@ router
     controller.getDashboardStats
   );
 
+router
+  .route(permissions.getAllProductsForAdmin.path)
+  .get(
+    validator.validateHeader(permissions.getAllProductsForAdmin.grantedUserRoles),
+    controller.getAllProductsForAdmin
+  );
+
+router
+  .route(permissions.deactivateProduct.path)
+  .put(
+    validator.validateHeader(permissions.deactivateProduct.grantedUserRoles),
+    controller.deactivateProduct
+  );
+
+router
+  .route(permissions.activateProduct.path)
+  .put(
+    validator.validateHeader(permissions.activateProduct.grantedUserRoles),
+    controller.activateProduct
+  );
+
+router
+  .route(permissions.getProductStockData.path)
+  .get(
+    validator.validateHeader(permissions.getProductStockData.grantedUserRoles),
+    controller.getProductStockData
+  );
+
 module.exports = router;
 
 
