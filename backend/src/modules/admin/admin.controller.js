@@ -84,4 +84,23 @@ module.exports.getProductStockData = async (req, res) => {
   }
 };
 
+/**
+ * Get analytics data (admin only)
+ * @param {Object} req
+ * @param {Object} res
+ */
+module.exports.getAnalytics = async (req, res) => {
+  try {
+    const { period, startDate, endDate } = req.query;
+    const data = await adminService.getAnalytics({
+      period,
+      startDate,
+      endDate,
+    });
+    return successWithData(data, res);
+  } catch (error) {
+    return customError(`${error.message}`, res);
+  }
+};
+
 

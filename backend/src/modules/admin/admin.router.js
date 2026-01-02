@@ -40,6 +40,13 @@ router
     controller.getProductStockData
   );
 
+router
+  .route(permissions.getAnalytics.path)
+  .get(
+    validator.validateHeader(permissions.getAnalytics.grantedUserRoles),
+    controller.getAnalytics
+  );
+
 module.exports = router;
 
 

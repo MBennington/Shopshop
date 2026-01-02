@@ -417,3 +417,251 @@ module.exports.getProductStockData = async (productId) => {
     throw new Error('Failed to fetch stock data');
   }
 };
+
+/**
+ * Get comprehensive analytics data for admin
+ * @param {Object} filters - { startDate, endDate, period }
+ * @returns {Promise<Object>}
+ */
+module.exports.getAnalytics = async (filters = {}) => {
+  try {
+    const now = new Date();
+    let startDate, endDate = now;
+
+    // Determine date range based on period
+    const period = filters.period || '30d';
+    if (period === '7d') {
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - 7);
+    } else if (period === '30d') {
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - 30);
+    } else if (period === '90d') {
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - 90);
+    } else if (period === '1y') {
+      startDate = new Date(now);
+      startDate.setFullYear(startDate.getFullYear() - 1);
+    } else {
+      startDate = filters.startDate ? new Date(filters.startDate) : new Date(now);
+      startDate.setDate(startDate.getDate() - 30);
+      endDate = filters.endDate ? new Date(filters.endDate) : now;
+    }
+
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+
+    // Revenue trends (daily breakdown)
+    const revenueTrends = await PaymentModel.aggregate([
+      {
+        $match: {
+          paymentStatus: paymentStatus.PAID,
+          created_at: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$created_at' },
+          },
+          revenue: { $sum: '$amount' },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // Order trends (daily breakdown)
+    const orderTrends = await OrderModel.aggregate([
+      {
+        $match: {
+          created_at: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$created_at' },
+          },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // User growth trends
+    const userGrowthTrends = await UserModel.aggregate([
+      {
+        $match: {
+          created_at: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$created_at' },
+          },
+          buyers: {
+            $sum: { $cond: [{ $eq: ['$role', roles.buyer] }, 1, 0] },
+          },
+          sellers: {
+            $sum: { $cond: [{ $eq: ['$role', roles.seller] }, 1, 0] },
+          },
+          total: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // Category performance
+    const categoryPerformance = await OrderModel.aggregate([
+      {
+        $match: {
+          paymentStatus: paymentStatus.PAID,
+          created_at: { $gte: startDate, $lte: endDate },
+        },
+      },
+      { $unwind: '$products_list' },
+      {
+        $lookup: {
+          from: 'products',
+          localField: 'products_list.product_id',
+          foreignField: '_id',
+          as: 'product',
+        },
+      },
+      { $unwind: '$product' },
+      {
+        $group: {
+          _id: '$product.category',
+          revenue: { $sum: '$products_list.subtotal' },
+          orders: { $sum: 1 },
+          quantity: { $sum: '$products_list.qty' },
+        },
+      },
+      { $sort: { revenue: -1 } },
+    ]);
+
+    // Top selling products
+    const topProducts = await OrderModel.aggregate([
+      {
+        $match: {
+          paymentStatus: paymentStatus.PAID,
+          created_at: { $gte: startDate, $lte: endDate },
+        },
+      },
+      { $unwind: '$products_list' },
+      {
+        $lookup: {
+          from: 'products',
+          localField: 'products_list.product_id',
+          foreignField: '_id',
+          as: 'product',
+        },
+      },
+      { $unwind: '$product' },
+      {
+        $group: {
+          _id: '$products_list.product_id',
+          name: { $first: '$product.name' },
+          category: { $first: '$product.category' },
+          revenue: { $sum: '$products_list.subtotal' },
+          quantity: { $sum: '$products_list.qty' },
+          orders: { $sum: 1 },
+        },
+      },
+      { $sort: { revenue: -1 } },
+      { $limit: 10 },
+    ]);
+
+    // Top sellers/shops
+    const topSellers = await OrderModel.aggregate([
+      {
+        $match: {
+          paymentStatus: paymentStatus.PAID,
+          created_at: { $gte: startDate, $lte: endDate },
+        },
+      },
+      { $unwind: '$products_list' },
+      {
+        $lookup: {
+          from: 'products',
+          localField: 'products_list.product_id',
+          foreignField: '_id',
+          as: 'product',
+        },
+      },
+      { $unwind: '$product' },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'product.seller',
+          foreignField: '_id',
+          as: 'seller',
+        },
+      },
+      { $unwind: '$seller' },
+      {
+        $group: {
+          _id: '$product.seller',
+          sellerName: { $first: '$seller.name' },
+          businessName: { $first: '$seller.sellerInfo.businessName' },
+          revenue: { $sum: '$products_list.subtotal' },
+          orders: { $sum: 1 },
+          productsSold: { $sum: '$products_list.qty' },
+        },
+      },
+      { $sort: { revenue: -1 } },
+      { $limit: 10 },
+    ]);
+
+    // Overall statistics
+    const totalRevenue = revenueTrends.reduce(
+      (sum, item) => sum + (item.revenue || 0),
+      0
+    );
+    const totalOrders = orderTrends.reduce(
+      (sum, item) => sum + (item.count || 0),
+      0
+    );
+    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+    // User statistics
+    const newUsers = await UserModel.countDocuments({
+      created_at: { $gte: startDate, $lte: endDate },
+    });
+    const newBuyers = await UserModel.countDocuments({
+      role: roles.buyer,
+      created_at: { $gte: startDate, $lte: endDate },
+    });
+    const newSellers = await UserModel.countDocuments({
+      role: roles.seller,
+      created_at: { $gte: startDate, $lte: endDate },
+    });
+
+    return {
+      period,
+      dateRange: {
+        startDate,
+        endDate,
+      },
+      revenueTrends,
+      orderTrends,
+      userGrowthTrends,
+      categoryPerformance,
+      topProducts,
+      topSellers,
+      summary: {
+        totalRevenue,
+        totalOrders,
+        averageOrderValue,
+        newUsers,
+        newBuyers,
+        newSellers,
+      },
+    };
+  } catch (error) {
+    console.error('Error getting analytics:', error);
+    throw new Error('Failed to fetch analytics data');
+  }
+};

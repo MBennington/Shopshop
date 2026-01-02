@@ -21,6 +21,10 @@ module.exports.permissions = {
     path: '/products/:id/stock',
     grantedUserRoles: [roles.admin],
   },
+  getAnalytics: {
+    path: '/analytics',
+    grantedUserRoles: [roles.admin],
+  },
 };
 
 
