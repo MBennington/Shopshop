@@ -33,6 +33,11 @@ module.exports.permissions = {
     path: '/:id/cancel',
     grantedUserRoles: [roles.seller],
   },
+  uploadReceipts: {
+    path: '/upload-receipts',
+    grantedUserRoles: [roles.admin],
+  },
 };
+
 
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BACKEND_URL } from '@/lib/config';
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
     
@@ -12,12 +12,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const response = await fetch(`${BACKEND_URL}/api/seller-wallet/`, {
-      method: 'GET',
+    // Get the form data from the request
+    const formData = await request.formData();
+
+    // Forward the form data to the backend
+    const response = await fetch(`${BACKEND_URL}/api/payout/upload-receipts`, {
+      method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         'Authorization': authHeader,
       },
+      body: formData,
     });
 
     const data = await response.json();
@@ -28,13 +32,11 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Wallet fetch error:', error);
+    console.error('Upload receipts error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch wallet' },
+      { error: 'Failed to upload receipts' },
       { status: 500 }
     );
   }
 }
-
-
 

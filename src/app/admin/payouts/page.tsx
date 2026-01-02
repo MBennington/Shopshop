@@ -52,12 +52,14 @@ export default function AdminPayoutsPage() {
     payout: Payout | null;
     adminNote: string;
     amountPaid: string;
+    receiptFiles: File[];
   }>({
     show: false,
     type: null,
     payout: null,
     adminNote: '',
     amountPaid: '',
+    receiptFiles: [],
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -124,9 +126,36 @@ export default function AdminPayoutsPage() {
         body = { admin_note: actionDialog.adminNote };
       } else if (actionDialog.type === 'mark-paid') {
         url += '/mark-paid';
+        
+        // Upload receipt files first if any
+        let receiptUrls: string[] = [];
+        if (actionDialog.receiptFiles.length > 0) {
+          const formData = new FormData();
+          actionDialog.receiptFiles.forEach((file) => {
+            formData.append('receipts', file);
+          });
+
+          const uploadResponse = await fetch('/api/admin/payouts/upload-receipts', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+            body: formData,
+          });
+
+          if (!uploadResponse.ok) {
+            const uploadError = await uploadResponse.json();
+            throw new Error(uploadError.msg || uploadError.error || 'Failed to upload receipts');
+          }
+
+          const uploadData = await uploadResponse.json();
+          receiptUrls = uploadData.data?.receipt_urls || [];
+        }
+
         body = {
           amount_paid: parseFloat(actionDialog.amountPaid) || actionDialog.payout.amount_requested,
           admin_note: actionDialog.adminNote,
+          receipt_urls: receiptUrls,
         };
       }
 
@@ -143,7 +172,7 @@ export default function AdminPayoutsPage() {
 
       if (response.ok) {
         setSuccess(`Payout ${actionDialog.type === 'approve' ? 'approved' : actionDialog.type === 'reject' ? 'rejected' : 'marked as paid'} successfully`);
-        setActionDialog({ show: false, type: null, payout: null, adminNote: '', amountPaid: '' });
+        setActionDialog({ show: false, type: null, payout: null, adminNote: '', amountPaid: '', receiptFiles: [] });
         fetchPayouts();
         setTimeout(() => setSuccess(''), 3000);
       } else {
@@ -151,7 +180,7 @@ export default function AdminPayoutsPage() {
       }
     } catch (error) {
       console.error('Action error:', error);
-      setError('Server error during payout action');
+      setError(error instanceof Error ? error.message : 'Server error during payout action');
     } finally {
       setSubmitting(false);
     }
@@ -347,6 +376,24 @@ export default function AdminPayoutsPage() {
                               {payout.paid_at && (
                                 <p className="text-xs text-[#6a7581]">Paid: {formatDate(payout.paid_at)}</p>
                               )}
+                              {payout.receipt_urls && payout.receipt_urls.length > 0 && (
+                                <div className="mt-2">
+                                  <p className="text-xs text-[#6a7581] mb-1">Receipts:</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {payout.receipt_urls.map((url, idx) => (
+                                      <a
+                                        key={idx}
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs text-[#528bc5] hover:underline"
+                                      >
+                                        Receipt {idx + 1}
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </td>
                             <td className="px-4 py-3">
                               {payout.bank_name && (
@@ -370,6 +417,7 @@ export default function AdminPayoutsPage() {
                                           payout,
                                           adminNote: '',
                                           amountPaid: '',
+                                          receiptFiles: [],
                                         });
                                       }}
                                       className="bg-green-600 hover:bg-green-700 text-white"
@@ -386,6 +434,7 @@ export default function AdminPayoutsPage() {
                                           payout,
                                           adminNote: '',
                                           amountPaid: '',
+                                          receiptFiles: [],
                                         });
                                       }}
                                       className="border-red-300 text-red-600 hover:bg-red-50"
@@ -404,6 +453,7 @@ export default function AdminPayoutsPage() {
                                         payout,
                                         adminNote: '',
                                         amountPaid: payout.amount_requested.toString(),
+                                        receiptFiles: [],
                                       });
                                     }}
                                     className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -454,7 +504,7 @@ export default function AdminPayoutsPage() {
           <div
             className="fixed inset-0 bg-black bg-opacity-30 z-[9998]"
             onClick={() => {
-              setActionDialog({ show: false, type: null, payout: null, adminNote: '', amountPaid: '' });
+              setActionDialog({ show: false, type: null, payout: null, adminNote: '', amountPaid: '', receiptFiles: [] });
               setError('');
             }}
           />
@@ -483,23 +533,62 @@ export default function AdminPayoutsPage() {
 
               <div className="space-y-4">
                 {actionDialog.type === 'mark-paid' && (
-                  <div>
-                    <label className="block text-sm font-medium text-[#121416] mb-1">
-                      Amount Paid
-                    </label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={actionDialog.amountPaid}
-                      onChange={(e) =>
-                        setActionDialog({ ...actionDialog, amountPaid: e.target.value })
-                      }
-                      placeholder={actionDialog.payout.amount_requested.toString()}
-                    />
-                    <p className="text-xs text-[#6a7581] mt-1">
-                      Default: {formatCurrency(actionDialog.payout.amount_requested)}
-                    </p>
-                  </div>
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-[#121416] mb-1">
+                        Amount Paid
+                      </label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={actionDialog.amountPaid}
+                        onChange={(e) =>
+                          setActionDialog({ ...actionDialog, amountPaid: e.target.value })
+                        }
+                        placeholder={actionDialog.payout.amount_requested.toString()}
+                      />
+                      <p className="text-xs text-[#6a7581] mt-1">
+                        Default: {formatCurrency(actionDialog.payout.amount_requested)}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#121416] mb-1">
+                        Transaction Receipt (PDF or Image)
+                      </label>
+                      <input
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
+                        multiple
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          setActionDialog({ ...actionDialog, receiptFiles: files });
+                        }}
+                        className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-[#528bc5] file:text-white hover:file:bg-[#4a7bb3] cursor-pointer"
+                      />
+                      <p className="text-xs text-[#6a7581] mt-1">
+                        Upload PDF or image files (max 5 files, 10MB each)
+                      </p>
+                      {actionDialog.receiptFiles.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {actionDialog.receiptFiles.map((file, index) => (
+                            <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
+                              <span className="text-[#121416] truncate flex-1">{file.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newFiles = actionDialog.receiptFiles.filter((_, i) => i !== index);
+                                  setActionDialog({ ...actionDialog, receiptFiles: newFiles });
+                                }}
+                                className="ml-2 text-red-600 hover:text-red-800 text-xs"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
                 <div>
                   <label className="block text-sm font-medium text-[#121416] mb-1">
@@ -520,7 +609,7 @@ export default function AdminPayoutsPage() {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setActionDialog({ show: false, type: null, payout: null, adminNote: '', amountPaid: '' });
+                    setActionDialog({ show: false, type: null, payout: null, adminNote: '', amountPaid: '', receiptFiles: [] });
                     setError('');
                   }}
                   className="flex-1"
@@ -555,4 +644,5 @@ export default function AdminPayoutsPage() {
     </div>
   );
 }
+
 

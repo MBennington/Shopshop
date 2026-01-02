@@ -3,6 +3,7 @@ const {
   successWithData,
   customError,
 } = require('../../services/response.service');
+const cloudinaryService = require('../../services/cloudinary.service');
 
 /**
  * Create payout request
@@ -132,6 +133,34 @@ module.exports.markPayoutAsPaid = async (req, res) => {
     return successWithData(data, res);
   } catch (error) {
     return customError(`${error.message}`, res);
+  }
+};
+
+/**
+ * Upload receipt files (admin)
+ * @param {Object} req
+ * @param {Object} res
+ */
+module.exports.uploadReceipts = async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return customError('No files uploaded', res, 400);
+    }
+
+    const uploadPromises = req.files.map((file) =>
+      cloudinaryService.uploadBufferToCloudinary(
+        file.buffer,
+        file.originalname,
+        'payout-receipts'
+      )
+    );
+
+    const uploadResults = await Promise.all(uploadPromises);
+    const receiptUrls = uploadResults.map((result) => result.url);
+
+    return successWithData({ receipt_urls: receiptUrls }, res);
+  } catch (error) {
+    return customError(`Upload failed: ${error.message}`, res);
   }
 };
 
