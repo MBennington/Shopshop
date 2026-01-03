@@ -190,8 +190,8 @@ const generateGiftCardNotificationEmail = ({ recipientName, senderName }) => {
  */
 const generateRegistrationSuccessEmail = ({ userName, userEmail, role }) => {
   const isSeller = role === 'seller';
-  const subject = isSeller 
-    ? 'Welcome to Shopshop - Start Selling Today! 🚀' 
+  const subject = isSeller
+    ? 'Welcome to Shopshop - Start Selling Today! 🚀'
     : 'Welcome to Shopshop - Start Shopping Now! 🛍️';
 
   const shopUrl = `${emailService.FRONTEND_URL}`;
@@ -208,35 +208,45 @@ const generateRegistrationSuccessEmail = ({ userName, userEmail, role }) => {
     </head>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="background: linear-gradient(135deg, #121416 0%, #2a2d30 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-        <h1 style="color: white; margin: 0;">${isSeller ? '🚀 Welcome to Shopshop!' : '🛍️ Welcome to Shopshop!'}</h1>
+        <h1 style="color: white; margin: 0;">${
+          isSeller ? '🚀 Welcome to Shopshop!' : '🛍️ Welcome to Shopshop!'
+        }</h1>
       </div>
       
       <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
         <p style="font-size: 16px;">Hi ${userName},</p>
         
         <p style="font-size: 16px;">
-          ${isSeller 
-            ? 'Congratulations! Your seller account has been successfully created. You\'re now ready to start selling on Shopshop!' 
-            : 'Thank you for joining Shopshop! Your account has been successfully created. Start exploring amazing products and great deals!'}
+          ${
+            isSeller
+              ? "Congratulations! Your seller account has been successfully created. You're now ready to start selling on Shopshop!"
+              : 'Thank you for joining Shopshop! Your account has been successfully created. Start exploring amazing products and great deals!'
+          }
         </p>
         
         <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #121416;">
-          <h3 style="margin-top: 0; color: #121416;">${isSeller ? 'Next Steps:' : 'What\'s Next?'}</h3>
-          ${isSeller 
-            ? `
+          <h3 style="margin-top: 0; color: #121416;">${
+            isSeller ? 'Next Steps:' : "What's Next?"
+          }</h3>
+          ${
+            isSeller
+              ? `
               <p style="margin: 10px 0;">1. Complete your seller profile</p>
               <p style="margin: 10px 0;">2. Add your first product</p>
               <p style="margin: 10px 0;">3. Start receiving orders from buyers</p>
             `
-            : `
+              : `
               <p style="margin: 10px 0;">1. Browse our wide selection of products</p>
               <p style="margin: 10px 0;">2. Add items to your cart</p>
               <p style="margin: 10px 0;">3. Enjoy secure checkout and fast delivery</p>
-            `}
+            `
+          }
         </div>
         
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${isSeller ? sellUrl : exploreUrl}" style="display: inline-block; background: #121416; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+          <a href="${
+            isSeller ? sellUrl : exploreUrl
+          }" style="display: inline-block; background: #121416; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
             ${isSeller ? 'Go to Seller Dashboard' : 'Start Shopping'}
           </a>
         </div>
@@ -269,10 +279,18 @@ const generateOrderSuccessEmail = (order) => {
   const orderId = order._id?.toString() || order._id || 'N/A';
   const shortOrderId = orderId.slice(-8);
   const buyerName = order.user_id?.name || order.buyerName || 'Customer';
-  const orderDate = order.created_at 
-    ? new Date(order.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-    : new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  
+  const orderDate = order.created_at
+    ? new Date(order.created_at).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+
   const finalTotal = order.finalTotal || 0;
   const paymentMethod = order.paymentMethod || 'N/A';
   const orderStatusUrl = `${emailService.FRONTEND_URL}/order-success?orderId=${orderId}`;
@@ -281,11 +299,16 @@ const generateOrderSuccessEmail = (order) => {
   // Format sub-orders summary
   let subOrdersSummary = '';
   if (order.sub_orders_details && order.sub_orders_details.length > 0) {
-    subOrdersSummary = order.sub_orders_details.map((subOrder, index) => {
-      const sellerName = subOrder.seller_info?.businessName || subOrder.seller_info?.name || 'Seller';
-      const productCount = subOrder.products_list?.length || 0;
-      return `<p style="margin: 5px 0;">• ${sellerName} - ${productCount} item(s)</p>`;
-    }).join('');
+    subOrdersSummary = order.sub_orders_details
+      .map((subOrder, index) => {
+        const sellerName =
+          subOrder.seller_info?.businessName ||
+          subOrder.seller_info?.name ||
+          'Seller';
+        const productCount = subOrder.products_list?.length || 0;
+        return `<p style="margin: 5px 0;">• ${sellerName} - ${productCount} item(s)</p>`;
+      })
+      .join('');
   }
 
   const subject = '✅ Order Placed Successfully!';
@@ -314,9 +337,16 @@ const generateOrderSuccessEmail = (order) => {
           <h3 style="margin-top: 0; color: #10b981;">Order Summary</h3>
           <p style="margin: 5px 0;"><strong>Order ID:</strong> ${shortOrderId}</p>
           <p style="margin: 5px 0;"><strong>Order Date:</strong> ${orderDate}</p>
-          <p style="margin: 5px 0;"><strong>Total Amount:</strong> LKR ${finalTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p style="margin: 5px 0;"><strong>Total Amount:</strong> LKR ${finalTotal.toLocaleString(
+            'en-US',
+            { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+          )}</p>
           <p style="margin: 5px 0;"><strong>Payment Method:</strong> ${paymentMethod.toUpperCase()}</p>
-          ${subOrdersSummary ? `<div style="margin-top: 15px;"><strong>Items from:</strong>${subOrdersSummary}</div>` : ''}
+          ${
+            subOrdersSummary
+              ? `<div style="margin-top: 15px;"><strong>Items from:</strong>${subOrdersSummary}</div>`
+              : ''
+          }
         </div>
         
         <div style="text-align: center; margin: 30px 0;">
@@ -352,7 +382,10 @@ const generateOrderSuccessEmail = (order) => {
 const generateSellerNewOrderEmail = (subOrder) => {
   const subOrderId = subOrder._id?.toString() || subOrder._id || 'N/A';
   const shortOrderId = subOrderId.slice(-8);
-  const sellerName = subOrder.seller_id?.name || subOrder.seller_id?.sellerInfo?.businessName || 'Seller';
+  const sellerName =
+    subOrder.seller_id?.name ||
+    subOrder.seller_id?.sellerInfo?.businessName ||
+    'Seller';
   const buyerName = subOrder.buyer_id?.name || 'Customer';
   const orderTotal = subOrder.finalTotal || 0;
   const productCount = subOrder.products_list?.length || 0;
@@ -385,7 +418,10 @@ const generateSellerNewOrderEmail = (subOrder) => {
           <p style="margin: 5px 0;"><strong>Order ID:</strong> ${shortOrderId}</p>
           <p style="margin: 5px 0;"><strong>Customer:</strong> ${buyerName}</p>
           <p style="margin: 5px 0;"><strong>Items:</strong> ${productCount} product(s)</p>
-          <p style="margin: 5px 0;"><strong>Order Total:</strong> LKR ${orderTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p style="margin: 5px 0;"><strong>Order Total:</strong> LKR ${orderTotal.toLocaleString(
+            'en-US',
+            { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+          )}</p>
         </div>
         
         <div style="text-align: center; margin: 30px 0;">
@@ -480,6 +516,89 @@ const generateOrderDeliveredEmail = (order) => {
   return { subject, html };
 };
 
+/**
+ * Generate email template for issue report confirmation
+ * @param {Object} params - { userName, userEmail, issueType, subject, issueReportId }
+ * @returns {Object} - { subject, html }
+ */
+const generateIssueReportConfirmationEmail = ({
+  userName,
+  userEmail,
+  issueType,
+  subject,
+  issueReportId,
+}) => {
+  const issueTypeLabels = {
+    order: 'Order Issue',
+    product: 'Product Issue',
+    delivery: 'Delivery Issue',
+    payment: 'Payment Issue',
+    review: 'Review Issue',
+    other: 'Other Issue',
+  };
+
+  const issueTypeLabel = issueTypeLabels[issueType] || 'Issue';
+  const myIssuesUrl = `${emailService.FRONTEND_URL}/my-orders`;
+
+  const emailSubject = `${issueTypeLabel} Report Received`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Issue Report Received</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #528bc5 0%, #4a7bb3 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0;">Issue Report Received</h1>
+      </div>
+      
+      <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+        <p style="font-size: 16px;">Hello ${userName},</p>
+        
+        <p style="font-size: 16px;">
+          Thank you for contacting us. Your issue report has been received and is now under review by our support team.
+        </p>
+        
+        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #528bc5;">
+          <h3 style="margin-top: 0; color: #528bc5;">Report Details</h3>
+          <p style="margin: 5px 0;"><strong>Issue Type:</strong> ${issueTypeLabel}</p>
+          <p style="margin: 5px 0;"><strong>Subject:</strong> ${subject}</p>
+          <p style="margin: 5px 0;"><strong>Report ID:</strong> ${issueReportId.slice(
+            -8
+          )}</p>
+          <p style="margin: 5px 0;"><strong>Status:</strong> Pending Review</p>
+        </div>
+        
+        <p style="font-size: 16px; margin-top: 20px;">
+          We are reviewing the matter and will provide an update as soon as possible, typically within 24–48 hours.
+        </p>
+        
+        <p style="font-size: 16px; margin-top: 20px;">
+          If additional information is required, we will contact you.
+        </p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${myIssuesUrl}" style="display: inline-block; background: #528bc5; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+            View My Orders
+          </a>
+        </div>
+        
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+        
+        <p style="font-size: 12px; color: #999; text-align: center;">
+          This is an automated email from Shopshop. Please do not reply to this email. If you need immediate assistance, please contact our support team directly.
+        </p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return { subject: emailSubject, html };
+};
+
 module.exports = {
   generateBuyerDeliveryConfirmationEmail,
   generateAdminDisputeNotificationEmail,
@@ -488,5 +607,5 @@ module.exports = {
   generateOrderSuccessEmail,
   generateSellerNewOrderEmail,
   generateOrderDeliveredEmail,
+  generateIssueReportConfirmationEmail,
 };
-

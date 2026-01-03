@@ -23,4 +23,3 @@ module.exports.getAnalytics = async (req, res) => {
     return customError(`${error.message}`, res);
   }
 };
-

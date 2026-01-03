@@ -16,7 +16,31 @@ import {
   Truck,
   RefreshCw,
   PackageCheck,
+  RotateCcw,
 } from 'lucide-react';
+
+// Order statuses from config (backend/src/config/order.config.js)
+const ORDER_STATUSES = {
+  PENDING: 'pending',
+  PROCESSING: 'processing',
+  PACKED: 'packed',
+  DISPATCHED: 'dispatched',
+  DELIVERED: 'delivered',
+  CANCELLED: 'cancelled',
+  RETURNED: 'returned',
+} as const;
+
+// Filter options with display labels
+const FILTER_OPTIONS = [
+  { label: 'All', value: 'All' },
+  { label: 'Pending', value: ORDER_STATUSES.PENDING },
+  { label: 'Processing', value: ORDER_STATUSES.PROCESSING },
+  { label: 'Packed', value: ORDER_STATUSES.PACKED },
+  { label: 'Dispatched', value: ORDER_STATUSES.DISPATCHED },
+  { label: 'Delivered', value: ORDER_STATUSES.DELIVERED },
+  { label: 'Cancelled', value: ORDER_STATUSES.CANCELLED },
+  { label: 'Returned', value: ORDER_STATUSES.RETURNED },
+];
 
 interface Order {
   _id: string;
@@ -61,7 +85,8 @@ export default function MyOrdersPage() {
         return;
       }
 
-      const status = activeFilter !== 'All' ? activeFilter : '';
+      // Convert filter to lowercase status value (API expects lowercase)
+      const status = activeFilter !== 'All' ? activeFilter.toLowerCase() : '';
       const response = await fetch(
         `/api/order?userOrders=true&page=1&limit=50${
           status ? `&status=${status}` : ''
@@ -105,10 +130,14 @@ export default function MyOrdersPage() {
       case 'cancelled':
       case 'failed':
         return 'text-red-600 bg-red-50';
+      case 'returned':
+        return 'text-orange-600 bg-orange-50';
       case 'processing':
-      case 'packed':
-      case 'dispatched':
         return 'text-blue-600 bg-blue-50';
+      case 'packed':
+        return 'text-indigo-600 bg-indigo-50';
+      case 'dispatched':
+        return 'text-purple-600 bg-purple-50';
       default:
         return 'text-gray-600 bg-gray-50';
     }
@@ -122,8 +151,12 @@ export default function MyOrdersPage() {
       case 'cancelled':
       case 'failed':
         return <XCircle className="h-4 w-4" />;
+      case 'returned':
+        return <RotateCcw className="h-4 w-4" />;
       case 'processing':
+        return <RefreshCw className="h-4 w-4" />;
       case 'packed':
+        return <PackageCheck className="h-4 w-4" />;
       case 'dispatched':
         return <Truck className="h-4 w-4" />;
       default:
@@ -215,21 +248,19 @@ export default function MyOrdersPage() {
 
         {/* Filter Buttons */}
         <div className="mb-6 flex flex-wrap gap-2">
-          {['All', 'Pending', 'Processing', 'Delivered', 'Cancelled'].map(
-            (filter) => (
-              <button
-                key={filter}
-                onClick={() => setActiveFilter(filter)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  activeFilter === filter
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }`}
-              >
-                {filter}
-              </button>
-            )
-          )}
+          {FILTER_OPTIONS.map((filter) => (
+            <button
+              key={filter.value}
+              onClick={() => setActiveFilter(filter.value)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeFilter === filter.value
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
         </div>
 
         {/* Orders List */}
@@ -242,7 +273,7 @@ export default function MyOrdersPage() {
               </h2>
               <p className="text-gray-600 mb-6">
                 {activeFilter !== 'All'
-                  ? `You don't have any ${activeFilter.toLowerCase()} orders.`
+                  ? `You don't have any ${FILTER_OPTIONS.find(f => f.value === activeFilter)?.label.toLowerCase() || activeFilter} orders.`
                   : "You haven't placed any orders yet."}
               </p>
               <Button onClick={() => router.push('/')}>Start Shopping</Button>
