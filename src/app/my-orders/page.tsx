@@ -14,6 +14,8 @@ import {
   XCircle,
   Clock,
   Truck,
+  RefreshCw,
+  PackageCheck,
 } from 'lucide-react';
 
 interface Order {
@@ -126,6 +128,42 @@ export default function MyOrdersPage() {
         return <Truck className="h-4 w-4" />;
       default:
         return <Clock className="h-4 w-4" />;
+    }
+  };
+
+  const getSubOrderStatusIcon = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'delivered':
+        return <CheckCircle className="h-3.5 w-3.5 text-green-600" />;
+      case 'cancelled':
+        return <XCircle className="h-3.5 w-3.5 text-red-600" />;
+      case 'dispatched':
+        return <Truck className="h-3.5 w-3.5 text-blue-600" />;
+      case 'packed':
+        return <PackageCheck className="h-3.5 w-3.5 text-indigo-600" />;
+      case 'processing':
+        return <RefreshCw className="h-3.5 w-3.5 text-yellow-600" />;
+      case 'pending':
+      default:
+        return <Clock className="h-3.5 w-3.5 text-gray-600" />;
+    }
+  };
+
+  const getSubOrderStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'delivered':
+        return 'bg-green-50 border-green-200';
+      case 'cancelled':
+        return 'bg-red-50 border-red-200';
+      case 'dispatched':
+        return 'bg-blue-50 border-blue-200';
+      case 'packed':
+        return 'bg-indigo-50 border-indigo-200';
+      case 'processing':
+        return 'bg-yellow-50 border-yellow-200';
+      case 'pending':
+      default:
+        return 'bg-gray-50 border-gray-200';
     }
   };
 
@@ -280,13 +318,18 @@ export default function MyOrdersPage() {
                                 .map((subOrder, idx) => (
                                   <span
                                     key={subOrder._id}
-                                    className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-700"
+                                    className={`text-xs px-2 py-1 rounded border flex items-center gap-1.5 ${getSubOrderStatusColor(
+                                      subOrder.orderStatus
+                                    )}`}
                                   >
-                                    {subOrder.seller_name}
+                                    {getSubOrderStatusIcon(subOrder.orderStatus)}
+                                    <span className="text-gray-700 font-medium">
+                                      {subOrder.seller_name}
+                                    </span>
                                   </span>
                                 ))}
                               {order.sub_orders_summary.length > 3 && (
-                                <span className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-700">
+                                <span className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-700 border border-gray-200">
                                   +{order.sub_orders_summary.length - 3} more
                                 </span>
                               )}
