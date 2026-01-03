@@ -42,10 +42,27 @@ export default function ReportIssuePage() {
     }
 
     try {
-      // TODO: Implement actual API endpoint for reporting issues
-      // For now, we'll just show a success message
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      const response = await fetch('/api/issue-reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          issueType: formData.issueType,
+          subject: formData.subject,
+          description: formData.description,
+          orderId: formData.orderId || null,
+          productId: formData.productId || null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || data.msg || 'Failed to submit issue report');
+      }
+
       setSubmitStatus('success');
       setFormData({
         subject: '',
