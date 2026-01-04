@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 
 interface Product {
@@ -61,6 +61,12 @@ export default function ShopDetailsPage({
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set()
   );
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 0,
+  });
   const fetchingRef = useRef(false);
 
   // For animated title - moved before early returns
@@ -68,28 +74,13 @@ export default function ShopDetailsPage({
     setTimeout(() => setShowTitle(true), 100);
   }, []);
 
-  // Expand all categories by default - moved to top
+  // Fetch seller data (only once)
   useEffect(() => {
-    const productCategories = Array.from(
-      new Set(products.map((p) => p.category).filter(Boolean))
-    );
-    if (productCategories.length > 0) {
-      setExpandedCategories(
-        new Set(productCategories.filter((cat): cat is string => Boolean(cat)))
-      );
-    }
-  }, [products]);
-
-  useEffect(() => {
-    const fetchShopData = async () => {
-      // Prevent duplicate calls
+    const fetchSellerData = async () => {
       if (fetchingRef.current) return;
       fetchingRef.current = true;
 
       try {
-        setLoading(true);
-
-        // Fetch seller data from API
         const sellerResponse = await fetch(`/api/get-seller-data-for-shop?sellerId=${id}`);
         
         if (!sellerResponse.ok) {
@@ -101,32 +92,115 @@ export default function ShopDetailsPage({
 
         const sellerData = await sellerResponse.json();
         setSeller(sellerData.data);
-
-        // Fetch products
-        const productsResponse = await fetch(
-          `/api/products/products-by-seller-id/${id}`
-        );
-
-        if (!productsResponse.ok) {
-          const errorText = await productsResponse.text();
-          throw new Error(
-            `Failed to fetch products: ${productsResponse.status} ${errorText}`
-          );
-        }
-
-        const productsData = await productsResponse.json();
-        setProducts(productsData.data || []);
-
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
-        setLoading(false);
         fetchingRef.current = false;
       }
     };
 
-    fetchShopData();
+    fetchSellerData();
   }, [id]);
+
+  // Fetch products with server-side filtering
+  const fetchProducts = useCallback(async (isLoadMore = false) => {
+    try {
+      if (!isLoadMore) {
+        setLoading(true);
+      }
+      setError(null);
+
+      // Map activeCategory to filterType
+      const filterTypeMap: Record<string, string> = {
+        'All': 'all',
+        'New Arrivals': 'new_arrivals',
+        'Best Sellers': 'best_sellers',
+        'Sale': 'sale',
+      };
+
+      setPagination((prev) => {
+        const queryParams = new URLSearchParams({
+          page: isLoadMore ? (prev.page + 1).toString() : '1',
+          limit: prev.limit.toString(),
+        });
+
+        // Add filterType if not 'All'
+        if (activeCategory !== 'All') {
+          queryParams.append('filterType', filterTypeMap[activeCategory] || 'all');
+        }
+
+        // Add search if provided
+        if (search.trim()) {
+          queryParams.append('search', search.trim());
+        }
+
+        fetch(
+          `/api/products/products-by-seller-id/${id}?${queryParams.toString()}`
+        )
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error('Failed to fetch products');
+            }
+            return response.json();
+          })
+          .then((data) => {
+            if (isLoadMore) {
+              // Append new products
+              if (data.data?.records && data.data.records.length > 0) {
+                setProducts((products) => [...products, ...data.data.records]);
+              }
+              setPagination((current) => ({
+                ...current,
+                page: current.page + 1,
+                total: data.data?.recordsTotal || 0,
+                pages: Math.ceil((data.data?.recordsTotal || 0) / current.limit),
+              }));
+            } else {
+              // Replace products
+              setProducts(data.data?.records || []);
+              setPagination({
+                page: 1,
+                limit: prev.limit,
+                total: data.data?.recordsTotal || 0,
+                pages: Math.ceil((data.data?.recordsTotal || 0) / prev.limit),
+              });
+            }
+            setLoading(false);
+          })
+          .catch((err) => {
+            setError(err instanceof Error ? err.message : 'An error occurred');
+            setLoading(false);
+          });
+
+        return prev;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      setLoading(false);
+    }
+  }, [activeCategory, search, id]);
+
+  // Fetch products when filters change
+  useEffect(() => {
+    fetchProducts(false);
+  }, [activeCategory, search, id, fetchProducts]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  }, [activeCategory, search]);
+
+  // Expand all categories by default when products change
+  useEffect(() => {
+    const productCategories = Array.from(
+      new Set(products.map((p) => p.category).filter(Boolean))
+    );
+    if (productCategories.length > 0) {
+      setExpandedCategories(
+        new Set(productCategories.filter((cat): cat is string => Boolean(cat)))
+      );
+    }
+  }, [products]);
 
   if (loading) {
     return (
@@ -166,7 +240,7 @@ export default function ShopDetailsPage({
   // Keep original UI categories
   const allCategories = ['All', 'New Arrivals', 'Best Sellers', 'Sale'];
 
-  // Group products by category
+  // Group products by category (for "All" view)
   const productsByCategory = products.reduce((acc, product) => {
     const category = product.category || 'Uncategorized';
     if (!acc[category]) {
@@ -175,31 +249,6 @@ export default function ShopDetailsPage({
     acc[category].push(product);
     return acc;
   }, {} as Record<string, Product[]>);
-
-  // Filter products based on search and active category
-  const getFilteredProducts = (productList: Product[]) => {
-    return productList.filter((p) => {
-      const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-      let matchesCategory = false;
-      
-      if (activeCategory === 'All') {
-        matchesCategory = true;
-      } else if (activeCategory === 'New Arrivals') {
-        // Show products created in the last 30 days
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        matchesCategory = new Date(p.created_at) > thirtyDaysAgo;
-      } else if (activeCategory === 'Best Sellers') {
-        // Show products with high inventory (best sellers)
-        matchesCategory = p.totalInventory > 50;
-      } else if (activeCategory === 'Sale') {
-        // Show products on sale (you can add a sale field to products later)
-        matchesCategory = false; // No sale products for now
-      }
-      
-      return matchesSearch && matchesCategory;
-    });
-  };
 
   // Toggle category expansion
   const toggleCategory = (category: string) => {
@@ -336,6 +385,12 @@ export default function ShopDetailsPage({
                     className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-full text-[#131416] focus:outline-0 focus:ring-0 border-none bg-transparent h-full placeholder:text-[#6c757f] px-4 rounded-l-none border-l-0 pl-2 text-base font-normal leading-normal"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        fetchProducts(false);
+                      }
+                    }}
                   />
                 </div>
               </label>
@@ -345,9 +400,7 @@ export default function ShopDetailsPage({
                 // Show all categories with collapsible sections
                 productCategories.map((category) => {
                   if (!category) return null;
-                  const categoryProducts = getFilteredProducts(
-                    productsByCategory[category] || []
-                  );
+                  const categoryProducts = productsByCategory[category] || [];
                   if (categoryProducts.length === 0) return null;
                   const isExpanded = expandedCategories.has(category);
 
@@ -459,7 +512,7 @@ export default function ShopDetailsPage({
               ) : (
                 // Show filtered products for selected category
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
-                  {getFilteredProducts(products).map((product) => {
+                  {products.map((product) => {
                     const firstImage =
                       product.colors?.[0]?.images?.[0] ||
                       `https://ui-avatars.com/api/?name=${encodeURIComponent(
@@ -512,9 +565,28 @@ export default function ShopDetailsPage({
                   })}
                 </div>
               )}
-              {getFilteredProducts(products).length === 0 && (
+              {products.length === 0 && !loading && (
                 <div className="text-center text-[#6c757f] py-8">
                   No products found in this shop.
+                </div>
+              )}
+              {/* Load More Button */}
+              {products.length < pagination.total && products.length > 0 && (
+                <div className="flex justify-center mt-8 px-6">
+                  <button
+                    onClick={() => fetchProducts(true)}
+                    disabled={loading}
+                    className="px-6 py-3 bg-[#1976d2] text-white rounded-lg hover:bg-[#1565c0] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {loading ? (
+                      <div className="flex items-center gap-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Loading...
+                      </div>
+                    ) : (
+                      `Load More (${products.length} of ${pagination.total})`
+                    )}
+                  </button>
                 </div>
               )}
             </div>

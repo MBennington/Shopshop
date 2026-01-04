@@ -29,7 +29,8 @@ module.exports.createProduct = async (req, res) => {
 };
 
 /**
- * Get products by seller
+ * Get products by seller (authenticated - seller's own products, includes inactive)
+ * GET /api/products/products-by-seller?search=...&category=...&page=1&limit=20
  * @param req
  * @param res
  * @returns {Promise<*>}
@@ -37,7 +38,12 @@ module.exports.createProduct = async (req, res) => {
 module.exports.getProductsBySeller = async (req, res) => {
   try {
     const user_id = res.locals.user.id;
-    const data = await productService.getProductsBySeller(user_id);
+    const query = {
+      ...req.query,
+      seller: user_id,
+      includeInactive: true, // Sellers can see their inactive products
+    };
+    const data = await productService.getProducts(query);
     return successWithData(data, res);
   } catch (error) {
     return customError(`${error.message}`, res);
@@ -142,7 +148,8 @@ module.exports.getProductDetails = async (req, res) => {
 };
 
 /**
- * Get products by seller ID (public endpoint)
+ * Get products by seller ID (public shop pages - active only)
+ * GET /api/products/products-by-seller-id/:id?search=...&category=...&page=1&limit=20
  * @param req
  * @param res
  * @returns {Promise<*>}
@@ -150,9 +157,12 @@ module.exports.getProductDetails = async (req, res) => {
 module.exports.getProductsBySellerId = async (req, res) => {
   try {
     const sellerId = req.params.id;
-    console.log('seller id: ', sellerId);
-
-    const data = await productService.getActiveProductsBySeller(sellerId);
+    const query = {
+      ...req.query,
+      seller: sellerId,
+      includeInactive: false, // Public pages only show active
+    };
+    const data = await productService.getProducts(query);
     return successWithData(data, res);
   } catch (error) {
     return customError(`${error.message}`, res);
