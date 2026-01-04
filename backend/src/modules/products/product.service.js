@@ -55,7 +55,7 @@ module.exports.processProductData = async (
       // Check if keepImages is provided (images to keep from existing)
       const keepImages = colorData.keepImages || [];
       const imagesToKeep = Array.isArray(keepImages) ? keepImages : [];
-      
+
       // Find images for this color from the files array
       const colorImages = files
         ? files.filter(
@@ -109,10 +109,7 @@ module.exports.processProductData = async (
               console.log(`Deleted removed image: ${publicId}`);
             }
           } catch (error) {
-            console.error(
-              `Failed to delete old image: ${oldImageUrl}`,
-              error
-            );
+            console.error(`Failed to delete old image: ${oldImageUrl}`, error);
             // Don't throw error for deletion failures
           }
         }
@@ -368,106 +365,324 @@ module.exports.deleteProduct = async (product_id, user_id) => {
 };
 
 /**
- * Get all products
- * @param body
+ * Unified product fetching with filtering, pagination, and sorting
+ * Supports: category filtering, shop filtering, seller management, and more
+ * @param body - Query parameters
  * @returns {Promise<*>}
  */
 module.exports.getProducts = async (body) => {
-  const { limit, order = 'desc', page, search, category } = body;
-  const column = body.column || -1;
+  const {
+    // Pagination
+    limit = 10,
+    page = 1,
 
-  // Simple sorting logic without external dependencies
-  const sortingOrder = order === 'desc' || !order ? -1 : 1;
-  const sortingColumn =
-    column === 0
-      ? 'name'
-      : column === 1
-      ? 'price'
-      : column === 2
-      ? 'category'
-      : 'created_at';
+    // Search
+    search,
 
-  let matchQuery = {
-    isActive: { $ne: false }, // Only active products
-  };
+    // === MATCH QUERY FILTERS ===
 
+    // 1. Status Filters
+    isActive, // 'true', 'false', or undefined (both)
+    includeInactive, // boolean - include inactive products
+
+    // 2. Seller/Shop Filter (single)
+    seller, // seller ID (for shop pages)
+
+    // 3. Category Filter (single)
+    category, // single category
+
+    // 4. Product Type Filters
+    filterType, // 'all', 'new_arrivals', 'best_sellers', 'sale', 'out_of_stock', 'in_stock'
+
+    // 5. Price Range Filters
+    priceMin, // minimum price
+    priceMax, // maximum price
+
+    // 6. Inventory Filters
+    minStock, // minimum inventory quantity
+    maxStock, // maximum inventory quantity
+    stockStatus, // 'in_stock', 'out_of_stock', 'low_stock', 'all'
+
+    // 7. Date Range Filters
+    createdAfter, // ISO date string
+    createdBefore, // ISO date string
+    updatedAfter, // ISO date string
+    updatedBefore, // ISO date string
+
+    // 8. Sale/Discount Filters
+    onSale, // boolean - products on sale
+    discountMin, // minimum discount percentage
+    discountMax, // maximum discount percentage
+
+    // === SORTING PARAMETERS ===
+    order, // 'asc' or 'desc'
+    column, // 0=name, 1=price, 2=category, -1=created_at
+    sortBy, // 'featured', 'price_asc', 'price_desc', 'newest', 'oldest', 'name_asc', 'name_desc', 'best_sellers'
+  } = body;
+
+  console.log('query ', body);
+
+  // Build match query
+  let matchQuery = {};
+
+  // 1. STATUS FILTERS
+  if (includeInactive === false || isActive === 'true') {
+    // Only active products (default for public)
+    matchQuery.isActive = { $ne: false };
+  } else if (isActive === 'false') {
+    // Only inactive products
+    matchQuery.isActive = false;
+  }
+  // If isActive is undefined or 'all', include both (no filter)
+
+  // 2. SELLER/SHOP FILTER (single)
+  if (seller) {
+    matchQuery.seller = new mongoose.Types.ObjectId(seller);
+  }
+
+  // 3. CATEGORY FILTER (single)
   if (category) {
-    matchQuery = {
-      ...matchQuery,
-      category: category,
+    matchQuery.category = category;
+  }
+
+  // 4. PRODUCT TYPE FILTERS (filterType)
+  if (filterType === 'new_arrivals') {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    matchQuery.created_at = { $gte: thirtyDaysAgo };
+  } else if (filterType === 'best_sellers') {
+    // Filter by salesCount (actual sales data)
+    matchQuery.salesCount = { $gt: 0 }; // Products with at least 1 sale
+  } else if (filterType === 'sale') {
+    matchQuery.onSale = true; // Requires onSale field in product model
+  }
+  // out_of_stock and in_stock are handled after inventory calculation
+
+  // 5. PRICE RANGE FILTERS
+  if (priceMin !== undefined || priceMax !== undefined) {
+    matchQuery.price = {};
+    if (priceMin !== undefined) {
+      matchQuery.price.$gte = parseFloat(priceMin);
+    }
+    if (priceMax !== undefined) {
+      matchQuery.price.$lte = parseFloat(priceMax);
+    }
+  }
+
+  // 7. DATE RANGE FILTERS
+  if (createdAfter || createdBefore) {
+    matchQuery.created_at = matchQuery.created_at || {};
+    if (createdAfter) {
+      matchQuery.created_at.$gte = new Date(createdAfter);
+    }
+    if (createdBefore) {
+      matchQuery.created_at.$lte = new Date(createdBefore);
+    }
+  }
+  if (updatedAfter || updatedBefore) {
+    matchQuery.updated_at = {};
+    if (updatedAfter) {
+      matchQuery.updated_at.$gte = new Date(updatedAfter);
+    }
+    if (updatedBefore) {
+      matchQuery.updated_at.$lte = new Date(updatedBefore);
+    }
+  }
+
+  // 8. SALE/DISCOUNT FILTERS
+  if (onSale === true || onSale === 'true') {
+    matchQuery.onSale = true; // Requires onSale field
+  }
+  if (discountMin !== undefined || discountMax !== undefined) {
+    matchQuery.discountPercentage = {};
+    if (discountMin !== undefined) {
+      matchQuery.discountPercentage.$gte = parseFloat(discountMin);
+    }
+    if (discountMax !== undefined) {
+      matchQuery.discountPercentage.$lte = parseFloat(discountMax);
+    }
+  }
+
+  console.log('match query: ', matchQuery);
+
+  // === SORTING LOGIC ===
+  let sortQuery = {};
+
+  // Handle sortBy parameter (more user-friendly)
+  if (sortBy) {
+    switch (sortBy) {
+      case 'featured':
+        sortQuery = { created_at: -1 };
+        break;
+      case 'price_asc':
+        sortQuery = { price: 1, created_at: -1 };
+        break;
+      case 'price_desc':
+        sortQuery = { price: -1, created_at: -1 };
+        break;
+      case 'newest':
+        sortQuery = { created_at: -1 };
+        break;
+      case 'oldest':
+        sortQuery = { created_at: 1 };
+        break;
+      case 'name_asc':
+        sortQuery = { name: 1, created_at: -1 };
+        break;
+      case 'name_desc':
+        sortQuery = { name: -1, created_at: -1 };
+        break;
+      case 'best_sellers':
+        // Sort by salesCount (actual sales data)
+        sortQuery = { salesCount: -1, created_at: -1 };
+        break;
+      default:
+        sortQuery = { created_at: -1 };
+    }
+  } else {
+    // Fallback to column/order parameters
+    const sortingOrder = order === 'asc' ? 1 : -1;
+    const columnNum = parseInt(column) || -1;
+    const sortingColumn =
+      columnNum === 0
+        ? 'name'
+        : columnNum === 1
+        ? 'price'
+        : columnNum === 2
+        ? 'category'
+        : 'created_at';
+
+    sortQuery = {
+      [sortingColumn]: sortingOrder,
+      created_at: -1, // Secondary sort
     };
   }
 
-  const sortQuery = {
-    [sortingColumn]: sortingOrder,
-    created_at: -1,
-  };
-
-  // Base query (no pagination)
-  const prePaginationQuery = [{ $match: matchQuery }];
-
-  // Count total records
-  let recordsTotal = await repository.findByAggregateQuery(ProductModel, [
-    ...prePaginationQuery,
-    { $count: 'count' },
-  ]);
-
-  recordsTotal = recordsTotal?.[0]?.count || 0;
-
-  // Ensure limit is positive and reasonable
+  // Build aggregation pipeline
   const pageLimit = Math.max(1, Math.min(parseInt(limit) || 10, 100));
+  const pageNumber = Math.max(1, parseInt(page) || 1);
 
-  // Pagination + sorting
-  const paginationQuery = [
-    { $sort: sortQuery },
-    { $skip: page ? pageLimit * (page - 1) : 0 },
-    { $limit: pageLimit },
+  // Build pipeline stages
+  const pipeline = [
+    // Initial match query
+    { $match: matchQuery },
+
+    // Calculate totalInventory
+    {
+      $addFields: {
+        totalInventory: {
+          $cond: {
+            if: { $eq: ['$hasSizes', true] },
+            then: {
+              $sum: {
+                $map: {
+                  input: '$colors',
+                  as: 'color',
+                  in: {
+                    $sum: {
+                      $map: {
+                        input: { $ifNull: ['$$color.sizes', []] },
+                        as: 'size',
+                        in: { $ifNull: ['$$size.quantity', 0] },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            else: {
+              $sum: {
+                $map: {
+                  input: '$colors',
+                  as: 'color',
+                  in: { $ifNull: ['$$color.quantity', 0] },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   ];
 
-  let records;
+  // Apply inventory-based filters after calculation
+  const inventoryFilters = [];
 
-  // If no search term, fetch normally
-  if (!search) {
-    records = await repository.findByAggregateQuery(ProductModel, [
-      ...prePaginationQuery,
-      ...paginationQuery,
-    ]);
-  } else {
-    // If search term exists
-    const searchRegex = { $regex: search, $options: 'i' };
-    const searchQuery = [
-      ...prePaginationQuery,
-      {
-        $match: {
-          $or: [
-            { name: searchRegex },
-            { category: searchRegex },
-            { description: searchRegex },
-            { price: parseFloat(search) || -1 },
-          ],
-        },
-      },
-    ];
+  if (filterType === 'out_of_stock') {
+    inventoryFilters.push({ $match: { totalInventory: 0 } });
+  } else if (filterType === 'in_stock') {
+    inventoryFilters.push({ $match: { totalInventory: { $gt: 0 } } });
+  }
+  // best_sellers filter is now handled in matchQuery using salesCount
 
-    const data = await repository.findByAggregateQuery(ProductModel, [
-      {
-        $facet: {
-          records: [...searchQuery, ...paginationQuery],
-          recordsTotal: [...searchQuery, { $count: 'count' }],
-        },
-      },
-    ]);
-
-    records = data?.[0]?.records || [];
-    recordsTotal = data?.[0]?.recordsTotal?.[0]?.count || 0;
+  if (stockStatus === 'out_of_stock') {
+    inventoryFilters.push({ $match: { totalInventory: 0 } });
+  } else if (stockStatus === 'in_stock') {
+    inventoryFilters.push({ $match: { totalInventory: { $gt: 0 } } });
+  } else if (stockStatus === 'low_stock') {
+    inventoryFilters.push({ $match: { totalInventory: { $gt: 0, $lte: 10 } } });
   }
 
-  const recordsFiltered = records?.length || 0;
+  if (minStock !== undefined) {
+    inventoryFilters.push({
+      $match: { totalInventory: { $gte: parseFloat(minStock) } },
+    });
+  }
+  if (maxStock !== undefined) {
+    inventoryFilters.push({
+      $match: { totalInventory: { $lte: parseFloat(maxStock) } },
+    });
+  }
+
+  pipeline.push(...inventoryFilters);
+
+  // Search handling
+  if (search) {
+    const searchRegex = { $regex: search, $options: 'i' };
+    pipeline.push({
+      $match: {
+        $or: [
+          { name: searchRegex },
+          { category: searchRegex },
+          { description: searchRegex },
+        ],
+      },
+    });
+  }
+
+  // Count and paginate using $facet
+  pipeline.push({
+    $facet: {
+      records: [
+        { $sort: sortQuery },
+        { $skip: (pageNumber - 1) * pageLimit },
+        { $limit: pageLimit },
+      ],
+      recordsTotal: [{ $count: 'count' }],
+    },
+  });
+
+  const result = await repository.findByAggregateQuery(ProductModel, pipeline);
+  console.log('result ', result);
+
+  const records = result?.[0]?.records || [];
+  const recordsTotal = result?.[0]?.recordsTotal?.[0]?.count || 0;
+
+  // Calculate totalInventory for each product (already done in pipeline, but ensure it's in the result)
+  const recordsWithInventory = records.map((product) => {
+    const productObj = product.toObject ? product.toObject() : product;
+    // totalInventory is already calculated in pipeline
+    if (!productObj.totalInventory) {
+      productObj.totalInventory =
+        module.exports.calculateTotalInventory(productObj);
+    }
+    return productObj;
+  });
 
   return {
-    records,
+    records: recordsWithInventory,
     recordsTotal,
-    recordsFiltered,
+    recordsFiltered: records.length,
   };
 };
 
@@ -492,9 +707,13 @@ module.exports.getProductDetails = async (productId) => {
 
   // Calculate available stock for each color/size variant
   if (productObj.colors && productObj.colors.length > 0) {
-    for (let colorIndex = 0; colorIndex < productObj.colors.length; colorIndex++) {
+    for (
+      let colorIndex = 0;
+      colorIndex < productObj.colors.length;
+      colorIndex++
+    ) {
       const color = productObj.colors[colorIndex];
-      
+
       if (productObj.hasSizes && color.sizes) {
         // Product with sizes - calculate available stock for each size
         for (let sizeIndex = 0; sizeIndex < color.sizes.length; sizeIndex++) {
@@ -504,7 +723,8 @@ module.exports.getProductDetails = async (productId) => {
             color.colorCode,
             size.size
           );
-          productObj.colors[colorIndex].sizes[sizeIndex].availableQuantity = availableStock;
+          productObj.colors[colorIndex].sizes[sizeIndex].availableQuantity =
+            availableStock;
         }
       } else {
         // Product without sizes - calculate available stock for color

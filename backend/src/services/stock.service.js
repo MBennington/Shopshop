@@ -230,6 +230,9 @@ module.exports.deductStock = async (orderId) => {
       );
     }
 
+    // Increment sales count for best sellers tracking
+    product.salesCount = (product.salesCount || 0) + item.qty;
+
     await repository.save(product);
   }
 };
@@ -315,6 +318,9 @@ module.exports.restoreStockFromCancelledSubOrder = async (subOrderId) => {
       product.colors[colorIndex].quantity =
         (product.colors[colorIndex].quantity || 0) + item.qty;
     }
+
+    // Decrement sales count when order is cancelled (stock restored)
+    product.salesCount = Math.max(0, (product.salesCount || 0) - item.qty);
 
     await repository.save(product);
   }

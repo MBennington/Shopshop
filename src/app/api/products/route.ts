@@ -21,6 +21,39 @@ export async function GET(request: NextRequest) {
     if (searchParams.get('search')) {
       queryParams.append('search', searchParams.get('search')!);
     }
+    if (searchParams.get('seller')) {
+      queryParams.append('seller', searchParams.get('seller')!);
+    }
+    if (searchParams.get('filterType')) {
+      queryParams.append('filterType', searchParams.get('filterType')!);
+    }
+    if (searchParams.get('priceMin')) {
+      queryParams.append('priceMin', searchParams.get('priceMin')!);
+    }
+    if (searchParams.get('priceMax')) {
+      queryParams.append('priceMax', searchParams.get('priceMax')!);
+    }
+    if (searchParams.get('stockStatus')) {
+      queryParams.append('stockStatus', searchParams.get('stockStatus')!);
+    }
+    if (searchParams.get('minStock')) {
+      queryParams.append('minStock', searchParams.get('minStock')!);
+    }
+    if (searchParams.get('maxStock')) {
+      queryParams.append('maxStock', searchParams.get('maxStock')!);
+    }
+    if (searchParams.get('isActive')) {
+      queryParams.append('isActive', searchParams.get('isActive')!);
+    }
+    if (searchParams.get('includeInactive')) {
+      queryParams.append('includeInactive', searchParams.get('includeInactive')!);
+    }
+    if (searchParams.get('onSale')) {
+      queryParams.append('onSale', searchParams.get('onSale')!);
+    }
+    if (searchParams.get('sortBy')) {
+      queryParams.append('sortBy', searchParams.get('sortBy')!);
+    }
     if (searchParams.get('order')) {
       queryParams.append('order', searchParams.get('order')!);
     }

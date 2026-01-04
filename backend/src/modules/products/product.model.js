@@ -52,6 +52,11 @@ const productSchema = new Schema(
       type: Boolean,
       default: true,
     },
+    salesCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   {
     timestamps: {
@@ -62,5 +67,6 @@ const productSchema = new Schema(
 );
 
 productSchema.index({ name: 1 });
+productSchema.index({ salesCount: -1 }); // Index for best sellers queries
 
 module.exports = mongoose.model('product', productSchema);
