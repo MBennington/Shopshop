@@ -542,12 +542,13 @@ module.exports.getProducts = async (body) => {
   } else {
     // Fallback to column/order parameters
     const sortingOrder = order === 'asc' ? 1 : -1;
+    const columnNum = parseInt(column) || -1;
     const sortingColumn =
-      column === 0
+      columnNum === 0
         ? 'name'
-        : column === 1
+        : columnNum === 1
         ? 'price'
-        : column === 2
+        : columnNum === 2
         ? 'category'
         : 'created_at';
 
