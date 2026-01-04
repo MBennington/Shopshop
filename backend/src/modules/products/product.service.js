@@ -451,8 +451,8 @@ module.exports.getProducts = async (body) => {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     matchQuery.created_at = { $gte: thirtyDaysAgo };
   } else if (filterType === 'best_sellers') {
-    // High inventory (proxy for best sellers) - will be handled after inventory calculation
-    // We'll add this filter after calculating totalInventory
+    // Filter by salesCount (actual sales data)
+    matchQuery.salesCount = { $gt: 0 }; // Products with at least 1 sale
   } else if (filterType === 'sale') {
     matchQuery.onSale = true; // Requires onSale field in product model
   }
@@ -533,8 +533,8 @@ module.exports.getProducts = async (body) => {
         sortQuery = { name: -1, created_at: -1 };
         break;
       case 'best_sellers':
-        // Would need salesCount field or use totalInventory as proxy
-        sortQuery = { totalInventory: -1, created_at: -1 };
+        // Sort by salesCount (actual sales data)
+        sortQuery = { salesCount: -1, created_at: -1 };
         break;
       default:
         sortQuery = { created_at: -1 };
@@ -612,9 +612,8 @@ module.exports.getProducts = async (body) => {
     inventoryFilters.push({ $match: { totalInventory: 0 } });
   } else if (filterType === 'in_stock') {
     inventoryFilters.push({ $match: { totalInventory: { $gt: 0 } } });
-  } else if (filterType === 'best_sellers') {
-    inventoryFilters.push({ $match: { totalInventory: { $gt: 50 } } });
   }
+  // best_sellers filter is now handled in matchQuery using salesCount
 
   if (stockStatus === 'out_of_stock') {
     inventoryFilters.push({ $match: { totalInventory: 0 } });

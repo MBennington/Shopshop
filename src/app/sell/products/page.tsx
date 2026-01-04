@@ -66,7 +66,8 @@ export default function ProductsPage() {
       }
 
       const data = await response.json();
-      setProducts(data.data || []);
+      // Handle new unified response format: { records, recordsTotal, recordsFiltered }
+      setProducts(data.data?.records || data.data || []);
     } catch (err: any) {
       setError(err.message);
     } finally {
