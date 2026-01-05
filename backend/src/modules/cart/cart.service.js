@@ -4,6 +4,7 @@ const userService = require('../users/user.service');
 const mongoose = require('mongoose');
 const repository = require('../../services/repository.service');
 const productService = require('../products/product.service');
+const stockService = require('../stock/stock.service');
 const { platformCharges } = require('../../config/platform-charges.config');
 
 /**
@@ -33,10 +34,48 @@ module.exports.createOrUpdateCart = async (body, user_id) => {
     throw new Error('Seller not found!');
   }
 
-  const subTotal = newProduct.qty * product.price;
-  //console.log('subtotal: ', subTotal);
+  // Validate stock availability before adding/updating cart
+  const colorData = product.colors.find(
+    (c) => c.colorCode === newProduct.color || c.colorName === newProduct.color
+  );
+
+  if (!colorData) {
+    throw new Error(`Color ${newProduct.color} not found in product`);
+  }
+
+  const colorCode = colorData.colorCode;
+  const availableStock = await stockService.getAvailableStock(
+    newProduct.product_id,
+    colorCode,
+    newProduct.size || null
+  );
 
   const cart = await CartModel.findOne({ user_id });
+  let requestedQty = newProduct.qty;
+
+  // If cart exists, check current quantity in cart
+  if (cart) {
+    const existingItem = cart.products_list.find(
+      (p) =>
+        p.product_id.toString() === newProduct.product_id &&
+        (p.size || null) === (newProduct.size || null) &&
+        p.color === newProduct.color
+    );
+
+    if (existingItem) {
+      // If item already in cart, calculate total requested quantity
+      requestedQty = existingItem.quantity + newProduct.qty;
+    }
+  }
+
+  if (requestedQty > availableStock) {
+    throw new Error(
+      `Insufficient stock. Available: ${availableStock}, Requested: ${requestedQty}`
+    );
+  }
+
+  const subTotal = newProduct.qty * product.price;
+  //console.log('subtotal: ', subTotal);
 
   if (!cart) {
     const newCartItem = new CartModel({
@@ -65,7 +104,7 @@ module.exports.createOrUpdateCart = async (body, user_id) => {
   const index = updatedList.findIndex(
     (p) =>
       p.product_id.toString() === newProduct.product_id &&
-      p.size === newProduct.size &&
+      (p.size || null) === (newProduct.size || null) &&
       p.color === newProduct.color
   );
   //console.log('index: ', index);
@@ -73,8 +112,8 @@ module.exports.createOrUpdateCart = async (body, user_id) => {
   if (index !== -1) {
     // Update quantity and subTotal
     updatedList[index].quantity += newProduct.qty;
-    updatedList[index].subTotal =
-      updatedList[index].quantity * newProduct.price;
+    updatedList[index].subtotal =
+      updatedList[index].quantity * product.price;
   } else {
     // Add new product to list
     updatedList.push({
@@ -158,6 +197,8 @@ module.exports.getCartByUserId = async (userId) => {
             100
           ]
         },
+        'products_list.colorCode': '$selectedColor.colorCode',
+        'products_list.hasSizes': '$product.hasSizes',
       },
     },
     {
@@ -177,6 +218,8 @@ module.exports.getCartByUserId = async (userId) => {
         'products_list.business_name': 1,
         'products_list.seller_profile_picture': 1,
         'products_list.seller_baseShippingFee': 1,
+        'products_list.colorCode': 1,
+        'products_list.hasSizes': 1,
       },
     },
     {
@@ -196,9 +239,9 @@ module.exports.getCartByUserId = async (userId) => {
     return null;
   }
 
-  // Group products by seller
+  // Group products by seller and add available stock
   const sellers = {};
-  cartData.products_list.forEach((item) => {
+  for (const item of cartData.products_list) {
     const sellerId = item.seller_id.toString();
     
     if (!sellers[sellerId]) {
@@ -218,9 +261,22 @@ module.exports.getCartByUserId = async (userId) => {
       };
     }
     
+    // Get available stock for this item
+    try {
+      const availableStock = await stockService.getAvailableStock(
+        item.product_id,
+        item.colorCode || item.color,
+        item.size || null
+      );
+      item.availableStock = availableStock;
+    } catch (error) {
+      console.error(`Error getting stock for product ${item.product_id}:`, error);
+      item.availableStock = 0;
+    }
+    
     sellers[sellerId].products.push(item);
     sellers[sellerId].subtotal += item.subtotal;
-  });
+  }
 
   // Return only the grouped data, remove redundant products_list
   return {
@@ -320,7 +376,7 @@ module.exports.updateQuantity = async (body, user_id) => {
   const index = updatedList.findIndex(
     (p) =>
       p.product_id.toString() === updatedProduct.product_id &&
-      p.size === updatedProduct.size &&
+      (p.size || null) === (updatedProduct.size || null) &&
       p.color === updatedProduct.color
   );
   //console.log('index: ', index);
@@ -328,6 +384,29 @@ module.exports.updateQuantity = async (body, user_id) => {
   if (index == -1) {
     throw new Error('Product not found in the cart!');
   }
+
+  // Validate stock availability before updating quantity
+  const colorData = product.colors.find(
+    (c) => c.colorCode === updatedProduct.color || c.colorName === updatedProduct.color
+  );
+
+  if (!colorData) {
+    throw new Error(`Color ${updatedProduct.color} not found in product`);
+  }
+
+  const colorCode = colorData.colorCode;
+  const availableStock = await stockService.getAvailableStock(
+    updatedProduct.product_id,
+    colorCode,
+    updatedProduct.size || null
+  );
+
+  if (updatedProduct.qty > availableStock) {
+    throw new Error(
+      `Insufficient stock. Available: ${availableStock}, Requested: ${updatedProduct.qty}`
+    );
+  }
+
   // Update quantity and subTotal
   updatedList[index].quantity = updatedProduct.qty;
   updatedList[index].subtotal = updatedList[index].quantity * product.price;

@@ -13,7 +13,7 @@ const paymentService = require('../payment/payment.service');
 const subOrderService = require('../subOrder/suborder.service');
 const userService = require('../users/user.service');
 const { calculatePlatformCharges } = require('../../services/platform-charges.service');
-const stockService = require('../../services/stock.service');
+const stockService = require('../stock/stock.service');
 const giftCardService = require('../giftcard/giftcard.service');
 const emailService = require('../../services/email.service');
 const emailTemplateService = require('../../services/email-template.service');
@@ -222,6 +222,11 @@ module.exports.createOrder = async (user_id, body) => {
 
     const subOrder = await subOrderService.createSubOrder(subOrderData);
     subOrders.push(subOrder);
+
+    // Reserve stock for this sub-order
+    // For COD and Gift Card: Reserve immediately (payment is confirmed)
+    // For Card Payment: Reserve now, will convert to sold when payment succeeds
+    await stockService.reserveStockForSubOrder(subOrder._id, sellerProducts);
 
     // Send email notification to seller about new order
     // For online payments (card), skip email here - will be sent after payment confirmation

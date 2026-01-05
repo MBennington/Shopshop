@@ -24,6 +24,7 @@ interface CartItem {
   size?: string;
   color: string;
   subtotal: number;
+  availableStock?: number;
 }
 
 interface SellerGroup {
@@ -95,33 +96,53 @@ export default function CartPage() {
   }, []);
 
   const handleUpdate = async (item: CartItem, updatedQty: number) => {
-    // Open a modal or redirect to product page with item pre-selected
-    console.log('Edit item:', item);
-    const token = localStorage.getItem('token');
-    const payload: any = {
-      product_id: item.product_id,
-      qty: updatedQty,
-      color: item.color,
-    };
-    if (item.size) {
-      payload.size = item.size;
+    try {
+      // Open a modal or redirect to product page with item pre-selected
+      console.log('Edit item:', item);
+      const token = localStorage.getItem('token');
+      const payload: any = {
+        product_id: item.product_id,
+        qty: updatedQty,
+        color: item.color,
+      };
+      if (item.size) {
+        payload.size = item.size;
+      }
+
+      const res = await fetch('/api/cart', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const json: CartApiResponse = await res.json();
+
+      if (!res.ok) {
+        const errorMessage = json.msg || json.error || 'Failed to update quantity';
+        alert(`❌ ${errorMessage}`);
+        return;
+      }
+
+      setCart(json.data);
+      
+      // Update quantities state with new values from cart
+      const updatedQuantities: { [key: string]: number } = {};
+      Object.values(json.data.sellers).forEach(sellerGroup => {
+        sellerGroup.products.forEach((item) => {
+          const key = getItemKey(item);
+          updatedQuantities[key] = item.quantity;
+        });
+      });
+      setQuantities(updatedQuantities);
+      
+      alert('✅ Quantity updated successfully!');
+    } catch (err: any) {
+      console.error('Update failed:', err);
+      alert(`❌ ${err.message || 'Failed to update quantity'}`);
     }
-
-    const res = await fetch('/api/cart', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const json: CartApiResponse = await res.json();
-
-    if (!res.ok) throw new Error(json.msg || 'Failed to update quantity');
-
-    setCart(json.data);
-    alert('✅ Quantity updated successfully!');
   };
 
   const handleRemove = async (item: CartItem) => {
@@ -254,26 +275,45 @@ export default function CartPage() {
                             <input
                               type="number"
                               min={1}
+                              max={item.availableStock || undefined}
                               value={quantities[getItemKey(item)] || item.quantity}
                               onChange={(e) => {
                                 const key = getItemKey(item);
-                                setQuantities({
-                                  ...quantities,
-                                  [key]: Number(e.target.value),
-                                });
+                                const newValue = Number(e.target.value);
+                                const maxStock = item.availableStock || Infinity;
+                                if (newValue >= 1 && newValue <= maxStock) {
+                                  setQuantities({
+                                    ...quantities,
+                                    [key]: newValue,
+                                  });
+                                }
                               }}
                               className="w-12 text-center border rounded"
                             />
 
                             <button
-                              className="px-2 py-1 bg-gray-200 rounded"
+                              className={`px-2 py-1 rounded ${
+                                (quantities[getItemKey(item)] || item.quantity) >= (item.availableStock || 0)
+                                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                  : 'bg-gray-200 hover:bg-gray-300'
+                              }`}
+                              disabled={(quantities[getItemKey(item)] || item.quantity) >= (item.availableStock || 0)}
                               onClick={() => {
                                 const key = getItemKey(item);
-                                setQuantities({
-                                  ...quantities,
-                                  [key]: (quantities[key] || item.quantity) + 1,
-                                });
+                                const currentQty = quantities[key] || item.quantity;
+                                const maxStock = item.availableStock || 0;
+                                if (currentQty < maxStock) {
+                                  setQuantities({
+                                    ...quantities,
+                                    [key]: currentQty + 1,
+                                  });
+                                }
                               }}
+                              title={
+                                (quantities[getItemKey(item)] || item.quantity) >= (item.availableStock || 0)
+                                  ? 'Maximum stock reached'
+                                  : 'Increase quantity'
+                              }
                             >
                               +
                             </button>

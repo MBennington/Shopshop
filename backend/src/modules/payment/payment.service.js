@@ -6,7 +6,7 @@ const orderService = require('../order/order.service');
 const OrderModel = require('../order/order.model');
 const SubOrderModel = require('../subOrder/suborder.model');
 const Cart = require('../cart/cart.model');
-const stockService = require('../../services/stock.service');
+const stockService = require('../stock/stock.service');
 const giftCardService = require('../giftcard/giftcard.service');
 const emailService = require('../../services/email.service');
 const emailTemplateService = require('../../services/email-template.service');
@@ -99,14 +99,21 @@ module.exports.createPayment = async (paymentInfo) => {
       );
     }
 
-    // For both COD and GIFT_CARD: Deduct stock and clear cart immediately
-    // (Order is confirmed, so items should be reserved and cart cleared)
+    // For both COD and GIFT_CARD: Convert reserved stock to sold and clear cart immediately
+    // (Stock is already reserved when order is created, now convert to sold)
     const order = await repository.findOne(OrderModel, { _id: order_id });
     if (order && order.user_id) {
       try {
-        await stockService.deductStock(order_id);
+        // Get all sub-orders and convert reserved stock to sold for each
+        const subOrders = await SubOrderModel.find({
+          main_order_id: new mongoose.Types.ObjectId(order_id),
+        }).lean();
+        
+        for (const subOrder of subOrders) {
+          await stockService.convertReservedToSoldForSubOrder(subOrder._id);
+        }
       } catch (error) {
-        console.error('Error deducting stock after order creation:', error);
+        console.error('Error converting reserved stock to sold after order creation:', error);
       }
 
       try {
@@ -312,6 +319,19 @@ module.exports.updatePaymentStatus = async (data) => {
     // Payment failed: cancel sub orders, keep seller payment as pending
     subOrderUpdateData.orderStatus = subOrderStatus.CANCELLED;
     // seller_payment_status remains pending (no update needed)
+    
+    // Release reserved stock for all sub-orders when payment fails
+    try {
+      const subOrders = await SubOrderModel.find({
+        main_order_id: new mongoose.Types.ObjectId(order_id),
+      }).lean();
+      
+      for (const subOrder of subOrders) {
+        await stockService.releaseReservedStockForSubOrder(subOrder._id);
+      }
+    } catch (error) {
+      console.error('Error releasing reserved stock after payment failure:', error);
+    }
   }
 
   // Only update sub orders if we have data to update
@@ -429,12 +449,18 @@ module.exports.updatePaymentStatus = async (data) => {
               console.error('Error applying gift cards after payment success:', error);
             }
           }
-          // Deduct stock from products
+          // Convert reserved stock to sold for all sub-orders
           try {
-            await stockService.deductStock(order_id);
+            const subOrders = await SubOrderModel.find({
+              main_order_id: new mongoose.Types.ObjectId(order_id),
+            }).lean();
+            
+            for (const subOrder of subOrders) {
+              await stockService.convertReservedToSoldForSubOrder(subOrder._id);
+            }
           } catch (error) {
             // Log error but don't fail the payment update
-            console.error('Error deducting stock after payment:', error);
+            console.error('Error converting reserved stock to sold after payment:', error);
           }
 
           // Clear the entire cart - all items should be ordered together

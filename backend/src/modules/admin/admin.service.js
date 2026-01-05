@@ -8,7 +8,7 @@ const { paymentStatus } = require('../../config/order.config');
 const mongoose = require('mongoose');
 const repository = require('../../services/repository.service');
 const productService = require('../products/product.service');
-const stockService = require('../../services/stock.service');
+const stockService = require('../stock/stock.service');
 
 /**
  * Get admin dashboard statistics
@@ -212,22 +212,19 @@ module.exports.getAllProductsForAdmin = async (filters = {}) => {
                 sizeIndex++
               ) {
                 const size = color.sizes[sizeIndex];
-                const productDoc = await ProductModel.findById(product._id);
-                const availableStock =
-                  await stockService.calculateAvailableStock(
-                    productDoc,
-                    color.colorCode,
-                    size.size
-                  );
+                const availableStock = await stockService.getAvailableStock(
+                  product._id,
+                  color.colorCode,
+                  size.size
+                );
                 productObj.colors[colorIndex].sizes[
                   sizeIndex
                 ].availableQuantity = availableStock;
               }
             } else {
               // Product without sizes
-              const productDoc = await ProductModel.findById(product._id);
-              const availableStock = await stockService.calculateAvailableStock(
-                productDoc,
+              const availableStock = await stockService.getAvailableStock(
+                product._id,
                 color.colorCode,
                 null
               );
@@ -344,8 +341,8 @@ module.exports.getProductStockData = async (productId) => {
         if (product.hasSizes && color.sizes) {
           // Product with sizes
           for (const size of color.sizes) {
-            const availableStock = await stockService.calculateAvailableStock(
-              productDoc,
+            const availableStock = await stockService.getAvailableStock(
+              productId,
               color.colorCode,
               size.size
             );
@@ -377,8 +374,8 @@ module.exports.getProductStockData = async (productId) => {
           }
         } else {
           // Product without sizes
-          const availableStock = await stockService.calculateAvailableStock(
-            productDoc,
+          const availableStock = await stockService.getAvailableStock(
+            productId,
             color.colorCode,
             null
           );
