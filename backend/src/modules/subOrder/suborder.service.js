@@ -16,7 +16,7 @@ const {
   paymentStatus,
 } = require('../../config/order.config');
 const { roles } = require('../../config/role.config');
-const stockService = require('../../services/stock.service');
+const stockService = require('../stock/stock.service');
 const emailService = require('../../services/email.service');
 const emailTemplateService = require('../../services/email-template.service');
 const sellerWalletService = require('../sellerWallet/seller-wallet.service');
