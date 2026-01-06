@@ -20,6 +20,17 @@ router
   .route(permissions.login.path)
   .post(validator.validateBody(schema.login), controller.login);
 
+router
+  .route(permissions.forgotPassword.path)
+  .post(validator.validateBody(schema.forgotPassword), controller.forgotPassword);
+
+router
+  .route(permissions.resetPasswordWithToken.path)
+  .post(
+    validator.validateBody(schema.resetPasswordWithToken),
+    controller.resetPasswordWithToken
+  );
+
 router.route(permissions.getAllSellers.path).get(controller.getAllSellers);
 
 router

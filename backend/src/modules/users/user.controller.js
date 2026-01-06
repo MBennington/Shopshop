@@ -2,6 +2,7 @@ const userService = require('./user.service');
 const {
   successWithData,
   successWithDataAndToken,
+  successWithMessage,
   customError,
 } = require('../../services/response.service');
 
@@ -30,6 +31,44 @@ module.exports.login = async (req, res) => {
   try {
     const data = await userService.login(req.body);
     return successWithDataAndToken(data, res);
+  } catch (error) {
+    return customError(`${error.message}`, res);
+  }
+};
+
+/**
+ * Request password reset
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    await userService.requestPasswordReset(email);
+
+    // Always return generic success message
+    return successWithMessage(
+      'If an account exists with this email, a password reset link has been sent.',
+      res
+    );
+  } catch (error) {
+    return customError(`${error.message}`, res);
+  }
+};
+
+/**
+ * Reset password with token
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.resetPasswordWithToken = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    const data = await userService.resetPasswordWithToken(token, password);
+
+    return successWithData(data, res);
   } catch (error) {
     return customError(`${error.message}`, res);
   }

@@ -98,6 +98,18 @@ module.exports.login = joi.object().keys({
   password: passwordValidation,
 });
 
+module.exports.forgotPassword = joi.object().keys({
+  email: joi
+    .string()
+    .email({ tlds: { allow: false } })
+    .required(),
+});
+
+module.exports.resetPasswordWithToken = joi.object().keys({
+  token: joi.string().trim().required(),
+  password: passwordValidation,
+});
+
 module.exports.updateUserProfile = joi.object({
   name: joi.string(),
   email: joi.string().email(),

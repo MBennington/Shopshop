@@ -271,6 +271,58 @@ const generateRegistrationSuccessEmail = ({ userName, userEmail, role }) => {
 };
 
 /**
+ * Generate email template for password reset
+ * @param {Object} params - { userName, resetUrl }
+ * @returns {Object} - { subject, html }
+ */
+const generatePasswordResetEmail = ({ userName, resetUrl }) => {
+  const subject = 'Reset your Shopshop password';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Reset Your Password</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #121416 0%, #2a2d30 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0;">Reset your password</h1>
+      </div>
+      
+      <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+        <p style="font-size: 16px;">Hi ${userName || 'there'},</p>
+        
+        <p style="font-size: 16px;">
+          We received a request to reset the password for your Shopshop account.
+          If you made this request, please click the button below to choose a new password.
+        </p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetUrl}" style="display: inline-block; background: #121416; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+            Reset password
+          </a>
+        </div>
+        
+        <p style="font-size: 14px; color: #666;">
+          This link will expire in 1 hour. If you did not request a password reset, you can safely ignore this email and your password will remain unchanged.
+        </p>
+        
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+        
+        <p style="font-size: 12px; color: #999; text-align: center;">
+          This is an automated email from Shopshop. Please do not reply to this email.
+        </p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return { subject, html };
+};
+
+/**
  * Generate email template for order placement success (buyer)
  * @param {Object} order - Order with populated details
  * @returns {Object} - { subject, html }
@@ -608,4 +660,5 @@ module.exports = {
   generateSellerNewOrderEmail,
   generateOrderDeliveredEmail,
   generateIssueReportConfirmationEmail,
+  generatePasswordResetEmail,
 };

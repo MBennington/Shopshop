@@ -12,9 +12,16 @@ export async function POST(request: NextRequest) {
       endpoint = '/api/users/login';
     } else if (action === 'signup') {
       endpoint = '/api/users';
+    } else if (action === 'forgot-password') {
+      endpoint = '/api/users/forgot-password';
+    } else if (action === 'reset-password') {
+      endpoint = '/api/users/reset-password';
     } else {
       return NextResponse.json(
-        { error: 'Invalid action. Use "login" or "signup"' },
+        {
+          error:
+            'Invalid action. Use "login", "signup", "forgot-password" or "reset-password"',
+        },
         { status: 400 }
       );
     }
