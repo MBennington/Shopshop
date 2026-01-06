@@ -7,6 +7,12 @@ module.exports.permissions = {
   login: {
     path: '/login',
   },
+  forgotPassword: {
+    path: '/forgot-password',
+  },
+  resetPasswordWithToken: {
+    path: '/reset-password',
+  },
   getUserProfile: {
     path: '/user-profile',
     grantedUserRoles: [roles.admin, roles.seller, roles.buyer],

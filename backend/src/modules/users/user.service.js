@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const UserModel = require('./user.model');
 const repository = require('../../services/repository.service');
 const {
@@ -240,6 +241,57 @@ module.exports.login = async (body) => {
 };
 
 /**
+ * Request password reset (generate token and send email)
+ * @param email
+ * @returns {Promise<void>}
+ */
+module.exports.requestPasswordReset = async (email) => {
+  const user = await this.getUserByEmail(email);
+
+  // For security/privacy, do not reveal if user does not exist.
+  if (!user) {
+    return;
+  }
+
+  // Generate secure reset token
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const resetTokenHash = crypto
+    .createHash('sha256')
+    .update(resetToken)
+    .digest('hex');
+
+  const resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await repository.updateOne(
+    UserModel,
+    { _id: user._id },
+    {
+      resetPasswordToken: resetTokenHash,
+      resetPasswordExpires,
+    },
+    { new: true }
+  );
+
+  const resetUrl = `${emailService.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+  try {
+    const emailTemplate = emailTemplateService.generatePasswordResetEmail({
+      userName: user.name,
+      resetUrl,
+    });
+
+    await emailService.sendEmail({
+      to: user.email,
+      subject: emailTemplate.subject,
+      html: emailTemplate.html,
+    });
+  } catch (error) {
+    console.error('Error sending password reset email:', error);
+    // Do not throw error to avoid leaking whether the email exists
+  }
+};
+
+/**
  * Get user by email
  * @param email
  * @returns {Promise<*>}
@@ -402,6 +454,52 @@ module.exports.changePassword = async (
 };
 
 /**
+ * Reset user password
+ * @param userId
+ * @param currentPassword
+ * @param newPassword
+ * @returns {Promise<*>}
+ */
+module.exports.resetPasswordWithToken = async (token, newPassword) => {
+  const resetTokenHash = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
+
+  const user = await repository.findOne(UserModel, {
+    resetPasswordToken: resetTokenHash,
+    resetPasswordExpires: { $gt: new Date() },
+  });
+
+  if (!user) {
+    throw new Error('Invalid or expired reset token');
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  const hashedNewPassword = await bcrypt.hash(newPassword, salt);
+
+  const updatedUser = await repository.updateOne(
+    UserModel,
+    { _id: user._id },
+    {
+      password: hashedNewPassword,
+      resetPasswordToken: null,
+      resetPasswordExpires: null,
+    },
+    { new: true }
+  );
+
+  if (!updatedUser) {
+    throw new Error('Failed to reset password');
+  }
+
+  const userResponse = updatedUser.toObject();
+  delete userResponse.password;
+
+  return userResponse;
+};
+
+/**
  * Get all sellers
  * @returns {Promise<*>}
  */
@@ -448,7 +546,7 @@ module.exports.updateUserRole = async (userId, newRole) => {
   }
 
   // Update role
-  const updatedUser = await repository.findOneAndUpdate(
+  const updatedUser = await repository.updateOne(
     UserModel,
     { _id: userId },
     { role: newRole },

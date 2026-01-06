@@ -262,7 +262,7 @@ export default function SellerAuthPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <Link
-                      href="#"
+                      href="/forgot-password"
                       className="text-sm text-[#397fc5] hover:text-[#2c5f94] transition-colors"
                     >
                       Forgot password?

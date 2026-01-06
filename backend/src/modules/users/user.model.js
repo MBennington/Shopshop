@@ -47,6 +47,10 @@ const userSchema = new Schema(
       currency: { type: String },
     },
 
+    // Password reset
+    resetPasswordToken: { type: String, default: null },
+    resetPasswordExpires: { type: Date, default: null },
+
     // Seller-specific
     sellerInfo: {
       businessName: { type: String },
