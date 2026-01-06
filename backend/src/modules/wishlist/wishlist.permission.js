@@ -5,5 +5,9 @@ module.exports.permissions = {
     path: '/',
     grantedUserRoles: [roles.admin, roles.seller, roles.buyer],
   },
+  getWishlistByUserId: {
+    path: '/',
+    grantedUserRoles: [roles.admin, roles.seller, roles.buyer],
+  },
 };
 

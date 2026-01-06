@@ -15,5 +15,12 @@ router
     controller.addToWishlist
   );
 
+router
+  .route(permissions.getWishlistByUserId.path)
+  .get(
+    validator.validateHeader(permissions.getWishlistByUserId.grantedUserRoles),
+    controller.getWishlistByUserId
+  );
+
 module.exports = router;
 

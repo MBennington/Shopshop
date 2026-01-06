@@ -20,6 +20,7 @@ interface Product {
   category: string;
   hasSizes: boolean;
   colors: Array<{
+    _id?: string;
     colorCode: string;
     colorName: string;
     images: string[];
@@ -546,13 +547,28 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
         return;
       }
 
+      // Get the selected color's _id
+      const selectedColorData = productData?.product.colors[selectedColor];
+      if (!selectedColorData) {
+        throw new Error('Please select a color first');
+      }
+
+      // Get the color's _id (MongoDB ObjectId)
+      const colorId = selectedColorData._id;
+      if (!colorId) {
+        throw new Error('Color ID not found. Please refresh the page.');
+      }
+
       const response = await fetch('/api/wishlist', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ product_id: id }),
+        body: JSON.stringify({ 
+          product_id: id,
+          color_id: colorId 
+        }),
       });
 
       const data = await response.json();
@@ -570,7 +586,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
       if (error.message && !error.message.includes('already')) {
         setError(error.message || 'Failed to add to wishlist');
       } else if (error.message && error.message.includes('already')) {
-        alert('ℹ️ This item is already in your wishlist!');
+        alert('ℹ️ This product color is already in your wishlist!');
         setIsInWishlist(true);
       }
     } finally {

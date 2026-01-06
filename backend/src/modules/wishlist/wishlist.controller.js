@@ -24,3 +24,20 @@ module.exports.addToWishlist = async (req, res) => {
   }
 };
 
+/**
+ * Get wishlist by user_id
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.getWishlistByUserId = async (req, res) => {
+  try {
+    const user_id = res.locals.user.id;
+    const data = await wishlistService.getWishlistByUserId(user_id);
+    return successWithData(data, res);
+  } catch (error) {
+    console.error('Getting wishlist error:', error);
+    return customError(`${error.message}`, res);
+  }
+};
+

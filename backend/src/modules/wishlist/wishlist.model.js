@@ -7,6 +7,10 @@ const wishlistItemSchema = new mongoose.Schema({
     ref: 'product',
     required: true,
   },
+  color_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+  },
   added_at: {
     type: Date,
     default: Date.now,
@@ -33,5 +37,6 @@ const wishlistSchema = new Schema(
 
 wishlistSchema.index({ user_id: 1 });
 wishlistSchema.index({ 'items.product_id': 1 });
+wishlistSchema.index({ 'items.product_id': 1, 'items.color_id': 1 });
 
 module.exports = mongoose.model('wishlist', wishlistSchema);
