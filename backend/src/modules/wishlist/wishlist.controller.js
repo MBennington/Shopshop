@@ -60,3 +60,22 @@ module.exports.removeFromWishlist = async (req, res) => {
   }
 };
 
+/**
+ * Add wishlist item to cart
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.addWishlistItemToCart = async (req, res) => {
+  try {
+    const user_id = res.locals.user.id;
+
+    const data = await wishlistService.addWishlistItemToCart(req.body, user_id);
+
+    return successWithData(data, res);
+  } catch (error) {
+    console.error('Adding wishlist item to cart error:', error);
+    return customError(`${error.message}`, res);
+  }
+};
+

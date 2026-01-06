@@ -104,15 +104,21 @@ export default function WishlistPage() {
         return;
       }
 
-      // Get product details to determine size (if needed)
-      // For now, we'll add with quantity 1 and the color
-      const payload: any = {
+      // If product has sizes, redirect to product page to select size
+      if (product.hasSizes) {
+        alert('Please select a size. Redirecting to product page...');
+        router.push(`/products/${product.category}/${product.product_id}`);
+        return;
+      }
+
+      // Use the dedicated wishlist to cart endpoint
+      const payload = {
         product_id: product.product_id,
+        color_id: product.color_id,
         qty: 1,
-        color: product.color_code,
       };
 
-      const response = await fetch('/api/cart', {
+      const response = await fetch('/api/wishlist/add-to-cart', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -127,7 +133,32 @@ export default function WishlistPage() {
         throw new Error(data.msg || data.error || 'Failed to add to cart');
       }
 
-      alert('✅ Item added to cart successfully!');
+      // Remove item from local wishlist state since backend removed it
+      if (wishlist) {
+        const updatedShops = { ...wishlist.shops };
+        Object.keys(updatedShops).forEach(shopId => {
+          updatedShops[shopId] = {
+            ...updatedShops[shopId],
+            products: updatedShops[shopId].products.filter(
+              p => !(p.product_id === product.product_id && p.color_id === product.color_id)
+            ),
+          };
+        });
+
+        // Remove shops with no products
+        Object.keys(updatedShops).forEach(shopId => {
+          if (updatedShops[shopId].products.length === 0) {
+            delete updatedShops[shopId];
+          }
+        });
+
+        setWishlist({
+          ...wishlist,
+          shops: updatedShops,
+        });
+      }
+
+      alert('✅ Item added to cart and removed from wishlist!');
       router.push('/cart');
     } catch (err: any) {
       console.error('Failed to add to cart:', err);

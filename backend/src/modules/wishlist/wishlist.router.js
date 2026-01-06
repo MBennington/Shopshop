@@ -30,5 +30,13 @@ router
     controller.removeFromWishlist
   );
 
+router
+  .route(permissions.addWishlistItemToCart.path)
+  .post(
+    validator.validateHeader(permissions.addWishlistItemToCart.grantedUserRoles),
+    validator.validateBody(schema.addWishlistItemToCart),
+    controller.addWishlistItemToCart
+  );
+
 module.exports = router;
 
