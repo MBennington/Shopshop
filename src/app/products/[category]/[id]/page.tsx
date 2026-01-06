@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Star, Edit2, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Star, Edit2, Trash2, X, Heart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface ProductDetailsProps {
@@ -20,6 +20,7 @@ interface Product {
   category: string;
   hasSizes: boolean;
   colors: Array<{
+    _id?: string;
     colorCode: string;
     colorName: string;
     images: string[];
@@ -93,6 +94,8 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [stockError, setStockError] = useState<string | null>(null);
+  const [wishlistColorIds, setWishlistColorIds] = useState<Set<string>>(new Set());
+  const [addingToWishlist, setAddingToWishlist] = useState(false);
   const router = useRouter();
 
   // Review states
@@ -186,6 +189,52 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
 
     fetchReviews();
   }, [id, currentPage, sortBy]);
+
+  // Fetch wishlist to check which colors are already in wishlist
+  useEffect(() => {
+    const fetchWishlist = async () => {
+      if (!productData?.product || !id) return;
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setWishlistColorIds(new Set());
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/wishlist', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const wishlistData = data.data;
+          
+          // Find products for this product_id and collect color_ids
+          const colorIds = new Set<string>();
+          if (wishlistData?.shops) {
+            Object.values(wishlistData.shops).forEach((shop: any) => {
+              if (shop.products) {
+                shop.products.forEach((product: any) => {
+                  if (product.product_id === id && product.color_id) {
+                    colorIds.add(product.color_id);
+                  }
+                });
+              }
+            });
+          }
+          setWishlistColorIds(colorIds);
+        }
+      } catch (error) {
+        console.error('Error fetching wishlist:', error);
+        setWishlistColorIds(new Set());
+      }
+    };
+
+    fetchWishlist();
+  }, [productData, id]);
 
   // Reset quantity if it exceeds available stock
   useEffect(() => {
@@ -533,6 +582,82 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
     }
   };
 
+  // Check if currently selected color is in wishlist
+  const isSelectedColorInWishlist = () => {
+    if (!productData?.product.colors[selectedColor]?._id) return false;
+    const colorId = productData.product.colors[selectedColor]._id;
+    return wishlistColorIds.has(colorId);
+  };
+
+  const handleAddToWishlist = async () => {
+    try {
+      setAddingToWishlist(true);
+      setError('');
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/auth');
+        return;
+      }
+
+      // Get the selected color's _id
+      const selectedColorData = productData?.product.colors[selectedColor];
+      if (!selectedColorData) {
+        throw new Error('Please select a color first');
+      }
+
+      // Get the color's _id (MongoDB ObjectId)
+      const colorId = selectedColorData._id;
+      if (!colorId) {
+        throw new Error('Color ID not found. Please refresh the page.');
+      }
+
+      // Check if already in wishlist
+      if (wishlistColorIds.has(colorId)) {
+        alert('ℹ️ This product color is already in your wishlist!');
+        return;
+      }
+
+      const response = await fetch('/api/wishlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ 
+          product_id: id,
+          color_id: colorId 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.msg || data.error || 'Failed to add to wishlist');
+      }
+
+      console.log('✅ Added to wishlist:', data);
+      // Add color ID to wishlist set
+      setWishlistColorIds(new Set([...wishlistColorIds, colorId]));
+      alert('✅ Item added to wishlist!');
+    } catch (error: any) {
+      console.error('Error adding to wishlist:', error);
+      // Don't show error if product is already in wishlist
+      if (error.message && !error.message.includes('already')) {
+        setError(error.message || 'Failed to add to wishlist');
+      } else if (error.message && error.message.includes('already')) {
+        alert('ℹ️ This product color is already in your wishlist!');
+        // Update wishlist state in case it was added
+        const selectedColorData = productData?.product.colors[selectedColor];
+        if (selectedColorData?._id) {
+          setWishlistColorIds(new Set([...wishlistColorIds, selectedColorData._id]));
+        }
+      }
+    } finally {
+      setAddingToWishlist(false);
+    }
+  };
+
   // Handle purchase action
   const handlePurchase = (action: 'buy' | 'cart') => {
     if (product.hasSizes && selectedSize === null) {
@@ -669,9 +794,25 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
 
             {/* Product Info Panel */}
             <div className="flex-1 flex flex-col w-[360px]">
-              <h1 className="text-[#121416] text-[22px] font-bold leading-tight tracking-[-0.015em] pb-3 pt-5">
-                {product.name}
-              </h1>
+              <div className="flex items-start justify-between gap-3 pt-5 pb-3">
+                <h1 className="text-[#121416] text-[22px] font-bold leading-tight tracking-[-0.015em] flex-1">
+                  {product.name}
+                </h1>
+                <button
+                  onClick={handleAddToWishlist}
+                  disabled={addingToWishlist || isSelectedColorInWishlist()}
+                  className={`flex items-center justify-center w-10 h-10 rounded-full border transition-colors ${
+                    isSelectedColorInWishlist()
+                      ? 'bg-red-50 border-red-300 text-red-600'
+                      : 'bg-white border-[#dde0e3] text-[#121416] hover:bg-gray-50'
+                  } ${addingToWishlist ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  title={isSelectedColorInWishlist() ? 'Already in wishlist' : 'Add to wishlist'}
+                >
+                  <Heart
+                    className={`w-5 h-5 ${isSelectedColorInWishlist() ? 'fill-current' : ''}`}
+                  />
+                </button>
+              </div>
               <p className="text-[#121416] text-base font-normal leading-normal pb-3 pt-1">
                 {product.description}
               </p>
