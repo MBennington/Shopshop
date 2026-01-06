@@ -261,3 +261,52 @@ module.exports.getWishlistByUserId = async (userId) => {
   };
 };
 
+/**
+ * Remove product from wishlist
+ * @param {Object} body - { product_id, color_id }
+ * @param {String} user_id
+ * @returns {Promise<Object>}
+ */
+module.exports.removeFromWishlist = async (body, user_id) => {
+  const user = await userService.getUserById(user_id);
+  if (!user) {
+    throw new Error('User not found.');
+  }
+
+  const { product_id, color_id } = body;
+
+  // Find existing wishlist
+  const wishlist = await repository.findOne(WishlistModel, { user_id });
+
+  if (!wishlist) {
+    throw new Error('Wishlist not found.');
+  }
+
+  // Convert color_id to ObjectId for comparison
+  const colorObjectId = new mongoose.Types.ObjectId(color_id);
+
+  // Find the item to remove
+  const itemIndex = wishlist.items.findIndex(
+    (item) =>
+      item.product_id.toString() === product_id &&
+      item.color_id.toString() === colorObjectId.toString()
+  );
+
+  if (itemIndex === -1) {
+    throw new Error('Product color not found in wishlist.');
+  }
+
+  // Remove the item
+  wishlist.items.splice(itemIndex, 1);
+
+  // Update wishlist
+  const updatedWishlist = await repository.updateOne(
+    WishlistModel,
+    { _id: wishlist._id },
+    { items: wishlist.items },
+    { new: true }
+  );
+
+  return updatedWishlist.toObject();
+};
+

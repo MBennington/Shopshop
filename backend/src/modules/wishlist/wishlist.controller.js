@@ -41,3 +41,22 @@ module.exports.getWishlistByUserId = async (req, res) => {
   }
 };
 
+/**
+ * Remove product from wishlist
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.removeFromWishlist = async (req, res) => {
+  try {
+    const user_id = res.locals.user.id;
+
+    const data = await wishlistService.removeFromWishlist(req.query, user_id);
+
+    return successWithMessage('Product removed from wishlist successfully.', res);
+  } catch (error) {
+    console.error('Removing from wishlist error:', error);
+    return customError(`${error.message}`, res);
+  }
+};
+

@@ -5,3 +5,8 @@ module.exports.addToWishlist = joi.object({
   color_id: joi.string().required(),
 });
 
+module.exports.removeFromWishlist = joi.object({
+  product_id: joi.string().required(),
+  color_id: joi.string().required(),
+});
+

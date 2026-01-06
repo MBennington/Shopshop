@@ -9,5 +9,9 @@ module.exports.permissions = {
     path: '/',
     grantedUserRoles: [roles.admin, roles.seller, roles.buyer],
   },
+  removeFromWishlist: {
+    path: '/',
+    grantedUserRoles: [roles.admin, roles.seller, roles.buyer],
+  },
 };
 

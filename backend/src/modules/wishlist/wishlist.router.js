@@ -22,5 +22,13 @@ router
     controller.getWishlistByUserId
   );
 
+router
+  .route(permissions.removeFromWishlist.path)
+  .delete(
+    validator.validateHeader(permissions.removeFromWishlist.grantedUserRoles),
+    validator.validateQueryParameters(schema.removeFromWishlist),
+    controller.removeFromWishlist
+  );
+
 module.exports = router;
 

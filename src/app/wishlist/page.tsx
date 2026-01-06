@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Heart, ShoppingCart, Trash2 } from 'lucide-react';
+import { Heart, ShoppingCart, X } from 'lucide-react';
 
 interface WishlistProduct {
   product_id: string;
@@ -153,12 +153,49 @@ export default function WishlistPage() {
         return;
       }
 
-      // TODO: Implement remove from wishlist API endpoint
-      // For now, we'll just show a message
-      alert('Remove from wishlist functionality will be implemented soon. Please refresh the page to see updates.');
-      
-      // Refresh wishlist after removal
-      window.location.reload();
+      const response = await fetch(
+        `/api/wishlist?product_id=${product.product_id}&color_id=${product.color_id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.msg || data.error || 'Failed to remove from wishlist');
+      }
+
+      // Remove the item from local state
+      if (wishlist) {
+        const updatedShops = { ...wishlist.shops };
+        Object.keys(updatedShops).forEach(shopId => {
+          updatedShops[shopId] = {
+            ...updatedShops[shopId],
+            products: updatedShops[shopId].products.filter(
+              p => !(p.product_id === product.product_id && p.color_id === product.color_id)
+            ),
+          };
+        });
+
+        // Remove shops with no products
+        Object.keys(updatedShops).forEach(shopId => {
+          if (updatedShops[shopId].products.length === 0) {
+            delete updatedShops[shopId];
+          }
+        });
+
+        setWishlist({
+          ...wishlist,
+          shops: updatedShops,
+        });
+      }
+
+      alert('✅ Item removed from wishlist successfully!');
     } catch (err: any) {
       console.error('Failed to remove from wishlist:', err);
       alert(`❌ ${err.message || 'Failed to remove from wishlist'}`);
@@ -266,8 +303,22 @@ export default function WishlistPage() {
                   return (
                     <div
                       key={itemKey}
-                      className="bg-white rounded-xl border border-[#e3eaf6] shadow-sm p-4 flex flex-col hover:shadow-md transition-shadow"
+                      className="bg-white rounded-xl border border-[#e3eaf6] shadow-sm p-4 flex flex-col hover:shadow-md transition-shadow relative"
                     >
+                      {/* Remove Button - Top Right */}
+                      <button
+                        onClick={() => handleRemoveFromWishlist(product)}
+                        disabled={isMoving || isRemoving}
+                        className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-white border border-red-300 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                        title="Remove from wishlist"
+                      >
+                        {isRemoving ? (
+                          <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-red-600"></div>
+                        ) : (
+                          <X className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+
                       {/* Product Image */}
                       <Link
                         href={`/products/${product.category}/${product.product_id}`}
@@ -337,18 +388,6 @@ export default function WishlistPage() {
                                 <ShoppingCart className="w-4 h-4" />
                                 <span>Move to Cart</span>
                               </>
-                            )}
-                          </button>
-                          <button
-                            onClick={() => handleRemoveFromWishlist(product)}
-                            disabled={isMoving || isRemoving}
-                            className="p-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Remove from wishlist"
-                          >
-                            {isRemoving ? (
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
                             )}
                           </button>
                         </div>
