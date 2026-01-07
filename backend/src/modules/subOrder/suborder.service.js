@@ -254,7 +254,7 @@ module.exports.getSubOrdersBySeller = async (sellerId, queryParams) => {
   const subOrders = await SubOrderModel.find(filter)
     .populate('buyer_id', 'name email profilePicture')
     .populate('main_order_id', 'paymentMethod paymentStatus orderStatus')
-    .populate('products_list.product_id', 'name images price')
+    .populate('products_list.product_id', 'name images price colors')
     .sort({ created_at: -1 })
     .skip(skip)
     .limit(parseInt(limit))
@@ -655,7 +655,7 @@ module.exports.getSubOrderById = async (subOrderId) => {
     .populate('buyer_id', 'name email profilePicture')
     .populate('seller_id', 'name profilePicture sellerInfo.businessName')
     .populate('main_order_id', 'paymentMethod paymentStatus orderStatus')
-    .populate('products_list.product_id', 'name images price')
+    .populate('products_list.product_id', 'name images price colors')
     .lean();
 
   if (!subOrder) {
