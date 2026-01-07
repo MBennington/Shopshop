@@ -122,16 +122,20 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const body: any = { product_id, color };
-    if (size) body.size = size;
+    // Backend expects query parameters, not body for DELETE
+    const backendParams = new URLSearchParams({
+      product_id: product_id,
+      color: color,
+    });
+    if (size) {
+      backendParams.append('size', size);
+    }
 
-    const response = await fetch(`${BACKEND_URL}/api/cart/`, {
+    const response = await fetch(`${BACKEND_URL}/api/cart/?${backendParams.toString()}`, {
       method: "DELETE",
       headers: {
-        "Content-Type": "application/json",
         Authorization: token,
       },
-      body: JSON.stringify(body),
     });
 
     const data = await response.json();

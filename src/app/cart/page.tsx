@@ -98,16 +98,29 @@ export default function CartPage() {
 
   const handleUpdate = async (item: CartItem, updatedQty: number) => {
     try {
+      // Validate required fields
+      if (!item.product_id) {
+        toast.error('Product ID is missing. Please refresh the page and try again.');
+        console.error('Missing product_id in item:', item);
+        return;
+      }
+
+      if (!item.color) {
+        toast.error('Color information is missing. Please refresh the page and try again.');
+        console.error('Missing color in item:', item);
+        return;
+      }
+
       // Open a modal or redirect to product page with item pre-selected
       console.log('Edit item:', item);
       const token = localStorage.getItem('token');
       const payload: any = {
-        product_id: item.product_id,
+        product_id: String(item.product_id),
         qty: updatedQty,
-        color: item.color,
+        color: String(item.color),
       };
       if (item.size) {
-        payload.size = item.size;
+        payload.size = String(item.size);
       }
 
       const res = await fetch('/api/cart', {
@@ -148,12 +161,65 @@ export default function CartPage() {
 
   const handleRemove = async (item: CartItem) => {
     try {
+      // Debug: Log the item to see its structure
+      console.log('handleRemove called with item:', item);
+      console.log('item.product_id:', item.product_id, 'type:', typeof item.product_id);
+      
+      // Validate required fields - check for undefined, null, empty string, or whitespace
+      // Handle both string and ObjectId types
+      let productId: string | null = null;
+      if (item.product_id) {
+        if (typeof item.product_id === 'string') {
+          productId = item.product_id.trim();
+        } else if (typeof item.product_id === 'object' && item.product_id.toString) {
+          productId = item.product_id.toString().trim();
+        } else {
+          productId = String(item.product_id).trim();
+        }
+      }
+      
+      let color: string | null = null;
+      if (item.color) {
+        color = String(item.color).trim();
+      }
+      
+      if (!productId || productId === '' || productId === 'null' || productId === 'undefined') {
+        toast.error('Product ID is missing. Please refresh the page and try again.');
+        console.error('Missing or invalid product_id:', {
+          original: item.product_id,
+          processed: productId,
+          fullItem: item
+        });
+        return;
+      }
+
+      if (!color || color === '' || color === 'null' || color === 'undefined') {
+        toast.error('Color information is missing. Please refresh the page and try again.');
+        console.error('Missing or invalid color:', {
+          original: item.color,
+          processed: color,
+          fullItem: item
+        });
+        return;
+      }
+
       const token = localStorage.getItem('token');
-      const params = new URLSearchParams({
-        product_id: item.product_id,
-        color: item.color,
-      });
-      if (item.size) params.append('size', item.size);
+      if (!token) {
+        toast.error('Please login to continue');
+        return;
+      }
+
+      // Ensure we have valid non-empty strings
+      const params = new URLSearchParams();
+      params.append('product_id', productId);
+      params.append('color', color);
+      
+      if (item.size && String(item.size).trim()) {
+        params.append('size', String(item.size).trim());
+      }
+      
+      console.log('Sending DELETE request with params:', params.toString());
+      
       const res = await fetch(
         `/api/cart?${params.toString()}`,
         {
@@ -166,12 +232,16 @@ export default function CartPage() {
 
       const json: CartApiResponse = await res.json();
 
-      if (!res.ok) throw new Error(json.msg || 'Failed to remove item');
+      if (!res.ok) {
+        const errorMsg = json.msg || json.error || 'Failed to remove item';
+        throw new Error(errorMsg);
+      }
 
       setCart(json.data); // ✅ use updated cart
       toast.success('Item removed from cart successfully!');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Remove failed:', err);
+      toast.error(err.message || 'Failed to remove item from cart');
     }
   };
 
@@ -255,7 +325,7 @@ export default function CartPage() {
                         <p className="text-blue-600 text-base font-semibold leading-normal text-left">
                           LKR {item.basePrice.toFixed(2)}
                         </p>
-                        <p className="text-sm text-gray-600">
+                        <div className="text-sm text-gray-600">
                           <div className="flex items-center space-x-2">
                             <button
                               className="px-2 py-1 bg-gray-200 rounded"
@@ -338,7 +408,7 @@ export default function CartPage() {
                               style={{ backgroundColor: item.color }}
                             />
                           ) : null}
-                        </p>
+                        </div>
                         <p className="text-sm text-gray-800 font-medium mt-1">
                           Subtotal: LKR {item.subtotal.toFixed(2)}
                         </p>
