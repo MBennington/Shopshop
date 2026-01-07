@@ -4,6 +4,7 @@ import { use, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Star, Edit2, Trash2, X, Heart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 interface ProductDetailsProps {
   params: Promise<{
@@ -392,7 +393,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
     }
 
     if (!reviewFormData.content.trim()) {
-      alert('Please enter your review content');
+      toast.error('Please enter your review content');
       return;
     }
 
@@ -439,12 +440,12 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
       // Show success message with order update info if applicable
       if (hasUpdatedOrders) {
         const action = editingReview ? 'updated' : 'submitted';
-        alert(
+        toast.success(
           `Review ${action} successfully! ${updatedCount} order(s) have been marked as delivered.`
         );
       } else {
         const action = editingReview ? 'updated' : 'submitted';
-        alert(`Review ${action} successfully!`);
+        toast.success(`Review ${action} successfully!`);
       }
 
       // Reset form and refresh
@@ -472,7 +473,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
         setTotalPages(reviewsData.data.pagination?.pages || 1);
       }
     } catch (error: any) {
-      alert(error.message || 'Failed to submit review');
+      toast.error(error.message || 'Failed to submit review');
     } finally {
       setIsSubmittingReview(false);
     }
@@ -480,7 +481,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
 
   // Handle delete review
   const handleDeleteReview = async (reviewId: string) => {
-    if (!confirm('Are you sure you want to delete this review?')) return;
+    if (!window.confirm('Are you sure you want to delete this review?')) return;
 
     const token = localStorage.getItem('token');
     if (!token) {
@@ -521,8 +522,10 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
         setAllReviews(reviewsData.data.reviews || []);
         setTotalPages(reviewsData.data.pagination?.pages || 1);
       }
+      
+      toast.success('Review deleted successfully');
     } catch (error: any) {
-      alert(error.message || 'Failed to delete review');
+      toast.error(error.message || 'Failed to delete review');
     }
   };
 
@@ -574,7 +577,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
       }
 
       console.log('✅ Cart updated:', data);
-      alert('✅ Item added to cart successfully!');
+      toast.success('Item added to cart successfully!');
       router.push('/cart');
     } catch (error: any) {
       console.error('Error updating cart:', error);
@@ -614,7 +617,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
 
       // Check if already in wishlist
       if (wishlistColorIds.has(colorId)) {
-        alert('ℹ️ This product color is already in your wishlist!');
+        toast.info('This product color is already in your wishlist!');
         return;
       }
 
@@ -639,14 +642,15 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
       console.log('✅ Added to wishlist:', data);
       // Add color ID to wishlist set
       setWishlistColorIds(new Set([...wishlistColorIds, colorId]));
-      alert('✅ Item added to wishlist!');
+      toast.success('Item added to wishlist!');
     } catch (error: any) {
       console.error('Error adding to wishlist:', error);
       // Don't show error if product is already in wishlist
       if (error.message && !error.message.includes('already')) {
         setError(error.message || 'Failed to add to wishlist');
+        toast.error(error.message || 'Failed to add to wishlist');
       } else if (error.message && error.message.includes('already')) {
-        alert('ℹ️ This product color is already in your wishlist!');
+        toast.info('This product color is already in your wishlist!');
         // Update wishlist state in case it was added
         const selectedColorData = productData?.product.colors[selectedColor];
         if (selectedColorData?._id) {

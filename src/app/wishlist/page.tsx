@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Heart, ShoppingCart, X } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface WishlistProduct {
   product_id: string;
@@ -106,7 +107,7 @@ export default function WishlistPage() {
 
       // If product has sizes, redirect to product page to select size
       if (product.hasSizes) {
-        alert('Please select a size. Redirecting to product page...');
+        toast.info('Please select a size. Redirecting to product page...');
         router.push(`/products/${product.category}/${product.product_id}`);
         return;
       }
@@ -158,11 +159,11 @@ export default function WishlistPage() {
         });
       }
 
-      alert('✅ Item added to cart and removed from wishlist!');
+      toast.success('Item added to cart and removed from wishlist!');
       router.push('/cart');
     } catch (err: any) {
       console.error('Failed to add to cart:', err);
-      alert(`❌ ${err.message || 'Failed to add to cart'}`);
+      toast.error(err.message || 'Failed to add to cart');
     } finally {
       setMovingToCart(prev => ({ ...prev, [itemKey]: false }));
     }
@@ -171,7 +172,7 @@ export default function WishlistPage() {
   const handleRemoveFromWishlist = async (product: WishlistProduct) => {
     const itemKey = `${product.product_id}-${product.color_id}`;
     
-    if (!confirm('Are you sure you want to remove this item from your wishlist?')) {
+    if (!window.confirm('Are you sure you want to remove this item from your wishlist?')) {
       return;
     }
 
@@ -226,10 +227,10 @@ export default function WishlistPage() {
         });
       }
 
-      alert('✅ Item removed from wishlist successfully!');
+      toast.success('Item removed from wishlist successfully!');
     } catch (err: any) {
       console.error('Failed to remove from wishlist:', err);
-      alert(`❌ ${err.message || 'Failed to remove from wishlist'}`);
+      toast.error(err.message || 'Failed to remove from wishlist');
     } finally {
       setRemoving(prev => ({ ...prev, [itemKey]: false }));
     }

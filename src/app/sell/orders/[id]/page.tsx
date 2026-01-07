@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Sidebar from '../../components/Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface SubOrder {
   _id: string;
@@ -668,7 +669,7 @@ export default function OrderDetailsPage() {
                       <button
                         onClick={() => {
                           if (!order.tracking_number || order.tracking_number.trim() === '') {
-                            alert('Please add a tracking number before marking the order as dispatched.');
+                            toast.warning('Please add a tracking number before marking the order as dispatched.');
                             setTrackingNumber('');
                             setShowTrackingModal(true);
                             return;

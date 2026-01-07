@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { toast } from 'sonner';
 
 interface GiftCard {
   _id: string;
@@ -159,7 +160,7 @@ export default function GiftCardsPage() {
 
       setSharingCard(null);
       setReceiverEmail('');
-      alert('Gift card sent successfully!');
+      toast.success('Gift card sent successfully!');
     } catch (err: any) {
       setShareError(err.message || 'Failed to send gift card');
       setSharingCard(null);
