@@ -675,38 +675,104 @@ export default function OrdersPage() {
                           <thead className="bg-[#f1f2f4]">
                             <tr>
                               <th className="px-4 py-3 text-left text-[#121416] text-sm font-medium">Product</th>
-                              <th className="px-4 py-3 text-left text-[#121416] text-sm font-medium">SKU</th>
+                              <th className="px-4 py-3 text-left text-[#121416] text-sm font-medium">Color & Size</th>
                               <th className="px-4 py-3 text-left text-[#121416] text-sm font-medium">Quantity</th>
-                              <th className="px-4 py-3 text-left text-[#121416] text-sm font-medium">Price</th>
+                              <th className="px-4 py-3 text-left text-[#121416] text-sm font-medium">Unit Price</th>
                               <th className="px-4 py-3 text-left text-[#121416] text-sm font-medium">Subtotal</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {selectedOrder.products_list.map((item, index) => (
-                              <tr key={index} className="border-t border-[#dde0e3]">
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center gap-3">
-                                    {item.product_images && item.product_images.length > 0 && (
-                                      <img 
-                                        src={item.product_images[0]} 
-                                        alt={item.product_name}
-                                        className="w-12 h-12 object-cover rounded"
-                                      />
-                                    )}
-                                    <div>
-                                      <p className="text-[#121416] font-medium text-sm">{item.product_name || 'Product'}</p>
-                                      <p className="text-[#6a7581] text-xs">Color: {item.color} {item.size && `| Size: ${item.size}`}</p>
+                            {selectedOrder.products_list.map((item, index) => {
+                              // Extract product data
+                              const product = typeof item.product_id === 'object' ? item.product_id : null;
+                              
+                              // Find the color object that matches the colorCode stored in item.color
+                              const colorData = product?.colors?.find(
+                                (c: any) => c.colorCode === item.color || c.colorName === item.color
+                              );
+                              
+                              // Extract color name (prefer colorName from colorData, fallback to item.color)
+                              const colorName = colorData?.colorName || item.color || 'N/A';
+                              
+                              // Extract product image - prefer color-specific images, then product images
+                              let productImage = null;
+                              if (colorData?.images && colorData.images.length > 0) {
+                                productImage = colorData.images[0];
+                              } else if (item.product_images && item.product_images.length > 0) {
+                                productImage = item.product_images[0];
+                              } else if (product?.images && product.images.length > 0) {
+                                productImage = product.images[0];
+                              }
+                              
+                              // Extract product name
+                              const productName = item.product_name 
+                                || product?.name
+                                || 'Product';
+                              
+                              // Extract product price
+                              const productPrice = item.product_price 
+                                || product?.price
+                                || 0;
+                              
+                              // Extract product ID for SKU
+                              const productId = typeof item.product_id === 'string' 
+                                ? item.product_id 
+                                : product?._id?.toString() || 'N/A';
+
+                              return (
+                                <tr key={index} className="border-t border-[#dde0e3] hover:bg-gray-50">
+                                  <td className="px-4 py-4">
+                                    <div className="flex items-center gap-4">
+                                      {productImage ? (
+                                        <img 
+                                          src={productImage} 
+                                          alt={productName}
+                                          className="w-20 h-20 object-cover rounded-lg border border-[#dde0e3]"
+                                          onError={(e) => {
+                                            (e.target as HTMLImageElement).src = '/placeholder-image.png';
+                                          }}
+                                        />
+                                      ) : (
+                                        <div className="w-20 h-20 bg-[#f1f2f4] rounded-lg border border-[#dde0e3] flex items-center justify-center">
+                                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#6a7581" viewBox="0 0 256 256">
+                                            <path d="M208,56H180.28L166.65,35.56A4,4,0,0,0,163.32,34H92.68a4,4,0,0,0-3.33,1.56L75.71,56H48A16,16,0,0,0,32,72V184a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V72A16,16,0,0,0,208,56Zm0,128H48V72H208V184Z"></path>
+                                          </svg>
+                                        </div>
+                                      )}
+                                      <div className="flex-1">
+                                        <p className="text-[#121416] font-semibold text-sm mb-1">{productName}</p>
+                                        <p className="text-[#6a7581] text-xs">SKU: {productId.slice(-8)}</p>
+                                      </div>
                                     </div>
-                                  </div>
-                                </td>
-                                <td className="px-4 py-3 text-[#6a7581] text-sm">
-                                  {typeof item.product_id === 'string' ? item.product_id.slice(-8) : item.product_id?._id?.toString().slice(-8) || 'N/A'}
-                                </td>
-                                <td className="px-4 py-3 text-[#121416] text-sm">{item.qty}</td>
-                                <td className="px-4 py-3 text-[#121416] text-sm">LKR {item.product_price?.toFixed(2) || '0.00'}</td>
-                                <td className="px-4 py-3 text-[#121416] font-semibold text-sm">LKR {item.subtotal.toFixed(2)}</td>
-                              </tr>
-                            ))}
+                                  </td>
+                                  <td className="px-4 py-4">
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[#6a7581] text-xs">Color:</span>
+                                        {colorData?.colorCode ? (
+                                          <span 
+                                            className="w-5 h-5 rounded-full border border-[#dde0e3] inline-block"
+                                            style={{ backgroundColor: colorData.colorCode }}
+                                            title={colorName}
+                                          />
+                                        ) : (
+                                          <span className="text-[#121416] text-sm font-medium">N/A</span>
+                                        )}
+                                      </div>
+                                      {item.size && (
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-[#6a7581] text-xs">Size:</span>
+                                          <span className="text-[#121416] text-sm font-medium">{item.size}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-4 text-[#121416] text-sm font-medium">{item.qty}</td>
+                                  <td className="px-4 py-4 text-[#121416] text-sm">LKR {productPrice.toFixed(2)}</td>
+                                  <td className="px-4 py-4 text-[#121416] font-semibold text-sm">LKR {item.subtotal.toFixed(2)}</td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
