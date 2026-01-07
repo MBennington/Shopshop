@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from 'sonner';
 
 interface User {
   _id: string;
@@ -114,11 +115,11 @@ export default function AdminUsersPage() {
         setSelectedUser(null);
       } else {
         const data = await response.json();
-        alert(data.error || 'Failed to update role');
+        toast.error(data.error || 'Failed to update role');
       }
     } catch (error) {
       console.error('Failed to update role:', error);
-      alert('Failed to update user role');
+      toast.error('Failed to update user role');
     } finally {
       setActionLoading(null);
     }
@@ -140,11 +141,11 @@ export default function AdminUsersPage() {
         setDeleteConfirm(null);
       } else {
         const data = await response.json();
-        alert(data.error || 'Failed to delete user');
+        toast.error(data.error || 'Failed to delete user');
       }
     } catch (error) {
       console.error('Failed to delete user:', error);
-      alert('Failed to delete user');
+      toast.error('Failed to delete user');
     } finally {
       setActionLoading(null);
     }

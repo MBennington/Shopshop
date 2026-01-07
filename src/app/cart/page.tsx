@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 interface CartApiResponse {
   msg: string;
@@ -122,7 +123,7 @@ export default function CartPage() {
 
       if (!res.ok) {
         const errorMessage = json.msg || json.error || 'Failed to update quantity';
-        alert(`❌ ${errorMessage}`);
+        toast.error(errorMessage);
         return;
       }
 
@@ -138,10 +139,10 @@ export default function CartPage() {
       });
       setQuantities(updatedQuantities);
       
-      alert('✅ Quantity updated successfully!');
+      toast.success('Quantity updated successfully!');
     } catch (err: any) {
       console.error('Update failed:', err);
-      alert(`❌ ${err.message || 'Failed to update quantity'}`);
+      toast.error(err.message || 'Failed to update quantity');
     }
   };
 
@@ -168,7 +169,7 @@ export default function CartPage() {
       if (!res.ok) throw new Error(json.msg || 'Failed to remove item');
 
       setCart(json.data); // ✅ use updated cart
-      alert('✅ Item removed from cart successfully!');
+      toast.success('Item removed from cart successfully!');
     } catch (err) {
       console.error('Remove failed:', err);
     }

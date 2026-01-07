@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
+import { toast } from 'sonner';
 
 interface SizeQuantity {
   size: string;
@@ -168,7 +169,7 @@ export default function AddProductPage() {
         },
       ]);
 
-      alert('Product created successfully!');
+      toast.success('Product created successfully!');
       // Redirect to products page after showing success message
       router.push('/sell/products');
     } catch (err: any) {
@@ -259,7 +260,7 @@ export default function AddProductPage() {
           const remainingSlots = 5 - currentImageCount;
 
           if (remainingSlots <= 0) {
-            alert('Maximum 5 images allowed per color. Please remove an image first.');
+            toast.warning('Maximum 5 images allowed per color. Please remove an image first.');
             return c;
           }
 
@@ -267,7 +268,7 @@ export default function AddProductPage() {
           const maxSize = 5 * 1024 * 1024; // 5MB
           const validFiles = Array.from(files).filter((file) => {
             if (file.size > maxSize) {
-              alert(`File ${file.name} is too large. Maximum size is 5MB.`);
+              toast.error(`File ${file.name} is too large. Maximum size is 5MB.`);
               return false;
             }
             return true;
@@ -277,7 +278,7 @@ export default function AddProductPage() {
           const newFiles = validFiles.slice(0, remainingSlots);
           
           if (validFiles.length > remainingSlots) {
-            alert(`Only ${remainingSlots} more image(s) can be added. Maximum 5 images allowed per color.`);
+            toast.warning(`Only ${remainingSlots} more image(s) can be added. Maximum 5 images allowed per color.`);
           }
 
           // Create preview URLs for new files only

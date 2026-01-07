@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { Gift, X } from 'lucide-react';
 import { BACKEND_URL } from '@/lib/config';
+import { toast } from 'sonner';
 
 interface Address {
   id: string;
@@ -720,7 +721,7 @@ export default function CheckoutPage() {
     // Ensure PayHere library is loaded
     const payhere = (window as any).payhere;
     if (!payHereReady || typeof payhere === 'undefined') {
-      alert('Payment system is loading. Please try again in a moment.');
+      toast.warning('Payment system is loading. Please try again in a moment.');
       return;
     }
 
@@ -759,7 +760,7 @@ export default function CheckoutPage() {
     };
     payhere.onError = function onError(error: string) {
       console.log('Error:' + error);
-      alert('Payment failed. Please try again.');
+      toast.error('Payment failed. Please try again.');
     };
 
     // Start PayHere payment
@@ -774,7 +775,7 @@ export default function CheckoutPage() {
       const token = localStorage.getItem('token');
 
       if (!token) {
-        alert('Please login to place an order');
+        toast.error('Please login to place an order');
         return;
       }
 
@@ -819,7 +820,7 @@ export default function CheckoutPage() {
       }
 
       // Order successful
-      alert('✅ Order placed successfully!');
+      toast.success('Order placed successfully!');
       //payhere setup
       console.log('Order result:', result);
 
@@ -853,7 +854,7 @@ export default function CheckoutPage() {
       console.error('Failed to place order:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error occurred';
-      alert(`❌ Failed to place order: ${errorMessage}`);
+      toast.error(`Failed to place order: ${errorMessage}`);
     } finally {
       setIsPlacingOrder(false);
     }

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from 'sonner';
 
 interface Product {
   _id: string;
@@ -204,7 +205,7 @@ export default function AdminProductsPage() {
       }
     } catch (error) {
       console.error('Failed to fetch stock data:', error);
-      alert('Failed to fetch stock data');
+      toast.error('Failed to fetch stock data');
     } finally {
       setActionLoading(null);
     }
@@ -240,14 +241,14 @@ export default function AdminProductsPage() {
         setShowDeactivateModal(false);
         setSelectedProduct(null);
         fetchProducts(); // Refresh list
-        alert('Product deactivated successfully');
+        toast.success('Product deactivated successfully');
       } else {
         const data = await response.json();
-        alert(data.error || 'Failed to deactivate product');
+        toast.error(data.error || 'Failed to deactivate product');
       }
     } catch (error) {
       console.error('Failed to deactivate product:', error);
-      alert('Failed to deactivate product');
+      toast.error('Failed to deactivate product');
     } finally {
       setActionLoading(null);
     }
@@ -273,14 +274,14 @@ export default function AdminProductsPage() {
         setShowActivateModal(false);
         setSelectedProduct(null);
         fetchProducts(); // Refresh list
-        alert('Product activated successfully');
+        toast.success('Product activated successfully');
       } else {
         const data = await response.json();
-        alert(data.error || 'Failed to activate product');
+        toast.error(data.error || 'Failed to activate product');
       }
     } catch (error) {
       console.error('Failed to activate product:', error);
-      alert('Failed to activate product');
+      toast.error('Failed to activate product');
     } finally {
       setActionLoading(null);
     }

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Gift, Check } from 'lucide-react';
 import { BACKEND_URL } from '@/lib/config';
+import { toast } from 'sonner';
 
 const PRESET_AMOUNTS = [500, 1000, 2000, 5000, 10000, 50000];
 
@@ -160,7 +161,7 @@ export default function PurchaseGiftCardPage() {
     // Ensure PayHere library is loaded
     const payhere = (window as any).payhere;
     if (!payHereReady || typeof payhere === 'undefined') {
-      alert('Payment system is loading. Please try again in a moment.');
+      toast.warning('Payment system is loading. Please try again in a moment.');
       return;
     }
 
