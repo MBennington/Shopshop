@@ -131,7 +131,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
         const payload = JSON.parse(atob(token.split('.')[1]));
         setCurrentUserId(payload.id || payload.userId || null);
       } catch (e) {
-        console.error('Error decoding token:', e);
+        // console.error('Error decoding token:', e);
       }
     }
   }, []);
@@ -179,11 +179,11 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
           setTotalPages(data.data?.pagination?.pages || 1);
         } else {
           const errorData = await response.json().catch(() => ({}));
-          console.error('Error fetching reviews:', response.status, errorData);
+          // console.error('Error fetching reviews:', response.status, errorData);
           setAllReviews([]);
         }
       } catch (err) {
-        console.error('Error fetching reviews:', err);
+        // console.error('Error fetching reviews:', err);
         setAllReviews([]);
       }
     };
@@ -229,7 +229,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
           setWishlistColorIds(colorIds);
         }
       } catch (error) {
-        console.error('Error fetching wishlist:', error);
+        // console.error('Error fetching wishlist:', error);
         setWishlistColorIds(new Set());
       }
     };
@@ -360,7 +360,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Eligibility check failed:', response.status, errorData);
+        // console.error('Eligibility check failed:', response.status, errorData);
         throw new Error(
           errorData.msg || errorData.message || 'Failed to check eligibility'
         );
@@ -370,7 +370,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
       setReviewEligibility(data.data);
       return data.data;
     } catch (error: any) {
-      console.error('Error checking eligibility:', error);
+      // console.error('Error checking eligibility:', error);
       setReviewEligibility({
         eligible: false,
         hasSubOrders: false,
@@ -576,11 +576,11 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
         throw new Error(data.msg || data.error || 'Failed to update cart');
       }
 
-      console.log('✅ Cart updated:', data);
+      // console.log('✅ Cart updated:', data);
       toast.success('Item added to cart successfully!');
       router.push('/cart');
     } catch (error: any) {
-      console.error('Error updating cart:', error);
+      // console.error('Error updating cart:', error);
       setError(error.message || 'Failed to add to cart');
     }
   };
@@ -639,12 +639,12 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
         throw new Error(data.msg || data.error || 'Failed to add to wishlist');
       }
 
-      console.log('✅ Added to wishlist:', data);
+      // console.log('✅ Added to wishlist:', data);
       // Add color ID to wishlist set
       setWishlistColorIds(new Set([...wishlistColorIds, colorId]));
       toast.success('Item added to wishlist!');
     } catch (error: any) {
-      console.error('Error adding to wishlist:', error);
+      // console.error('Error adding to wishlist:', error);
       // Don't show error if product is already in wishlist
       if (error.message && !error.message.includes('already')) {
         setError(error.message || 'Failed to add to wishlist');

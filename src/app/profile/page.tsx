@@ -330,7 +330,7 @@ export default function ProfilePage() {
       
       setSuccess('Address deleted successfully!');
     } catch (error: any) {
-      console.error('Error deleting address:', error);
+      // console.error('Error deleting address:', error);
       
       // Revert the local change on error
       setFormData((prev) => ({
@@ -642,7 +642,7 @@ export default function ProfilePage() {
         },
       }));
     } catch (error: any) {
-      console.error('Error updating profile:', error);
+      // console.error('Error updating profile:', error);
       setError(error.message || 'Failed to update profile');
     } finally {
       setSaving(false);

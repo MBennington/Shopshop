@@ -270,7 +270,7 @@ module.exports.getCartByUserId = async (userId) => {
       );
       item.availableStock = availableStock;
     } catch (error) {
-      console.error(`Error getting stock for product ${item.product_id}:`, error);
+      // console.error(`Error getting stock for product ${item.product_id}:`, error);
       item.availableStock = 0;
     }
     

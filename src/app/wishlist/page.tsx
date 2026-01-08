@@ -83,7 +83,7 @@ export default function WishlistPage() {
 
         setWishlist(json.data);
       } catch (err: any) {
-        console.error('Failed to fetch wishlist:', err);
+        // console.error('Failed to fetch wishlist:', err);
         setError(err.message || 'Failed to load wishlist');
       } finally {
         setLoading(false);
@@ -162,7 +162,7 @@ export default function WishlistPage() {
       toast.success('Item added to cart and removed from wishlist!');
       router.push('/cart');
     } catch (err: any) {
-      console.error('Failed to add to cart:', err);
+      // console.error('Failed to add to cart:', err);
       toast.error(err.message || 'Failed to add to cart');
     } finally {
       setMovingToCart(prev => ({ ...prev, [itemKey]: false }));
@@ -229,7 +229,7 @@ export default function WishlistPage() {
 
       toast.success('Item removed from wishlist successfully!');
     } catch (err: any) {
-      console.error('Failed to remove from wishlist:', err);
+      // console.error('Failed to remove from wishlist:', err);
       toast.error(err.message || 'Failed to remove from wishlist');
     } finally {
       setRemoving(prev => ({ ...prev, [itemKey]: false }));

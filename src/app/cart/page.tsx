@@ -87,7 +87,7 @@ export default function CartPage() {
         });
         setQuantities(initialQuantities);
       } catch (error) {
-        console.error('Failed to fetch cart', error);
+        // console.error('Failed to fetch cart', error);
       } finally {
         setLoading(false);
       }
@@ -101,18 +101,18 @@ export default function CartPage() {
       // Validate required fields
       if (!item.product_id) {
         toast.error('Product ID is missing. Please refresh the page and try again.');
-        console.error('Missing product_id in item:', item);
+        // console.error('Missing product_id in item:', item);
         return;
       }
 
       if (!item.color) {
         toast.error('Color information is missing. Please refresh the page and try again.');
-        console.error('Missing color in item:', item);
+        // console.error('Missing color in item:', item);
         return;
       }
 
       // Open a modal or redirect to product page with item pre-selected
-      console.log('Edit item:', item);
+      // console.log('Edit item:', item);
       const token = localStorage.getItem('token');
       const payload: any = {
         product_id: String(item.product_id),
@@ -154,7 +154,7 @@ export default function CartPage() {
       
       toast.success('Quantity updated successfully!');
     } catch (err: any) {
-      console.error('Update failed:', err);
+      // console.error('Update failed:', err);
       toast.error(err.message || 'Failed to update quantity');
     }
   };
@@ -162,8 +162,8 @@ export default function CartPage() {
   const handleRemove = async (item: CartItem) => {
     try {
       // Debug: Log the item to see its structure
-      console.log('handleRemove called with item:', item);
-      console.log('item.product_id:', item.product_id, 'type:', typeof item.product_id);
+      // console.log('handleRemove called with item:', item);
+      // console.log('item.product_id:', item.product_id, 'type:', typeof item.product_id);
       
       // Validate required fields - check for undefined, null, empty string, or whitespace
       // Handle both string and ObjectId types
@@ -185,21 +185,21 @@ export default function CartPage() {
       
       if (!productId || productId === '' || productId === 'null' || productId === 'undefined') {
         toast.error('Product ID is missing. Please refresh the page and try again.');
-        console.error('Missing or invalid product_id:', {
-          original: item.product_id,
-          processed: productId,
-          fullItem: item
-        });
+        // console.error('Missing or invalid product_id:', {
+        //   original: item.product_id,
+        //   processed: productId,
+        //   fullItem: item
+        // });
         return;
       }
 
       if (!color || color === '' || color === 'null' || color === 'undefined') {
         toast.error('Color information is missing. Please refresh the page and try again.');
-        console.error('Missing or invalid color:', {
-          original: item.color,
-          processed: color,
-          fullItem: item
-        });
+        // console.error('Missing or invalid color:', {
+        //   original: item.color,
+        //   processed: color,
+        //   fullItem: item
+        // });
         return;
       }
 
@@ -218,7 +218,7 @@ export default function CartPage() {
         params.append('size', String(item.size).trim());
       }
       
-      console.log('Sending DELETE request with params:', params.toString());
+      // console.log('Sending DELETE request with params:', params.toString());
       
       const res = await fetch(
         `/api/cart?${params.toString()}`,
@@ -240,7 +240,7 @@ export default function CartPage() {
       setCart(json.data); // ✅ use updated cart
       toast.success('Item removed from cart successfully!');
     } catch (err: any) {
-      console.error('Remove failed:', err);
+      // console.error('Remove failed:', err);
       toast.error(err.message || 'Failed to remove item from cart');
     }
   };
