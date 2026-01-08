@@ -522,7 +522,7 @@ export default function SettingsPage() {
         },
       }));
     } catch (error: any) {
-      console.error('Error updating profile:', error);
+      // console.error('Error updating profile:', error);
       setError(error.message || 'Failed to update profile');
     } finally {
       setSaving(false);

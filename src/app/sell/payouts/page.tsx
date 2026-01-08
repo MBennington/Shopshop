@@ -79,7 +79,7 @@ export default function PayoutsPage() {
         toast.error(errorMessage);
       }
     } catch (error) {
-      console.error('Failed to fetch wallet:', error);
+      // console.error('Failed to fetch wallet:', error);
       toast.error('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
@@ -104,7 +104,7 @@ export default function PayoutsPage() {
         toast.error(errorMessage);
       }
     } catch (error) {
-      console.error('Failed to fetch payouts:', error);
+      // console.error('Failed to fetch payouts:', error);
       toast.error('Network error. Please check your connection and try again.');
     }
   };
@@ -162,7 +162,7 @@ export default function PayoutsPage() {
         }
       }
     } catch (error: any) {
-      console.error('Payout creation error:', error);
+      // console.error('Payout creation error:', error);
       const errorMessage = error?.message || 'Network error. Please check your connection and try again.';
       toast.error(errorMessage);
     } finally {
@@ -194,7 +194,7 @@ export default function PayoutsPage() {
         toast.error(errorMessage);
       }
     } catch (error: any) {
-      console.error('Payout cancellation error:', error);
+      // console.error('Payout cancellation error:', error);
       const errorMessage = error?.message || 'Network error. Please check your connection and try again.';
       toast.error(errorMessage);
     }

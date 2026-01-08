@@ -240,7 +240,7 @@ module.exports.getAnalytics = async (sellerId, filters = {}) => {
       },
     };
   } catch (error) {
-    console.error('Error getting seller analytics:', error);
+    // console.error('Error getting seller analytics:', error);
     throw new Error('Failed to fetch seller analytics data');
   }
 };

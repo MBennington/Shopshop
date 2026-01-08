@@ -88,7 +88,7 @@ module.exports.getPayoutById = async (payout_id, role, user_id) => {
     )
     .lean();
 
-  console.log('Payout fetched:', payout);
+  // console.log('Payout fetched:', payout);
 
   if (!payout) {
     throw new Error('Payout not found');
@@ -104,7 +104,7 @@ module.exports.getPayoutById = async (payout_id, role, user_id) => {
   if (!sellerIdValue) {
     throw new Error('Payout seller information is missing');
   }
-  console.log('Payout seller ID:', sellerIdValue);
+  // console.log('Payout seller ID:', sellerIdValue);
 
   if (role !== roles.admin && sellerIdValue !== user_id.toString()) {
     throw new Error('You are not authorized to view this payout');
@@ -308,10 +308,10 @@ module.exports.markPayoutAsPaid = async (
  * @returns {Promise<Object>}
  */
 module.exports.cancelPayout = async (payout_id, role, seller_id) => {
-  console.log('in cancel payout');
+  // console.log('in cancel payout');
 
   const payout = await this.getPayoutById(payout_id, role, seller_id);
-  console.log('Payout fetched for cancellation:', payout);
+  // console.log('Payout fetched for cancellation:', payout);
 
   if (!payout) {
     throw new Error('Payout not found');

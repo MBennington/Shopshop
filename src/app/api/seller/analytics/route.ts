@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Seller analytics fetch error:', error);
+    // console.error('Seller analytics fetch error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch seller analytics' },
       { status: 500 }

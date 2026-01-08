@@ -127,7 +127,7 @@ export default function OrderDetailsPage() {
         setError('Failed to load order details');
       }
     } catch (error) {
-      console.error('Failed to fetch order details:', error);
+      // console.error('Failed to fetch order details:', error);
       setError('An error occurred while loading order details');
     } finally {
       setLoading(false);
@@ -151,7 +151,7 @@ export default function OrderDetailsPage() {
         await fetchOrderDetails();
       }
     } catch (error) {
-      console.error('Failed to update order status:', error);
+      // console.error('Failed to update order status:', error);
     } finally {
       setUpdatingOrderId(null);
     }
@@ -164,7 +164,7 @@ export default function OrderDetailsPage() {
       await updateOrderStatus(subOrderId, 'cancelled');
       router.push('/sell/orders');
     } catch (error) {
-      console.error('Failed to cancel order:', error);
+      // console.error('Failed to cancel order:', error);
     }
   };
 
@@ -189,7 +189,7 @@ export default function OrderDetailsPage() {
         setShowTrackingModal(false);
       }
     } catch (error) {
-      console.error('Failed to update tracking number:', error);
+      // console.error('Failed to update tracking number:', error);
     } finally {
       setIsUpdatingTracking(false);
     }

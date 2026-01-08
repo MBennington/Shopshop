@@ -242,7 +242,7 @@ export default function EditProductPage() {
       toast.success('Product updated successfully!');
       router.push('/sell/products');
     } catch (err: any) {
-      console.error(err);
+      // console.error(err);
       setErrors({ submit: err.message });
     } finally {
       setIsSubmitting(false);
