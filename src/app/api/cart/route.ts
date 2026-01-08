@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     // Backend now handles seller grouping, so just return the data as-is
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Cart fetch error:", error);
+    // console.error("Cart fetch error:", error);
     return NextResponse.json(
       { error: "Failed to fetch cart" },
       { status: 500 }
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Cart update error:", error);
+    // console.error("Cart update error:", error);
     return NextResponse.json(
       { error: "Failed to add to the cart" },
       { status: 500 }
@@ -95,7 +95,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Cart update error:", error);
+    // console.error("Cart update error:", error);
     return NextResponse.json(
       { error: "Failed to update the quantity" },
       { status: 500 }
@@ -146,7 +146,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Cart remove error:", error);
+    // console.error("Cart remove error:", error);
     return NextResponse.json(
       { error: "Failed to remove item from cart" },
       { status: 500 }

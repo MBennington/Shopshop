@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Wishlist add to cart error:", error);
+    // console.error("Wishlist add to cart error:", error);
     return NextResponse.json(
       { error: "Failed to add wishlist item to cart" },
       { status: 500 }

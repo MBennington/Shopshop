@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
 
   } catch (error) {
-    console.error('Order creation error:', error);
+    // console.error('Order creation error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result);
 
   } catch (error) {
-    console.error('Order fetch error:', error);
+    // console.error('Order fetch error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -247,7 +247,7 @@ module.exports.createOrder = async (user_id, body) => {
           });
         }
       } catch (error) {
-        console.error(`Error sending new order email to seller ${sellerId}:`, error);
+        // console.error(`Error sending new order email to seller ${sellerId}:`, error);
         // Don't fail the operation if email fails
       }
     }
@@ -281,7 +281,7 @@ module.exports.createOrder = async (user_id, body) => {
           }
         } catch (error) {
           // Log error but don't fail the order - gift card was already validated
-          console.error(`Error updating gift card ${giftCardInfo.code}:`, error);
+          // console.error(`Error updating gift card ${giftCardInfo.code}:`, error);
         }
       }
     }

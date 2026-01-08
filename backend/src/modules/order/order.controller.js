@@ -19,7 +19,7 @@ module.exports.createOrder = async (req, res) => {
 
     return successWithData(data, res);
   } catch (error) {
-    console.error('Creating order error:', error);
+    // console.error('Creating order error:', error);
     return customError(`${error.message}`, res);
   }
 };
@@ -37,7 +37,7 @@ module.exports.findOrderById = async (req, res) => {
 
     return successWithData(data, res);
   } catch (error) {
-    console.error('Finding order error:', error);
+    // console.error('Finding order error:', error);
     return customError(`${error.message}`, res);
   }
 };
@@ -61,7 +61,7 @@ module.exports.getOrdersByUser = async (req, res) => {
 
     return successWithData(data, res);
   } catch (error) {
-    console.error('Getting user orders error:', error);
+    // console.error('Getting user orders error:', error);
     return customError(`${error.message}`, res);
   }
 };
@@ -85,7 +85,7 @@ module.exports.getAllOrders = async (req, res) => {
 
     return successWithData(data, res);
   } catch (error) {
-    console.error('Getting all orders error:', error);
+    // console.error('Getting all orders error:', error);
     return customError(`${error.message}`, res);
   }
 };
