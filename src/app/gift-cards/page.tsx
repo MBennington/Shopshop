@@ -75,7 +75,7 @@ export default function GiftCardsPage() {
           received: [],
         });
       } catch (error) {
-        console.error('Error fetching gift cards:', error);
+        // console.error('Error fetching gift cards:', error);
       } finally {
         setLoading(false);
       }

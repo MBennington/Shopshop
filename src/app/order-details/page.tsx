@@ -27,7 +27,7 @@ export default function OrderDetailsPage() {
   const fetchOrderDetails = async (orderId: string) => {
     try {
       if (!orderId || orderId === 'undefined') {
-        console.error('Invalid order ID:', orderId);
+        // console.error('Invalid order ID:', orderId);
         setLoading(false);
         setError('Invalid order ID');
         return;
@@ -36,7 +36,7 @@ export default function OrderDetailsPage() {
       const token = localStorage.getItem('token');
 
       if (!token) {
-        console.error('No authentication token found');
+        // console.error('No authentication token found');
         setLoading(false);
         setError('Please log in to view order details');
         return;
@@ -50,23 +50,23 @@ export default function OrderDetailsPage() {
 
       if (orderResponse.ok) {
         const orderData = await orderResponse.json();
-        console.log('Order data received:', orderData);
-        console.log('Sub-orders data:', orderData.data.sub_orders_details);
+        // console.log('Order data received:', orderData);
+        // console.log('Sub-orders data:', orderData.data.sub_orders_details);
         setOrderDetails(orderData.data);
         setSubOrders(orderData.data.sub_orders_details || []);
         setError(null);
       } else {
-        console.error(
-          'Failed to fetch order details:',
-          orderResponse.status,
-          orderResponse.statusText
-        );
+        // console.error(
+        //   'Failed to fetch order details:',
+        //   orderResponse.status,
+        //   orderResponse.statusText
+        // );
         const errorData = await orderResponse.json();
-        console.error('Error data:', errorData);
+        // console.error('Error data:', errorData);
         setError('Failed to load order details. Please try again later.');
       }
     } catch (error) {
-      console.error('Failed to fetch order details:', error);
+      // console.error('Failed to fetch order details:', error);
       setError('An error occurred while loading order details. Please try again.');
     } finally {
       setLoading(false);

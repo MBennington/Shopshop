@@ -21,8 +21,8 @@ const SellerWalletModel = require('../sellerWallet/seller-wallet.model');
  * @returns {Promise<*>}
  */
 module.exports.processUserData = async (body, files, existingUser = null) => {
-  console.log('Processing user data...');
-  console.log('Files received:', files ? files.length : 'No files');
+  // console.log('Processing user data...');
+  // console.log('Files received:', files ? files.length : 'No files');
 
   const processedData = {};
 
@@ -116,7 +116,7 @@ module.exports.processUserData = async (body, files, existingUser = null) => {
           );
           if (oldPublicId) {
             await deleteFromCloudinary(oldPublicId);
-            console.log('Deleted old profile picture:', oldPublicId);
+            // console.log('Deleted old profile picture:', oldPublicId);
           }
         }
 
@@ -128,9 +128,9 @@ module.exports.processUserData = async (body, files, existingUser = null) => {
         );
 
         processedData.profilePicture = uploadResult.url;
-        console.log('Uploaded new profile picture:', uploadResult.url);
+        // console.log('Uploaded new profile picture:', uploadResult.url);
       } catch (error) {
-        console.error('Failed to upload profile picture:', error);
+        // console.error('Failed to upload profile picture:', error);
         throw new Error(`Failed to upload profile picture: ${error.message}`);
       }
     }
@@ -187,10 +187,10 @@ module.exports.createUser = async (body) => {
           currency: 'LKR',
         });
         await repository.save(newWallet);
-        console.log(`Seller wallet created for seller ${user._id}`);
+        // console.log(`Seller wallet created for seller ${user._id}`);
       }
     } catch (error) {
-      console.error('Error creating seller wallet:', error);
+      // console.error('Error creating seller wallet:', error);
       // Don't fail the registration if wallet creation fails
     }
   }

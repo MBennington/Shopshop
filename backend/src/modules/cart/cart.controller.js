@@ -19,7 +19,7 @@ module.exports.createOrUpdateCart = async (req, res) => {
 
     return successWithData(data, res);
   } catch (error) {
-    console.error('Updating cart error:', error);
+    // console.error('Updating cart error:', error);
     return customError(`${error.message}`, res);
   }
 };
@@ -54,7 +54,7 @@ module.exports.removeFromCart = async (req, res) => {
 
     return successWithData(data, res);
   } catch (error) {
-    console.error('Updating cart error:', error);
+    // console.error('Updating cart error:', error);
     return customError(`${error.message}`, res);
   }
 };
@@ -73,7 +73,7 @@ module.exports.updateQuantity = async (req, res) => {
 
     return successWithData(data, res);
   } catch (error) {
-    console.error('Updating cart error:', error);
+    // console.error('Updating cart error:', error);
     return customError(`${error.message}`, res);
   }
 };

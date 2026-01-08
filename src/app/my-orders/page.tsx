@@ -107,7 +107,7 @@ export default function MyOrdersPage() {
         setError(errorData.error || 'Failed to fetch orders');
       }
     } catch (error) {
-      console.error('Failed to fetch orders:', error);
+      // console.error('Failed to fetch orders:', error);
       setError('An error occurred while loading your orders');
     } finally {
       setLoading(false);

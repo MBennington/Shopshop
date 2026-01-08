@@ -98,15 +98,15 @@ export default function ProductCatalogue({
       }
 
       const responseData: ProductsResponse = await response.json();
-      console.log('Frontend received data:', responseData);
-      console.log(
-        'Current page:',
-        pagination.page,
-        'Products received:',
-        responseData.data.records.length,
-        'Total products:',
-        responseData.data.recordsTotal
-      );
+      // console.log('Frontend received data:', responseData);
+      // console.log(
+      //   'Current page:',
+      //   pagination.page,
+      //   'Products received:',
+      //   responseData.data.records.length,
+      //   'Total products:',
+      //   responseData.data.recordsTotal
+      // );
 
       if (isLoadMore) {
         // Only append if we actually received new products
@@ -188,13 +188,13 @@ export default function ProductCatalogue({
         }
 
         const responseData: ProductsResponse = await response.json();
-        console.log('Frontend received data:', responseData);
-        console.log(
-          'Current page:',
-          nextPage,
-          'Products received:',
-          responseData.data.records.length,
-          'Total products:',
+        // console.log('Frontend received data:', responseData);
+        // console.log(
+        //   'Current page:',
+        //   nextPage,
+        //   'Products received:',
+        //   responseData.data.records.length,
+        //   'Total products:',
           responseData.data.recordsTotal
         );
 

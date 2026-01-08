@@ -143,7 +143,7 @@ export default function PurchaseGiftCardPage() {
         );
       }
     } catch (err: any) {
-      console.error('Error fetching gift card:', err);
+      // console.error('Error fetching gift card:', err);
       setError('An error occurred. Please try again.');
     }
   };
@@ -189,22 +189,22 @@ export default function PurchaseGiftCardPage() {
 
     // Optional: register event handlers
     payhere.onCompleted = function onCompleted(orderId: string) {
-      console.log('Payment completed. PaymentID:' + orderId);
+      // console.log('Payment completed. PaymentID:' + orderId);
       // Redirect to success page with payment ID
       window.location.href = `/gift-cards/purchase?paymentId=${orderId}`;
     };
     payhere.onDismissed = function onDismissed() {
-      console.log('Payment dismissed');
+      // console.log('Payment dismissed');
       setIsProcessing(false);
     };
     payhere.onError = function onError(error: string) {
-      console.log('Error:' + error);
+      // console.log('Error:' + error);
       setError('Payment failed. Please try again.');
       setIsProcessing(false);
     };
 
     payhere.onDismissed = function onDismissed() {
-      console.log('Payment dismissed by user');
+      // console.log('Payment dismissed by user');
       setError(
         'Payment was cancelled. Please try again if you want to complete the purchase.'
       );

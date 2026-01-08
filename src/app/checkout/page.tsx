@@ -111,7 +111,7 @@ export default function CheckoutPage() {
         parsedProduct = parsedCartItems[0];
       }
     } catch (error) {
-      console.error('Error parsing data:', error);
+      // console.error('Error parsing data:', error);
     }
 
     return {
@@ -316,10 +316,10 @@ export default function CheckoutPage() {
     script.async = true;
     script.onload = () => {
       setPayHereReady(true);
-      console.log('PayHere script loaded');
+      // console.log('PayHere script loaded');
     };
     script.onerror = () => {
-      console.error('Failed to load PayHere script');
+      // console.error('Failed to load PayHere script');
     };
     document.body.appendChild(script);
 
@@ -406,7 +406,7 @@ export default function CheckoutPage() {
             cartDataFetched.current = null; // Reset on error
           }
         } catch (error) {
-          console.error('Failed to fetch cart data:', error);
+          // console.error('Failed to fetch cart data:', error);
           cartDataFetched.current = null; // Reset on error
           // Fallback to manual grouping if fetch fails
           if (cartItems) {
@@ -471,11 +471,11 @@ export default function CheckoutPage() {
             });
           } else {
             // If fetch fails, use platform default
-            setShippingFee(100);
-            setBuyNowSellerInfo(null);
+          setShippingFee(100);
+          setBuyNowSellerInfo(null);
           }
         } catch (error) {
-          console.error('Failed to fetch product details:', error);
+          // console.error('Failed to fetch product details:', error);
           // Use platform default on error
           setShippingFee(100);
           setBuyNowSellerInfo(null);
@@ -502,7 +502,7 @@ export default function CheckoutPage() {
           setPlatformChargesConfig(json.data);
         }
       } catch (error) {
-        console.error('Failed to fetch platform charges:', error);
+        // console.error('Failed to fetch platform charges:', error);
       }
     };
     fetchPlatformCharges();
@@ -627,13 +627,13 @@ export default function CheckoutPage() {
 
     // Debug: Log product data to see its structure
     if (product) {
-      console.log('Product data:', product);
-      console.log(
-        'Product price:',
-        product.price,
-        'Type:',
-        typeof product.price
-      );
+      // console.log('Product data:', product);
+      // console.log(
+      //   'Product price:',
+      //   product.price,
+      //   'Type:',
+      //   typeof product.price
+      // );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product, savedAddresses]);
@@ -750,16 +750,16 @@ export default function CheckoutPage() {
 
     // Optional: register event handlers
     payhere.onCompleted = function onCompleted(orderId: string) {
-      console.log('Payment completed. OrderID:' + orderId);
+      // console.log('Payment completed. OrderID:' + orderId);
       // Redirect to success page with order ID
       window.location.href = `/order-success?orderId=${orderId}`;
     };
     payhere.onDismissed = function onDismissed() {
-      console.log('Payment dismissed');
+      // console.log('Payment dismissed');
       // Stay on checkout page if payment is dismissed
     };
     payhere.onError = function onError(error: string) {
-      console.log('Error:' + error);
+      // console.log('Error:' + error);
       toast.error('Payment failed. Please try again.');
     };
 
@@ -813,7 +813,7 @@ export default function CheckoutPage() {
       });
 
       const result = await response.json();
-      console.log('result: ', response);
+      // console.log('result: ', response);
 
       if (!response.ok) {
         throw new Error(result.error || 'Failed to place order');
@@ -822,13 +822,13 @@ export default function CheckoutPage() {
       // Order successful
       toast.success('Order placed successfully!');
       //payhere setup
-      console.log('Order result:', result);
+      // console.log('Order result:', result);
 
       const orderDataFromServer = result.data;
 
       if (orderDataFromServer.payment_method === 'gift_card') {
         // Fully covered by gift cards, no payment needed
-        console.log('Order fully covered by gift cards.');
+        // console.log('Order fully covered by gift cards.');
         const orderId =
           orderDataFromServer.orderId || orderDataFromServer.order_id;
         window.location.href = `/order-success?orderId=${orderId}`;
@@ -840,18 +840,18 @@ export default function CheckoutPage() {
         initiatePayHerePayment(orderDataFromServer);
       } else {
         // Payment is COD or other method
-        console.log('Cash on Delivery or other payment method.');
+        // console.log('Cash on Delivery or other payment method.');
         // Get order ID from the response (different field names for different payment methods)
         const orderId =
           orderDataFromServer.orderId || orderDataFromServer.order_id;
-        console.log('Order ID:', orderId);
+        // console.log('Order ID:', orderId);
         // Redirect to order confirmation page
         window.location.href = `/order-success?orderId=${orderId}`;
       }
 
       // TODO: Redirect to order confirmation page or clear cart
     } catch (error) {
-      console.error('Failed to place order:', error);
+      // console.error('Failed to place order:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error occurred';
       toast.error(`Failed to place order: ${errorMessage}`);
@@ -1184,7 +1184,7 @@ export default function CheckoutPage() {
                         onClick={() => {
                           setSelectedPayment('card');
                           // Redirect to card payment page - implement later
-                          console.log('Redirecting to card payment page...');
+                          // console.log('Redirecting to card payment page...');
                         }}
                       >
                         <div className="flex items-center gap-3">
