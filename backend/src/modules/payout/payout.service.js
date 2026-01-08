@@ -33,6 +33,22 @@ module.exports.createPayoutRequest = async (
     throw new Error('Seller information not found');
   }
 
+  // Check if bank details are saved
+  const payouts = seller.sellerInfo.payouts || {};
+  const hasBankDetails =
+    payouts.bankName &&
+    payouts.bankAccountNumber &&
+    payouts.bankAccountName &&
+    payouts.bankName.trim() !== '' &&
+    payouts.bankAccountNumber.trim() !== '' &&
+    payouts.bankAccountName.trim() !== '';
+
+  if (!hasBankDetails) {
+    throw new Error(
+      'Bank details not found. Please fill in your bank details in Settings > Payout before making a payout request.'
+    );
+  }
+
   const payoutData = {
     seller_id: seller_id,
     amount_requested: amount_requested,
