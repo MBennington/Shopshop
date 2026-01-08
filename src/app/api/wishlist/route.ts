@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Wishlist add error:", error);
+    // console.error("Wishlist add error:", error);
     return NextResponse.json(
       { error: "Failed to add to wishlist" },
       { status: 500 }
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Wishlist fetch error:", error);
+    // console.error("Wishlist fetch error:", error);
     return NextResponse.json(
       { error: "Failed to fetch wishlist" },
       { status: 500 }
@@ -101,7 +101,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Wishlist remove error:", error);
+    // console.error("Wishlist remove error:", error);
     return NextResponse.json(
       { error: "Failed to remove from wishlist" },
       { status: 500 }

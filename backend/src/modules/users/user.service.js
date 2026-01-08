@@ -210,7 +210,7 @@ module.exports.createUser = async (body) => {
       html: emailTemplate.html,
     });
   } catch (error) {
-    console.error('Error sending registration email:', error);
+    // console.error('Error sending registration email:', error);
     // Don't fail the registration if email fails
   }
 
@@ -286,7 +286,7 @@ module.exports.requestPasswordReset = async (email) => {
       html: emailTemplate.html,
     });
   } catch (error) {
-    console.error('Error sending password reset email:', error);
+    // console.error('Error sending password reset email:', error);
     // Do not throw error to avoid leaking whether the email exists
   }
 };
@@ -328,7 +328,7 @@ module.exports.updateUserProfile = async (user_id, body, files) => {
   if (!existingUser) throw new Error('User not found');
 
   const processedData = await this.processUserData(body, files, existingUser);
-  console.log('processed data----', processedData);
+  // console.log('processed data----', processedData);
 
   const updatedUser = await repository.updateOne(
     UserModel,
@@ -337,7 +337,7 @@ module.exports.updateUserProfile = async (user_id, body, files) => {
     { new: true }
   );
 
-  console.log('updated user ---', updatedUser);
+  // console.log('updated user ---', updatedUser);
 
   if (!updatedUser) throw new Error('Failed to update user');
 
@@ -588,10 +588,10 @@ module.exports.deleteUser = async (user_id, password) => {
       const publicId = extractPublicIdFromUrl(user.profilePicture);
       if (publicId) {
         await deleteFromCloudinary(publicId);
-        console.log('Deleted profile picture:', publicId);
+        // console.log('Deleted profile picture:', publicId);
       }
     } catch (error) {
-      console.error('Failed to delete profile picture:', error);
+      // console.error('Failed to delete profile picture:', error);
       // Don't throw error for deletion failures
     }
   }
@@ -702,10 +702,10 @@ module.exports.deleteUserByAdmin = async (userId, adminId) => {
       const publicId = extractPublicIdFromUrl(user.profilePicture);
       if (publicId) {
         await deleteFromCloudinary(publicId);
-        console.log('Deleted profile picture:', publicId);
+        // console.log('Deleted profile picture:', publicId);
       }
     } catch (error) {
-      console.error('Failed to delete profile picture:', error);
+      // console.error('Failed to delete profile picture:', error);
       // Don't throw error for deletion failures
     }
   }
@@ -714,7 +714,7 @@ module.exports.deleteUserByAdmin = async (userId, adminId) => {
   const deletedUser = await repository.deleteOne(UserModel, {
     _id: userId,
   });
-  console.log('Deleted user:', deletedUser);
+  // console.log('Deleted user:', deletedUser);
   if (!deletedUser) {
     throw new Error('Failed to delete user');
   }

@@ -195,8 +195,8 @@ export default function ProductCatalogue({
         //   'Products received:',
         //   responseData.data.records.length,
         //   'Total products:',
-          responseData.data.recordsTotal
-        );
+        //   responseData.data.recordsTotal
+        // );
 
         // Only append if we actually received new products
         if (responseData.data.records.length > 0) {

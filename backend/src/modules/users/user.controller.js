@@ -108,7 +108,7 @@ module.exports.updateUserProfile = async (req, res) => {
   try {
     const user_id = res.locals.user.id;
     const files = req.file ? [req.file] : null;
-    console.log('body  ', req.body);
+    // console.log('body  ', req.body);
 
     const data = await userService.updateUserProfile(user_id, req.body, files);
     return successWithData(data, res);
