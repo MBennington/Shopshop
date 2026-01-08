@@ -173,7 +173,7 @@ export default function AddProductPage() {
       // Redirect to products page after showing success message
       router.push('/sell/products');
     } catch (err: any) {
-      console.error(err);
+      // console.error(err);
       setErrors({ submit: err.message });
     } finally {
       setIsSubmitting(false);

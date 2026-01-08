@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
 
 interface Wallet {
   _id: string;
@@ -35,11 +37,10 @@ interface Payout {
 
 export default function PayoutsPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   
   // Payout request dialog
   const [showRequestDialog, setShowRequestDialog] = useState(false);
@@ -72,9 +73,14 @@ export default function PayoutsPage() {
       if (response.ok) {
         const data = await response.json();
         setWallet(data.data);
+      } else {
+        const data = await response.json();
+        const errorMessage = data.msg || data.error || 'Failed to load wallet information';
+        toast.error(errorMessage);
       }
     } catch (error) {
-      console.error('Failed to fetch wallet:', error);
+      // console.error('Failed to fetch wallet:', error);
+      toast.error('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -92,26 +98,29 @@ export default function PayoutsPage() {
       if (response.ok) {
         const data = await response.json();
         setPayouts(data.data.payouts || []);
+      } else {
+        const data = await response.json();
+        const errorMessage = data.msg || data.error || 'Failed to load payout history';
+        toast.error(errorMessage);
       }
     } catch (error) {
-      console.error('Failed to fetch payouts:', error);
+      // console.error('Failed to fetch payouts:', error);
+      toast.error('Network error. Please check your connection and try again.');
     }
   };
 
   const handleCreatePayout = async () => {
     if (!requestAmount || parseFloat(requestAmount) <= 0) {
-      setError('Please enter a valid amount');
+      toast.error('Please enter a valid amount');
       return;
     }
 
     if (wallet && parseFloat(requestAmount) > wallet.available_balance) {
-      setError('Insufficient available balance');
+      toast.error('Insufficient available balance');
       return;
     }
 
     setSubmitting(true);
-    setError('');
-    setSuccess('');
 
     try {
       const token = localStorage.getItem('token');
@@ -130,18 +139,32 @@ export default function PayoutsPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setSuccess('Payout request created successfully');
+        toast.success('Payout request created successfully!');
         setShowRequestDialog(false);
         setRequestAmount('');
         fetchWallet();
         fetchPayouts();
-        setTimeout(() => setSuccess(''), 3000);
       } else {
-        setError(data.msg || data.error || 'Failed to create payout request');
+        const errorMessage = data.msg || data.error || 'Failed to create payout request';
+        
+        // Check if error is about missing bank details
+        if (errorMessage.toLowerCase().includes('bank details') || errorMessage.toLowerCase().includes('bank details not found')) {
+          toast.error('Bank details required', {
+            description: errorMessage.includes('Settings') ? errorMessage : 'Please fill in your bank details in Settings > Payout before making a payout request.',
+            action: {
+              label: 'Go to Settings',
+              onClick: () => router.push('/sell/settings?tab=payouts'),
+            },
+            duration: 6000,
+          });
+        } else {
+          toast.error(errorMessage);
+        }
       }
-    } catch (error) {
-      console.error('Payout creation error:', error);
-      setError('Server error during payout creation');
+    } catch (error: any) {
+      // console.error('Payout creation error:', error);
+      const errorMessage = error?.message || 'Network error. Please check your connection and try again.';
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -162,17 +185,18 @@ export default function PayoutsPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setSuccess('Payout cancelled successfully');
+        toast.success('Payout cancelled successfully');
         setCancelDialog({ show: false, payoutId: null });
         fetchWallet();
         fetchPayouts();
-        setTimeout(() => setSuccess(''), 3000);
       } else {
-        setError(data.msg || data.error || 'Failed to cancel payout');
+        const errorMessage = data.msg || data.error || 'Failed to cancel payout';
+        toast.error(errorMessage);
       }
-    } catch (error) {
-      console.error('Payout cancellation error:', error);
-      setError('Server error during payout cancellation');
+    } catch (error: any) {
+      // console.error('Payout cancellation error:', error);
+      const errorMessage = error?.message || 'Network error. Please check your connection and try again.';
+      toast.error(errorMessage);
     }
   };
 
@@ -226,7 +250,15 @@ export default function PayoutsPage() {
                 <p className="text-[#6a7581] text-sm font-normal leading-normal">Track your earnings and manage payouts</p>
               </div>
               <Button
-                onClick={() => setShowRequestDialog(true)}
+                onClick={() => {
+                  if (!wallet || wallet.available_balance <= 0) {
+                    toast.warning('No available balance', {
+                      description: 'You need to have available balance to request a payout.',
+                    });
+                    return;
+                  }
+                  setShowRequestDialog(true);
+                }}
                 className="h-10 px-5 rounded-full bg-[#121416] text-white text-sm font-bold hover:bg-[#23272b] transition-colors"
                 disabled={!wallet || wallet.available_balance <= 0}
               >
@@ -234,21 +266,10 @@ export default function PayoutsPage() {
               </Button>
             </div>
 
-            {/* Error/Success Messages */}
-            {error && (
-              <div className="mx-4 mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
-            {success && (
-              <div className="mx-4 mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded-lg text-sm">
-                {success}
-              </div>
-            )}
 
             {/* Wallet Metrics */}
             {loading ? (
-              <div className="p-4">Loading wallet information...</div>
+              <div className="p-4 text-[#6a7581]">Loading wallet information...</div>
             ) : wallet ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4">
                 <div className="flex flex-col gap-2 p-4 rounded-xl border border-[#dde0e3] bg-white">
@@ -280,9 +301,7 @@ export default function PayoutsPage() {
                   <p className="text-xs text-[#6a7581]">Total payouts</p>
                 </div>
               </div>
-            ) : (
-              <div className="p-4 text-red-600">Failed to load wallet information</div>
-            )}
+            ) : null}
 
             {/* Payout History */}
             <div className="p-4">
@@ -321,7 +340,6 @@ export default function PayoutsPage() {
                               variant="outline"
                               size="sm"
                               onClick={() => {
-                                setError('');
                                 setCancelDialog({ show: true, payoutId: payout._id });
                               }}
                               className="ml-2"
@@ -401,7 +419,6 @@ export default function PayoutsPage() {
             className="fixed inset-0 bg-black bg-opacity-30 z-[9998]" 
             onClick={() => {
               setShowRequestDialog(false);
-              setError('');
               setRequestAmount('');
             }} 
           />
@@ -411,13 +428,6 @@ export default function PayoutsPage() {
               <p className="text-sm text-[#6a7581] mb-4">
                 Enter the amount you want to withdraw from your available balance.
               </p>
-              
-              {/* Error message inside dialog */}
-              {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-                  {error}
-                </div>
-              )}
               
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -437,10 +447,7 @@ export default function PayoutsPage() {
                     min="0"
                     max={wallet?.available_balance || 0}
                     value={requestAmount}
-                    onChange={(e) => {
-                      setRequestAmount(e.target.value);
-                      if (error) setError(''); // Clear error when user starts typing
-                    }}
+                    onChange={(e) => setRequestAmount(e.target.value)}
                     placeholder="0.00"
                   />
                   <p className="text-xs text-[#6a7581]">
@@ -466,7 +473,6 @@ export default function PayoutsPage() {
                 variant="outline" 
                 onClick={() => {
                   setShowRequestDialog(false);
-                  setError('');
                   setRequestAmount('');
                 }} 
                 className="flex-1"
@@ -493,7 +499,6 @@ export default function PayoutsPage() {
             className="fixed inset-0 bg-black bg-opacity-30 z-[9998]" 
             onClick={() => {
               setCancelDialog({ show: false, payoutId: null });
-              setError('');
             }} 
           />
           <div className="fixed inset-0 flex items-center justify-center z-[9999]">
@@ -503,19 +508,11 @@ export default function PayoutsPage() {
                 Are you sure you want to cancel this payout request? The amount will be returned to your available balance.
               </p>
               
-              {/* Error message inside dialog */}
-              {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-                  {error}
-                </div>
-              )}
-              
               <div className="flex gap-3">
                 <Button 
                   variant="outline" 
                   onClick={() => {
                     setCancelDialog({ show: false, payoutId: null });
-                    setError('');
                   }} 
                   className="flex-1"
                 >

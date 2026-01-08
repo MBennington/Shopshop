@@ -374,8 +374,9 @@ export default function AdminAnalyticsPage() {
                                   <p className="text-xs text-[#6a7581]">{product.category}</p>
                                 </div>
                                 <div className="text-right">
-                                  <p className="font-medium text-[#121416]">{formatCurrency(product.revenue)}</p>
-                                  <p className="text-xs text-[#6a7581]">{formatNumber(product.quantity)} sold</p>
+                                  <p className="font-medium text-[#121416]">{formatNumber(product.quantity)} sold</p>
+                                  <p className="text-xs text-[#6a7581]">{formatNumber(product.orders)} orders</p>
+                                  <p className="text-xs text-[#6a7581]">{formatCurrency(product.revenue)} revenue</p>
                                 </div>
                               </div>
                             ))}

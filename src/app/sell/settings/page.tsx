@@ -55,6 +55,15 @@ interface FormData {
 export default function SettingsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('account');
+  
+  // Check for tab query parameter on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam && ['account', 'business', 'payouts', 'notifications'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, []);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -513,7 +522,7 @@ export default function SettingsPage() {
         },
       }));
     } catch (error: any) {
-      console.error('Error updating profile:', error);
+      // console.error('Error updating profile:', error);
       setError(error.message || 'Failed to update profile');
     } finally {
       setSaving(false);

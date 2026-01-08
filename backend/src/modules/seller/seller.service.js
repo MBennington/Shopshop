@@ -128,7 +128,7 @@ module.exports.getAnalytics = async (sellerId, filters = {}) => {
       { $sort: { revenue: -1 } },
     ]);
 
-    // Top selling products - seller's own products
+    // Top selling products - seller's own products, sorted by quantity sold (best selling = most quantity sold)
     const topProducts = await SubOrderModel.aggregate([
       {
         $match: {
@@ -149,15 +149,27 @@ module.exports.getAnalytics = async (sellerId, filters = {}) => {
       { $unwind: '$product' },
       {
         $group: {
-          _id: '$products_list.product_id',
+          _id: {
+            subOrderId: '$_id',
+            productId: '$products_list.product_id',
+          },
           name: { $first: '$product.name' },
           category: { $first: '$product.category' },
-          revenue: { $sum: '$products_list.subtotal' },
-          quantity: { $sum: '$products_list.qty' },
+          revenue: { $first: '$products_list.subtotal' },
+          quantity: { $first: '$products_list.qty' },
+        },
+      },
+      {
+        $group: {
+          _id: '$_id.productId',
+          name: { $first: '$name' },
+          category: { $first: '$category' },
+          revenue: { $sum: '$revenue' },
+          quantity: { $sum: '$quantity' },
           orders: { $sum: 1 },
         },
       },
-      { $sort: { revenue: -1 } },
+      { $sort: { quantity: -1 } },
       { $limit: 10 },
     ]);
 
@@ -228,7 +240,7 @@ module.exports.getAnalytics = async (sellerId, filters = {}) => {
       },
     };
   } catch (error) {
-    console.error('Error getting seller analytics:', error);
+    // console.error('Error getting seller analytics:', error);
     throw new Error('Failed to fetch seller analytics data');
   }
 };

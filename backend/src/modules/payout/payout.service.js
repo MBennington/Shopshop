@@ -33,6 +33,22 @@ module.exports.createPayoutRequest = async (
     throw new Error('Seller information not found');
   }
 
+  // Check if bank details are saved
+  const payouts = seller.sellerInfo.payouts || {};
+  const hasBankDetails =
+    payouts.bankName &&
+    payouts.bankAccountNumber &&
+    payouts.bankAccountName &&
+    payouts.bankName.trim() !== '' &&
+    payouts.bankAccountNumber.trim() !== '' &&
+    payouts.bankAccountName.trim() !== '';
+
+  if (!hasBankDetails) {
+    throw new Error(
+      'Bank details not found. Please fill in your bank details in Settings > Payout before making a payout request.'
+    );
+  }
+
   const payoutData = {
     seller_id: seller_id,
     amount_requested: amount_requested,
@@ -72,7 +88,7 @@ module.exports.getPayoutById = async (payout_id, role, user_id) => {
     )
     .lean();
 
-  console.log('Payout fetched:', payout);
+  // console.log('Payout fetched:', payout);
 
   if (!payout) {
     throw new Error('Payout not found');
@@ -88,7 +104,7 @@ module.exports.getPayoutById = async (payout_id, role, user_id) => {
   if (!sellerIdValue) {
     throw new Error('Payout seller information is missing');
   }
-  console.log('Payout seller ID:', sellerIdValue);
+  // console.log('Payout seller ID:', sellerIdValue);
 
   if (role !== roles.admin && sellerIdValue !== user_id.toString()) {
     throw new Error('You are not authorized to view this payout');
@@ -292,10 +308,10 @@ module.exports.markPayoutAsPaid = async (
  * @returns {Promise<Object>}
  */
 module.exports.cancelPayout = async (payout_id, role, seller_id) => {
-  console.log('in cancel payout');
+  // console.log('in cancel payout');
 
   const payout = await this.getPayoutById(payout_id, role, seller_id);
-  console.log('Payout fetched for cancellation:', payout);
+  // console.log('Payout fetched for cancellation:', payout);
 
   if (!payout) {
     throw new Error('Payout not found');
