@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { toast } from 'sonner';
 
 export default function AuthPage() {
   const [loginForm, setLoginForm] = useState({
@@ -29,8 +30,6 @@ export default function AuthPage() {
     confirmPassword: '',
   });
 
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -43,8 +42,6 @@ export default function AuthPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMessage('');
-    setSuccessMessage('');
 
     setIsLoading(true);
 
@@ -60,6 +57,7 @@ export default function AuthPage() {
       const data = await res.json();
 
       if (res.ok && data.status) {
+        toast.success('Login successful!');
         login(data.token, data.data);
         // Redirect to returnUrl if provided, otherwise to home
         if (returnUrl) {
@@ -68,11 +66,11 @@ export default function AuthPage() {
           router.push('/');
         }
       } else {
-        setErrorMessage(data.msg || 'Login failed');
+        toast.error(data.msg || 'Login failed');
       }
     } catch (error) {
       console.error('Login error:', error);
-      setErrorMessage('Server error during login');
+      toast.error('Server error during login');
     } finally {
       setIsLoading(false);
     }
@@ -88,13 +86,8 @@ export default function AuthPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMessage('');
-    setSuccessMessage('');
     if (signupForm.password !== signupForm.confirmPassword) {
-      setErrorMessage('Passwords do not match');
-      setTimeout(() => {
-        setErrorMessage('');
-      }, 3000);
+      toast.error('Passwords do not match');
       return;
     }
 
@@ -119,7 +112,7 @@ export default function AuthPage() {
       const data = await res.json();
 
       if (res.ok) {
-        setSuccessMessage('Account created successfully!');
+        toast.success('Account created successfully!');
         login(data.token, data.data);
         // Redirect to returnUrl if provided, otherwise to home
         if (returnUrl) {
@@ -128,11 +121,11 @@ export default function AuthPage() {
           router.push('/');
         }
       } else {
-        setErrorMessage(data.msg || 'Signup failed');
+        toast.error(data.msg || 'Signup failed');
       }
     } catch (error) {
       console.error('Signup error:', error);
-      setErrorMessage('Server error during signup');
+      toast.error('Server error during signup');
     } finally {
       setIsLoading(false);
     }
@@ -251,17 +244,6 @@ export default function AuthPage() {
                     {isLoading ? 'Signing in...' : 'Sign In'}
                   </Button>
                 </form>
-                {/* 🔽 Display success or error message */}
-                {errorMessage && (
-                  <div className="text-sm text-red-600 bg-red-100 border border-red-300 p-2 rounded">
-                    {errorMessage}
-                  </div>
-                )}
-                {successMessage && (
-                  <div className="text-sm text-green-600 bg-green-100 border border-green-300 p-2 rounded">
-                    {successMessage}
-                  </div>
-                )}
               </TabsContent>
 
               <TabsContent value="signup">
@@ -356,17 +338,6 @@ export default function AuthPage() {
                     {isLoading ? 'Creating account...' : 'Create Account'}
                   </Button>
                 </form>
-                {/* 🔽  Display success or error message */}
-                {errorMessage && (
-                  <div className="text-sm text-red-600 bg-red-100 border border-red-300 p-2 rounded">
-                    {errorMessage}
-                  </div>
-                )}
-                {successMessage && (
-                  <div className="text-sm text-green-600 bg-green-100 border border-green-300 p-2 rounded">
-                    {successMessage}
-                  </div>
-                )}
               </TabsContent>
             </Tabs>
 

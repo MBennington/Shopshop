@@ -18,6 +18,7 @@ import {
   PackageCheck,
   RotateCcw,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Order statuses from config (backend/src/config/order.config.js)
 const ORDER_STATUSES = {
@@ -104,11 +105,15 @@ export default function MyOrdersPage() {
         setError(null);
       } else {
         const errorData = await response.json();
-        setError(errorData.error || 'Failed to fetch orders');
+        const errorMsg = errorData.error || 'Failed to fetch orders';
+        setError(errorMsg);
+        toast.error(errorMsg);
       }
     } catch (error) {
       // console.error('Failed to fetch orders:', error);
-      setError('An error occurred while loading your orders');
+      const errorMsg = 'An error occurred while loading your orders';
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
