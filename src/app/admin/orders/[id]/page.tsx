@@ -6,6 +6,7 @@ import Sidebar from '../../components/Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import {
   CheckCircle,
   Package,
@@ -27,7 +28,6 @@ export default function AdminOrderDetailsPage() {
   const [orderDetails, setOrderDetails] = useState<any>(null);
   const [subOrders, setSubOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user && user.role !== 'admin') {
@@ -45,7 +45,7 @@ export default function AdminOrderDetailsPage() {
       if (!orderId || orderId === 'undefined') {
         console.error('Invalid order ID:', orderId);
         setLoading(false);
-        setError('Invalid order ID');
+        toast.error('Invalid order ID');
         return;
       }
 
@@ -54,7 +54,7 @@ export default function AdminOrderDetailsPage() {
       if (!token) {
         console.error('No authentication token found');
         setLoading(false);
-        setError('Please log in to view order details');
+        toast.error('Please log in to view order details');
         return;
       }
 
@@ -70,7 +70,6 @@ export default function AdminOrderDetailsPage() {
         console.log('Sub-orders data:', orderData.data.sub_orders_details);
         setOrderDetails(orderData.data);
         setSubOrders(orderData.data.sub_orders_details || []);
-        setError(null);
       } else {
         console.error(
           'Failed to fetch order details:',
@@ -79,11 +78,11 @@ export default function AdminOrderDetailsPage() {
         );
         const errorData = await orderResponse.json();
         console.error('Error data:', errorData);
-        setError('Failed to load order details. Please try again later.');
+        toast.error('Failed to load order details. Please try again later.');
       }
     } catch (error) {
       console.error('Failed to fetch order details:', error);
-      setError('An error occurred while loading order details. Please try again.');
+      toast.error('An error occurred while loading order details. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -175,41 +174,6 @@ export default function AdminOrderDetailsPage() {
     );
   }
 
-  if (error && !orderDetails) {
-    return (
-      <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden">
-        <div className="layout-container flex h-full grow flex-col">
-          <div className="gap-1 px-6 flex flex-1 justify-center py-5">
-            <Sidebar />
-            <div className="layout-content-container flex flex-col max-w-[1200px] flex-1 overflow-y-auto">
-              <Card className="max-w-lg w-full mx-auto mt-8">
-                <CardContent className="p-8 text-center">
-                  <div className="flex justify-center mb-4">
-                    <AlertCircle className="h-16 w-16 text-red-600" />
-                  </div>
-                  <h1 className="text-2xl font-bold mb-4 text-gray-900">
-                    Error Loading Order
-                  </h1>
-                  <p className="text-gray-600 mb-6">{error}</p>
-                  <div className="flex gap-4 justify-center">
-                    <Button onClick={() => window.location.reload()}>
-                      Try Again
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => router.push('/admin/orders')}
-                    >
-                      Back to Orders
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden">
