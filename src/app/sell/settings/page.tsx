@@ -56,12 +56,15 @@ interface FormData {
 export default function SettingsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('account');
-  
+
   // Check for tab query parameter on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
-    if (tabParam && ['account', 'business', 'payouts', 'notifications'].includes(tabParam)) {
+    if (
+      tabParam &&
+      ['account', 'business', 'payouts', 'notifications'].includes(tabParam)
+    ) {
       setActiveTab(tabParam);
     }
   }, []);
@@ -112,7 +115,6 @@ export default function SettingsPage() {
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
 
-
   // Load user data on component mount
   useEffect(() => {
     if (user) {
@@ -134,7 +136,8 @@ export default function SettingsPage() {
           },
           payouts: {
             paymentMethod: user.sellerInfo?.payouts?.paymentMethod || '',
-            bankAccountNumber: user.sellerInfo?.payouts?.bankAccountNumber || '',
+            bankAccountNumber:
+              user.sellerInfo?.payouts?.bankAccountNumber || '',
             bankAccountName: user.sellerInfo?.payouts?.bankAccountName || '',
             bankName: user.sellerInfo?.payouts?.bankName || '',
           },
@@ -158,7 +161,7 @@ export default function SettingsPage() {
   }, [user]);
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
 
@@ -170,15 +173,18 @@ export default function SettingsPage() {
       name === 'businessDescription' ||
       name === 'baseShippingFee'
     ) {
-        setFormData((prev) => ({
-          ...prev,
-          sellerInfo: {
-            ...prev.sellerInfo,
-            [name]: name === 'baseShippingFee' 
-              ? (value === '' ? null : parseFloat(value) || null)
+      setFormData((prev) => ({
+        ...prev,
+        sellerInfo: {
+          ...prev.sellerInfo,
+          [name]:
+            name === 'baseShippingFee'
+              ? value === ''
+                ? null
+                : parseFloat(value) || null
               : value,
-          },
-        }));
+        },
+      }));
     } else if (
       name === 'address' ||
       name === 'city' ||
@@ -341,9 +347,10 @@ export default function SettingsPage() {
         sellerInfoDiff.businessType = formData.sellerInfo?.businessType;
       }
       if (
-        formData.sellerInfo?.baseShippingFee !== user?.sellerInfo?.baseShippingFee
+        (formData.sellerInfo?.baseShippingFee ?? null) !==
+        (user?.sellerInfo?.baseShippingFee ?? null)
       ) {
-        sellerInfoDiff.baseShippingFee = formData.sellerInfo?.baseShippingFee;
+        sellerInfoDiff.baseShippingFee = formData.sellerInfo?.baseShippingFee ?? null;
       }
       if (
         isChangedNonEmpty(
@@ -351,7 +358,8 @@ export default function SettingsPage() {
           user?.sellerInfo?.businessDescription
         )
       ) {
-        sellerInfoDiff.businessDescription = formData.sellerInfo?.businessDescription;
+        sellerInfoDiff.businessDescription =
+          formData.sellerInfo?.businessDescription;
       }
 
       const contact = formData.sellerInfo?.contactDetails || {};
@@ -383,18 +391,22 @@ export default function SettingsPage() {
         payoutsDiff.paymentMethod = payouts.paymentMethod;
       }
       if (
-        isChangedNonEmpty(payouts.bankAccountNumber, originalPayouts.bankAccountNumber)
+        isChangedNonEmpty(
+          payouts.bankAccountNumber,
+          originalPayouts.bankAccountNumber
+        )
       ) {
         payoutsDiff.bankAccountNumber = payouts.bankAccountNumber;
       }
       if (
-        isChangedNonEmpty(payouts.bankAccountName, originalPayouts.bankAccountName)
+        isChangedNonEmpty(
+          payouts.bankAccountName,
+          originalPayouts.bankAccountName
+        )
       ) {
         payoutsDiff.bankAccountName = payouts.bankAccountName;
       }
-      if (
-        isChangedNonEmpty(payouts.bankName, originalPayouts.bankName)
-      ) {
+      if (isChangedNonEmpty(payouts.bankName, originalPayouts.bankName)) {
         payoutsDiff.bankName = payouts.bankName;
       }
       if (Object.keys(payoutsDiff).length > 0) {
@@ -563,7 +575,6 @@ export default function SettingsPage() {
                 </p>
               </div>
             </div>
-
 
             {/* Navigation Tabs */}
             <div className="flex border-b border-[#dde0e3] overflow-x-auto">
@@ -832,7 +843,8 @@ export default function SettingsPage() {
                           </p>
                         )}
                         <p className="mt-1 text-xs text-[#6a7581]">
-                          This description will be displayed on your shop page to help customers understand your business.
+                          This description will be displayed on your shop page
+                          to help customers understand your business.
                         </p>
                       </label>
                     </div>
@@ -968,9 +980,7 @@ export default function SettingsPage() {
                         </p>
                         <input
                           name="bankName"
-                          value={
-                            formData.sellerInfo?.payouts?.bankName || ''
-                          }
+                          value={formData.sellerInfo?.payouts?.bankName || ''}
                           onChange={handleInputChange}
                           placeholder="Enter bank name"
                           className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#121416] focus:outline-0 focus:ring-0 border border-[#dde0e3] bg-white focus:border-[#dde0e3] h-14 placeholder:text-[#6a7581] p-[15px] text-base font-normal leading-normal"
@@ -980,12 +990,13 @@ export default function SettingsPage() {
                     <div className="flex max-w-[480px] flex-wrap items-end gap-4 px-4 py-3">
                       <label className="flex flex-col min-w-40 flex-1">
                         <p className="text-[#121416] text-base font-medium leading-normal pb-2">
-                          Bank Account Number
+                          Account Number
                         </p>
                         <input
                           name="bankAccountNumber"
                           value={
-                            formData.sellerInfo?.payouts?.bankAccountNumber || ''
+                            formData.sellerInfo?.payouts?.bankAccountNumber ||
+                            ''
                           }
                           onChange={handleInputChange}
                           placeholder="Enter account number"
@@ -996,7 +1007,7 @@ export default function SettingsPage() {
                     <div className="flex max-w-[480px] flex-wrap items-end gap-4 px-4 py-3">
                       <label className="flex flex-col min-w-40 flex-1">
                         <p className="text-[#121416] text-base font-medium leading-normal pb-2">
-                          Bank Account Name
+                          Account Holder Name
                         </p>
                         <input
                           name="bankAccountName"
