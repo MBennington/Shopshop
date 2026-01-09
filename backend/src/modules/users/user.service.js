@@ -48,10 +48,30 @@ module.exports.processUserData = async (body, files, existingUser = null) => {
 
     // Merge with existing sellerInfo to avoid overwriting other fields
     const existingSellerInfo = existingUser?.sellerInfo || {};
-    processedData.sellerInfo = {
+    
+    // Deep merge for nested objects (contactDetails and payouts)
+    const mergedSellerInfo = {
       ...existingSellerInfo,
       ...incomingSellerInfo,
     };
+    
+    // Deep merge contactDetails if it exists
+    if (incomingSellerInfo.contactDetails) {
+      mergedSellerInfo.contactDetails = {
+        ...(existingSellerInfo.contactDetails || {}),
+        ...incomingSellerInfo.contactDetails,
+      };
+    }
+    
+    // Deep merge payouts if it exists
+    if (incomingSellerInfo.payouts) {
+      mergedSellerInfo.payouts = {
+        ...(existingSellerInfo.payouts || {}),
+        ...incomingSellerInfo.payouts,
+      };
+    }
+    
+    processedData.sellerInfo = mergedSellerInfo;
   }
   if (body.notifications !== undefined) {
     let incomingNotificationsInfo;
