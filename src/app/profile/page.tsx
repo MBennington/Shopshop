@@ -478,8 +478,6 @@ export default function ProfilePage() {
   const handleSaveChanges = async () => {
     try {
       setSaving(true);
-      setError('');
-      setSuccess('');
       setFormErrors({});
 
       if (!validateForm()) {
