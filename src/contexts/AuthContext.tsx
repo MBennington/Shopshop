@@ -52,6 +52,7 @@ interface User {
       bankAccountName?: string;
       bankName?: string;
     };
+    baseShippingFee?: number | null;
   };
 }
 

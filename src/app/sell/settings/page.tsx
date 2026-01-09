@@ -161,7 +161,7 @@ export default function SettingsPage() {
   }, [user]);
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
 
@@ -347,10 +347,10 @@ export default function SettingsPage() {
         sellerInfoDiff.businessType = formData.sellerInfo?.businessType;
       }
       if (
-        formData.sellerInfo?.baseShippingFee !==
-        user?.sellerInfo?.baseShippingFee
+        (formData.sellerInfo?.baseShippingFee ?? null) !==
+        (user?.sellerInfo?.baseShippingFee ?? null)
       ) {
-        sellerInfoDiff.baseShippingFee = formData.sellerInfo?.baseShippingFee;
+        sellerInfoDiff.baseShippingFee = formData.sellerInfo?.baseShippingFee ?? null;
       }
       if (
         isChangedNonEmpty(
