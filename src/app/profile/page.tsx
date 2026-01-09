@@ -16,6 +16,7 @@ import {
 } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface FormData {
   _id: string;
@@ -50,8 +51,6 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingAddressIndex, setDeletingAddressIndex] = useState<number | null>(null);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [addressForm, setAddressForm] = useState({
@@ -90,16 +89,6 @@ export default function ProfilePage() {
     {}
   );
 
-  // Auto-dismiss success/error messages
-  useEffect(() => {
-    if (success || error) {
-      const timer = setTimeout(() => {
-        setSuccess('');
-        setError('');
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [success, error]);
 
   // Load user data on component mount
   useEffect(() => {
@@ -303,9 +292,6 @@ export default function ProfilePage() {
   };
 
   const handleDeleteAddress = async (index: number) => {
-    if (!window.confirm('Are you sure you want to delete this address?')) {
-      return;
-    }
 
     // Store original addresses for rollback in case of error
     const originalAddresses = [...formData.savedAddresses];
@@ -321,14 +307,12 @@ export default function ProfilePage() {
 
     // Set loading state for this specific address
     setDeletingAddressIndex(index);
-    setError('');
-    setSuccess('');
 
     try {
       // Save to backend
       await saveAddressesToBackend(updatedAddresses);
       
-      setSuccess('Address deleted successfully!');
+      toast.success('Address deleted successfully!');
     } catch (error: any) {
       // console.error('Error deleting address:', error);
       
@@ -338,7 +322,7 @@ export default function ProfilePage() {
         savedAddresses: originalAddresses,
       }));
       
-      setError(error.message || 'Failed to delete address. Please try again.');
+      toast.error(error.message || 'Failed to delete address. Please try again.');
     } finally {
       setDeletingAddressIndex(null);
     }
@@ -414,13 +398,13 @@ export default function ProfilePage() {
     if (file) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        setError('Please select an image file');
+        toast.error('Please select an image file');
         return;
       }
 
       // Validate file size (5MB limit)
       if (file.size > 5 * 1024 * 1024) {
-        setError('Image size must be less than 5MB');
+        toast.error('Image size must be less than 5MB');
         return;
       }
 
@@ -429,7 +413,6 @@ export default function ProfilePage() {
       // Create preview URL
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
-      setError('');
     }
   };
 
@@ -592,7 +575,7 @@ export default function ProfilePage() {
 
       // Only make API call if there are actual changes
       if (formDataToSend.entries().next().done) {
-        setSuccess('No changes to save');
+        toast.info('No changes to save');
         setSaving(false);
         return;
       }
@@ -611,7 +594,7 @@ export default function ProfilePage() {
         throw new Error(data.msg || data.error || 'Failed to update profile');
       }
 
-      setSuccess('Profile updated successfully!');
+      toast.success('Profile updated successfully!');
       updateUser(data.data);
       removeProfilePicture();
 
@@ -643,7 +626,7 @@ export default function ProfilePage() {
       }));
     } catch (error: any) {
       // console.error('Error updating profile:', error);
-      setError(error.message || 'Failed to update profile');
+      toast.error(error.message || 'Failed to update profile');
     } finally {
       setSaving(false);
     }
@@ -727,35 +710,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Error and Success Messages */}
-          {error && (
-            <div className="mx-8 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                <p className="text-red-600 font-medium">{error}</p>
-              </div>
-              <button
-                onClick={() => setError('')}
-                className="text-red-400 hover:text-red-600"
-              >
-                <FiX size={16} />
-              </button>
-            </div>
-          )}
-          {success && (
-            <div className="mx-8 mt-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <p className="text-green-600 font-medium">{success}</p>
-              </div>
-              <button
-                onClick={() => setSuccess('')}
-                className="text-green-400 hover:text-green-600"
-              >
-                <FiX size={16} />
-              </button>
-            </div>
-          )}
 
           {/* Navigation Tabs */}
           <div className="flex border-b border-[#dde0e3] overflow-x-auto">

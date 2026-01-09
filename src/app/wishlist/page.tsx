@@ -172,10 +172,6 @@ export default function WishlistPage() {
   const handleRemoveFromWishlist = async (product: WishlistProduct) => {
     const itemKey = `${product.product_id}-${product.color_id}`;
     
-    if (!window.confirm('Are you sure you want to remove this item from your wishlist?')) {
-      return;
-    }
-
     try {
       setRemoving(prev => ({ ...prev, [itemKey]: true }));
 

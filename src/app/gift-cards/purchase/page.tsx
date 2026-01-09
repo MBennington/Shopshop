@@ -21,7 +21,6 @@ export default function PurchaseGiftCardPage() {
   const [recipientName, setRecipientName] = useState<string>('');
   const [personalMessage, setPersonalMessage] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ recipientEmail: string } | null>(
     null
   );
@@ -31,13 +30,11 @@ export default function PurchaseGiftCardPage() {
   const handleAmountSelect = (amount: number) => {
     setSelectedAmount(amount);
     setCustomAmount('');
-    setError(null);
   };
 
   const handleCustomAmountChange = (value: string) => {
     setCustomAmount(value);
     setSelectedAmount(null);
-    setError(null);
   };
 
   // Load PayHere script
@@ -109,42 +106,36 @@ export default function PurchaseGiftCardPage() {
         const giftCard = data.data?.giftCard;
 
         // Check if payment failed
-        if (payment && payment.paymentStatus === 'Failed') {
-          setError('Payment failed. Please try again.');
-          // Clear paymentId from URL
-          router.replace('/gift-cards/purchase');
-          return;
-        }
-
-        // Check if payment is still pending
-        if (payment && payment.paymentStatus === 'Pending') {
-          setError(
-            'Payment is still being processed. Please wait a moment and refresh the page.'
-          );
-          return;
-        }
-
-        // Payment successful - show success message
-        if (giftCard) {
-          // Get recipient email from payment details or use the state
-          const email =
-            payment?.purchaseDetails?.recipientEmail || recipientEmail;
-          setSuccess({
-            recipientEmail: email,
-          });
-        } else {
-          setError(
-            'Gift card not found. Please contact support if payment was successful.'
-          );
-        }
-      } else {
-        setError(
-          data.msg || 'Failed to fetch payment status. Please try again.'
-        );
+      if (payment && payment.paymentStatus === 'Failed') {
+        toast.error('Payment failed. Please try again.');
+        // Clear paymentId from URL
+        router.replace('/gift-cards/purchase');
+        return;
       }
-    } catch (err: any) {
-      // console.error('Error fetching gift card:', err);
-      setError('An error occurred. Please try again.');
+
+      // Check if payment is still pending
+      if (payment && payment.paymentStatus === 'Pending') {
+        toast.warning('Payment is still being processed. Please wait a moment and refresh the page.');
+        return;
+      }
+
+      // Payment successful - show success message
+      if (giftCard) {
+        // Get recipient email from payment details or use the state
+        const email =
+          payment?.purchaseDetails?.recipientEmail || recipientEmail;
+        setSuccess({
+          recipientEmail: email,
+        });
+      } else {
+        toast.error('Gift card not found. Please contact support if payment was successful.');
+      }
+    } else {
+      toast.error(data.msg || 'Failed to fetch payment status. Please try again.');
+    }
+  } catch (err: any) {
+    // console.error('Error fetching gift card:', err);
+    toast.error('An error occurred. Please try again.');
     }
   };
 
@@ -199,15 +190,13 @@ export default function PurchaseGiftCardPage() {
     };
     payhere.onError = function onError(error: string) {
       // console.log('Error:' + error);
-      setError('Payment failed. Please try again.');
+      toast.error('Payment failed. Please try again.');
       setIsProcessing(false);
     };
 
     payhere.onDismissed = function onDismissed() {
       // console.log('Payment dismissed by user');
-      setError(
-        'Payment was cancelled. Please try again if you want to complete the purchase.'
-      );
+      toast.warning('Payment was cancelled. Please try again if you want to complete the purchase.');
       setIsProcessing(false);
     };
 
@@ -218,17 +207,16 @@ export default function PurchaseGiftCardPage() {
   const handlePurchase = async () => {
     const amount = getFinalAmount();
     if (!amount) {
-      setError('Please select or enter a valid amount (500 - 50,000 LKR)');
+      toast.error('Please select or enter a valid amount (500 - 50,000 LKR)');
       return;
     }
 
     if (!recipientEmail.trim()) {
-      setError('Please enter a recipient email address');
+      toast.error('Please enter a recipient email address');
       return;
     }
 
     setIsProcessing(true);
-    setError(null);
 
     try {
       const token = localStorage.getItem('token');
@@ -262,7 +250,7 @@ export default function PurchaseGiftCardPage() {
       // Initiate PayHere payment
       initiatePayHerePayment(data.data);
     } catch (err: any) {
-      setError(err.message || 'Failed to initiate payment');
+      toast.error(err.message || 'Failed to initiate payment');
       setIsProcessing(false);
     }
   };
@@ -433,11 +421,6 @@ export default function PurchaseGiftCardPage() {
               </p>
             </div>
 
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                {error}
-              </div>
-            )}
 
             <div className="bg-blue-50 border border-blue-200 p-4 rounded">
               <p className="text-sm text-blue-800">
