@@ -5,6 +5,7 @@ import { FiUser, FiCamera, FiX, FiSave } from 'react-icons/fi';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 interface FormData {
   _id: string;
@@ -66,8 +67,6 @@ export default function SettingsPage() {
   }, []);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const { user, updateUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -113,16 +112,6 @@ export default function SettingsPage() {
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
 
-  // Auto-dismiss success/error messages
-  useEffect(() => {
-    if (success || error) {
-      const timer = setTimeout(() => {
-        setSuccess('');
-        setError('');
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [success, error]);
 
   // Load user data on component mount
   useEffect(() => {
@@ -277,20 +266,19 @@ export default function SettingsPage() {
     if (file) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        setError('Please select an image file');
+        toast.error('Please select an image file');
         return;
       }
 
       // Validate file size (5MB limit)
       if (file.size > 5 * 1024 * 1024) {
-        setError('Image size must be less than 5MB');
+        toast.error('Image size must be less than 5MB');
         return;
       }
 
       setProfilePicture(file);
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
-      setError('');
     }
   };
 
@@ -309,8 +297,6 @@ export default function SettingsPage() {
   const handleSaveChanges = async () => {
     try {
       setSaving(true);
-      setError('');
-      setSuccess('');
       setFormErrors({});
 
       if (!validateForm()) {
@@ -497,7 +483,7 @@ export default function SettingsPage() {
         throw new Error(data.msg || data.error || 'Failed to update profile');
       }
 
-      setSuccess('Profile updated successfully!');
+      toast.success('Profile updated successfully!');
       updateUser(data.data);
       removeProfilePicture();
 
@@ -523,7 +509,7 @@ export default function SettingsPage() {
       }));
     } catch (error: any) {
       // console.error('Error updating profile:', error);
-      setError(error.message || 'Failed to update profile');
+      toast.error(error.message || 'Failed to update profile');
     } finally {
       setSaving(false);
     }
@@ -578,35 +564,6 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Error and Success Messages */}
-            {error && (
-              <div className="mx-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                  <p className="text-red-600 font-medium">{error}</p>
-                </div>
-                <button
-                  onClick={() => setError('')}
-                  className="text-red-400 hover:text-red-600"
-                >
-                  <FiX size={16} />
-                </button>
-              </div>
-            )}
-            {success && (
-              <div className="mx-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <p className="text-green-600 font-medium">{success}</p>
-                </div>
-                <button
-                  onClick={() => setSuccess('')}
-                  className="text-green-400 hover:text-green-600"
-                >
-                  <FiX size={16} />
-                </button>
-              </div>
-            )}
 
             {/* Navigation Tabs */}
             <div className="flex border-b border-[#dde0e3] overflow-x-auto">
