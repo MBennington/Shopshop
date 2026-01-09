@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Package, Truck, CreditCard, XCircle, AlertCircle, RefreshCw, Gift } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function OrderSuccessPage() {
   const searchParams = useSearchParams();
@@ -63,11 +64,15 @@ export default function OrderSuccessPage() {
         );
         const errorData = await orderResponse.json();
         console.error('Error data:', errorData);
-        setError('Failed to load order details. Please try again later.');
+        const errorMsg = 'Failed to load order details. Please try again later.';
+        setError(errorMsg);
+        toast.error(errorMsg);
       }
     } catch (error) {
       console.error('Failed to fetch order details:', error);
-      setError('An error occurred while loading order details. Please try again.');
+      const errorMsg = 'An error occurred while loading order details. Please try again.';
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }

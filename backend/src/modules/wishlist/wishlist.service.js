@@ -398,4 +398,3 @@ module.exports.addWishlistItemToCart = async (body, user_id) => {
 
   return cartResult;
 };
-

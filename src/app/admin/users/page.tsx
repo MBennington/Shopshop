@@ -78,9 +78,13 @@ export default function AdminUsersPage() {
         const data = await response.json();
         setUsers(data.data.users || []);
         setPagination(data.data.pagination || null);
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Failed to fetch users');
       }
     } catch (error) {
       console.error('Failed to fetch users:', error);
+      toast.error('Failed to fetch users');
     } finally {
       setLoading(false);
     }
@@ -113,6 +117,7 @@ export default function AdminUsersPage() {
         await fetchUsers();
         setShowEditModal(false);
         setSelectedUser(null);
+        toast.success('User role updated successfully');
       } else {
         const data = await response.json();
         toast.error(data.error || 'Failed to update role');
@@ -139,6 +144,7 @@ export default function AdminUsersPage() {
       if (response.ok) {
         await fetchUsers();
         setDeleteConfirm(null);
+        toast.success('User deleted successfully');
       } else {
         const data = await response.json();
         toast.error(data.error || 'Failed to delete user');

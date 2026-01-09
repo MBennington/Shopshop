@@ -78,4 +78,3 @@ module.exports.addWishlistItemToCart = async (req, res) => {
     return customError(`${error.message}`, res);
   }
 };
-

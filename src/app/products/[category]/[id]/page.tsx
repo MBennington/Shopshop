@@ -368,16 +368,28 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
 
       const data = await response.json();
       setReviewEligibility(data.data);
+      
+      // Show toast messages based on eligibility
+      if (data.data.eligible) {
+        if (data.data.allDelivered) {
+          toast.success('You have purchased this product. Your review will be marked as verified.');
+        } else {
+          toast.info('Note: Your order(s) will be marked as delivered after you submit this review.');
+        }
+      } else {
+        toast.error(data.data.message || 'You must have purchased this product to leave a review.');
+      }
+      
       return data.data;
     } catch (error: any) {
       // console.error('Error checking eligibility:', error);
+      const errorMessage = error.message || 'It looks like you haven\'t purchased this item yet. Reviews are available after purchase.';
       setReviewEligibility({
         eligible: false,
         hasSubOrders: false,
-        message:
-          error.message ||
-          `It looks like you haven't purchased this item yet. Reviews are available after purchase.`,
+        message: errorMessage,
       });
+      toast.error(errorMessage);
       return null;
     } finally {
       setCheckingEligibility(false);
@@ -481,7 +493,6 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
 
   // Handle delete review
   const handleDeleteReview = async (reviewId: string) => {
-    if (!window.confirm('Are you sure you want to delete this review?')) return;
 
     const token = localStorage.getItem('token');
     if (!token) {
@@ -1316,50 +1327,6 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                   </div>
 
                   <div className="space-y-4">
-                    {/* Eligibility Messages */}
-                    {reviewEligibility && !reviewEligibility.eligible && (
-                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-yellow-800 text-sm mb-3">
-                          {reviewEligibility.message ||
-                            'You must have purchased this product to leave a review.'}
-                        </p>
-                        <Link
-                          href={`/report-issue?productId=${id}`}
-                          className="inline-block px-4 py-2 bg-[#528bc5] text-white rounded-lg hover:bg-[#4a7bb3] text-sm font-medium"
-                        >
-                          Report an Issue
-                        </Link>
-                      </div>
-                    )}
-
-                    {reviewEligibility &&
-                      reviewEligibility.eligible &&
-                      !reviewEligibility.allDelivered && (
-                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                          <p className="text-blue-800 text-sm mb-2">
-                            Note: Your order(s) will be marked as delivered
-                            after you submit this review.
-                          </p>
-                          <Link
-                            href={`/report-issue?productId=${id}`}
-                            className="text-blue-600 hover:underline text-sm font-medium"
-                          >
-                            Report an issue instead
-                          </Link>
-                        </div>
-                      )}
-
-                    {reviewEligibility &&
-                      reviewEligibility.eligible &&
-                      reviewEligibility.allDelivered && (
-                        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                          <p className="text-green-800 text-sm">
-                            ✓ You have purchased this product. Your review will
-                            be marked as verified.
-                          </p>
-                        </div>
-                      )}
-
                     {checkingEligibility && (
                       <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
                         <div className="w-5 h-5 border-2 border-[#528bc5] border-t-transparent rounded-full animate-spin mx-auto mb-2" />

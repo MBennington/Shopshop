@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface SubOrder {
   _id: string;
@@ -53,7 +54,6 @@ export default function ConfirmDeliveryPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [confirmedStatus, setConfirmedStatus] = useState<boolean | null>(null);
 
   const subOrderId = searchParams.get('subOrderId');
@@ -117,11 +117,15 @@ export default function ConfirmDeliveryPage() {
           return;
         }
         
-        setError(result.error || result.msg || 'Failed to load order details');
+        const errorMsg = result.error || result.msg || 'Failed to load order details';
+        setError(errorMsg);
+        toast.error(errorMsg);
       }
     } catch (err) {
       console.error('Failed to fetch sub-order:', err);
-      setError('Failed to load order details');
+      const errorMsg = 'Failed to load order details';
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -147,16 +151,20 @@ export default function ConfirmDeliveryPage() {
       const result = await response.json();
 
       if (response.ok) {
-        setSuccess(true);
+        toast.success('Delivery confirmed successfully!');
         setConfirmedStatus(confirmed);
         // Refresh order data
         await fetchSubOrder();
       } else {
-        setError(result.error || result.msg || 'Failed to update delivery status');
+        const errorMsg = result.error || result.msg || 'Failed to update delivery status';
+        setError(errorMsg);
+        toast.error(errorMsg);
       }
     } catch (err) {
       console.error('Failed to confirm delivery:', err);
-      setError('Failed to update delivery status');
+      const errorMsg = 'Failed to update delivery status';
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setSubmitting(false);
     }
@@ -256,36 +264,6 @@ export default function ConfirmDeliveryPage() {
             </p>
           </div>
 
-          {/* Success Message */}
-          {success && (
-            <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div>
-                  <h3 className="text-sm font-semibold text-green-900 mb-1">
-                    Delivery Confirmed!
-                  </h3>
-                  <p className="text-sm text-green-700">
-                    Thank you for confirming. Your order status has been updated.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Error Message */}
-          {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-sm text-red-700">{error}</p>
-              </div>
-            </div>
-          )}
 
           {/* Order Details */}
           <div className="mb-6 space-y-4">
@@ -366,7 +344,7 @@ export default function ConfirmDeliveryPage() {
           </div>
 
           {/* Confirmation Buttons */}
-          {!success && (
+          {confirmedStatus !== true && (
             <div className="space-y-3">
               <p className="text-sm font-medium text-[#121416] mb-4 text-center">
                 Have you received this order?
@@ -407,7 +385,7 @@ export default function ConfirmDeliveryPage() {
           )}
 
           {/* Back Button */}
-          {success && (
+          {confirmedStatus === true && (
             <div className="mt-6 text-center">
               <button
                 onClick={() => router.push('/my-orders')}

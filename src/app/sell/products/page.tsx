@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '../components/Sidebar';
+import { toast } from 'sonner';
 
 interface Product {
   _id: string;
@@ -30,7 +31,6 @@ interface Product {
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [deleteDialog, setDeleteDialog] = useState<{
     show: boolean;
     productId: string;
@@ -69,7 +69,7 @@ export default function ProductsPage() {
       // Handle new unified response format: { records, recordsTotal, recordsFiltered }
       setProducts(data.data?.records || data.data || []);
     } catch (err: any) {
-      setError(err.message);
+      toast.error(err.message || 'Failed to fetch products');
     } finally {
       setLoading(false);
     }
@@ -132,8 +132,9 @@ export default function ProductsPage() {
       );
 
       setDeleteDialog({ show: false, productId: '', productName: '', isActive: true });
+      toast.success(`Product ${deleteDialog.isActive ? 'deactivated' : 'activated'} successfully!`);
     } catch (err: any) {
-      setError(err.message);
+      toast.error(err.message || `Failed to ${deleteDialog.isActive ? 'deactivate' : 'activate'} product`);
     } finally {
       setDeleting(false);
     }
@@ -178,12 +179,6 @@ export default function ProductsPage() {
               + Add Product
             </Link>
           </div>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-              <p className="text-red-600">{error}</p>
-            </div>
-          )}
 
           {products.length === 0 ? (
             <div className="bg-white rounded-xl p-8 text-center">

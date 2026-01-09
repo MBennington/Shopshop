@@ -124,11 +124,15 @@ export default function OrderDetailsPage() {
         setOrder(data.data || null);
         setError(null);
       } else {
-        setError('Failed to load order details');
+        const errorMsg = 'Failed to load order details';
+        setError(errorMsg);
+        toast.error(errorMsg);
       }
     } catch (error) {
       // console.error('Failed to fetch order details:', error);
-      setError('An error occurred while loading order details');
+      const errorMsg = 'An error occurred while loading order details';
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }

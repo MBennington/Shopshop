@@ -120,7 +120,7 @@ export default function EditProductPage() {
 
       setColors(populatedColors);
     } catch (err: any) {
-      setErrors({ fetch: err.message });
+      toast.error(err.message || 'Failed to fetch product');
     } finally {
       setIsLoading(false);
     }
@@ -243,7 +243,7 @@ export default function EditProductPage() {
       router.push('/sell/products');
     } catch (err: any) {
       // console.error(err);
-      setErrors({ submit: err.message });
+      toast.error(err.message || 'Failed to update product');
     } finally {
       setIsSubmitting(false);
     }
@@ -463,11 +463,6 @@ export default function EditProductPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="bg-white rounded-xl p-8">
-            {errors.submit && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                <p className="text-red-600">{errors.submit}</p>
-              </div>
-            )}
 
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">

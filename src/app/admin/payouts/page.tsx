@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
 
 interface Payout {
   _id: string;
@@ -38,8 +39,6 @@ export default function AdminPayoutsPage() {
   const searchParams = useSearchParams();
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
@@ -99,7 +98,7 @@ export default function AdminPayoutsPage() {
       }
     } catch (error) {
       console.error('Failed to fetch payouts:', error);
-      setError('Failed to load payouts');
+      toast.error('Failed to load payouts');
     } finally {
       setLoading(false);
     }
@@ -109,8 +108,6 @@ export default function AdminPayoutsPage() {
     if (!actionDialog.payout || !actionDialog.type) return;
 
     setSubmitting(true);
-    setError('');
-    setSuccess('');
 
     try {
       const token = localStorage.getItem('token');
@@ -171,16 +168,15 @@ export default function AdminPayoutsPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setSuccess(`Payout ${actionDialog.type === 'approve' ? 'approved' : actionDialog.type === 'reject' ? 'rejected' : 'marked as paid'} successfully`);
+        toast.success(`Payout ${actionDialog.type === 'approve' ? 'approved' : actionDialog.type === 'reject' ? 'rejected' : 'marked as paid'} successfully`);
         setActionDialog({ show: false, type: null, payout: null, adminNote: '', amountPaid: '', receiptFiles: [] });
         fetchPayouts();
-        setTimeout(() => setSuccess(''), 3000);
       } else {
-        setError(data.msg || data.error || `Failed to ${actionDialog.type} payout`);
+        toast.error(data.msg || data.error || `Failed to ${actionDialog.type} payout`);
       }
     } catch (error) {
       console.error('Action error:', error);
-      setError(error instanceof Error ? error.message : 'Server error during payout action');
+      toast.error(error instanceof Error ? error.message : 'Server error during payout action');
     } finally {
       setSubmitting(false);
     }
@@ -250,18 +246,6 @@ export default function AdminPayoutsPage() {
                 <p className="text-[#6a7581] text-sm font-normal leading-normal">Manage all seller payout requests</p>
               </div>
             </div>
-
-            {/* Error/Success Messages */}
-            {error && (
-              <div className="mx-4 mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
-            {success && (
-              <div className="mx-4 mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded-lg text-sm">
-                {success}
-              </div>
-            )}
 
             {/* Summary Stats */}
             <div className="px-4 py-3">
@@ -505,7 +489,6 @@ export default function AdminPayoutsPage() {
             className="fixed inset-0 bg-black bg-opacity-30 z-[9998]"
             onClick={() => {
               setActionDialog({ show: false, type: null, payout: null, adminNote: '', amountPaid: '', receiptFiles: [] });
-              setError('');
             }}
           />
           <div className="fixed inset-0 flex items-center justify-center z-[9999]">
@@ -524,12 +507,6 @@ export default function AdminPayoutsPage() {
                   Amount: <span className="font-medium text-[#121416]">{formatCurrency(actionDialog.payout.amount_requested)}</span>
                 </p>
               </div>
-
-              {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-                  {error}
-                </div>
-              )}
 
               <div className="space-y-4">
                 {actionDialog.type === 'mark-paid' && (
@@ -610,7 +587,6 @@ export default function AdminPayoutsPage() {
                   variant="outline"
                   onClick={() => {
                     setActionDialog({ show: false, type: null, payout: null, adminNote: '', amountPaid: '', receiptFiles: [] });
-                    setError('');
                   }}
                   className="flex-1"
                   disabled={submitting}

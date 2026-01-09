@@ -90,7 +90,6 @@ export default function CheckoutPage() {
       remainingBalance: number;
     }>
   >([]);
-  const [giftCardError, setGiftCardError] = useState<string | null>(null);
   const [isValidatingGiftCard, setIsValidatingGiftCard] = useState(false);
   const hasInitializedAddress = useRef(false);
 
@@ -219,7 +218,7 @@ export default function CheckoutPage() {
   // Handle apply gift card
   const handleApplyGiftCard = async () => {
     if (!giftCardCode.trim()) {
-      setGiftCardError('Please enter a gift card code');
+      toast.error('Please enter a gift card code');
       return;
     }
 
@@ -253,7 +252,7 @@ export default function CheckoutPage() {
 
       // Check if already applied
       if (appliedGiftCards.some((gc) => gc.code === data.data.code)) {
-        setGiftCardError('This gift card is already applied');
+        toast.error('This gift card is already applied');
         return;
       }
 
@@ -268,8 +267,9 @@ export default function CheckoutPage() {
       ]);
 
       setGiftCardCode('');
+      toast.success('Gift card applied successfully!');
     } catch (err: any) {
-      setGiftCardError(err.message || 'Failed to validate gift card');
+      toast.error(err.message || 'Failed to validate gift card');
     } finally {
       setIsValidatingGiftCard(false);
     }
@@ -1074,7 +1074,6 @@ export default function CheckoutPage() {
                       value={giftCardCode}
                       onChange={(e) => {
                         setGiftCardCode(e.target.value.toUpperCase());
-                        setGiftCardError(null);
                       }}
                       placeholder="Enter Gift Card Code (e.g., GC-XXXX-XXXX-XXXX)"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1096,12 +1095,6 @@ export default function CheckoutPage() {
                       {isValidatingGiftCard ? 'Validating...' : 'Apply'}
                     </Button>
                   </div>
-
-                  {giftCardError && (
-                    <div className="text-sm text-red-600 bg-red-50 p-3 rounded border border-red-200">
-                      {giftCardError}
-                    </div>
-                  )}
 
                   {appliedGiftCards.length > 0 && (
                     <div className="space-y-2">

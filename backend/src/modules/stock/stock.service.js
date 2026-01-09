@@ -1040,4 +1040,3 @@ module.exports.restoreStockFromCancelledSubOrder = async (subOrderId) => {
     await repository.save(stock);
   }
 };
-

@@ -174,7 +174,7 @@ export default function AddProductPage() {
       router.push('/sell/products');
     } catch (err: any) {
       // console.error(err);
-      setErrors({ submit: err.message });
+      toast.error(err.message || 'Failed to create product');
     } finally {
       setIsSubmitting(false);
     }
@@ -617,11 +617,6 @@ export default function AddProductPage() {
                 </div>
               </div>
 
-              {errors.submit && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <p className="text-red-600 text-sm">{errors.submit}</p>
-                </div>
-              )}
 
               <div className="flex justify-end gap-4">
                 <button

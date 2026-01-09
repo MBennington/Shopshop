@@ -16,4 +16,3 @@ module.exports.addWishlistItemToCart = joi.object({
   qty: joi.number().integer().min(1).optional().default(1),
   size: joi.string().optional(),
 });
-

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
 import {
   Package,
   Calendar,
@@ -55,7 +56,6 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [searchUserId, setSearchUserId] = useState('');
@@ -78,7 +78,7 @@ export default function AdminOrdersPage() {
       const token = localStorage.getItem('token');
 
       if (!token) {
-        setError('Please log in to view orders');
+        toast.error('Please log in to view orders');
         setLoading(false);
         return;
       }
@@ -101,14 +101,13 @@ export default function AdminOrdersPage() {
         const data = await response.json();
         setOrders(data.data?.orders || []);
         setPagination(data.data?.pagination || null);
-        setError(null);
       } else {
         const errorData = await response.json();
-        setError(errorData.error || 'Failed to fetch orders');
+        toast.error(errorData.error || 'Failed to fetch orders');
       }
     } catch (error) {
       console.error('Failed to fetch orders:', error);
-      setError('An error occurred while loading orders');
+      toast.error('An error occurred while loading orders');
     } finally {
       setLoading(false);
     }
@@ -258,22 +257,8 @@ export default function AdminOrdersPage() {
                 </div>
               )}
 
-              {/* Error State */}
-              {error && !loading && (
-                <Card>
-                  <CardContent className="p-8 text-center">
-                    <XCircle className="h-16 w-16 text-red-600 mx-auto mb-4" />
-                    <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                      Error
-                    </h2>
-                    <p className="text-gray-600 mb-6">{error}</p>
-                    <Button onClick={fetchOrders}>Try Again</Button>
-                  </CardContent>
-                </Card>
-              )}
-
               {/* Orders List */}
-              {!loading && !error && orders.length === 0 && (
+              {!loading && orders.length === 0 && (
                 <Card>
                   <CardContent className="p-12 text-center">
                     <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -291,7 +276,7 @@ export default function AdminOrdersPage() {
                 </Card>
               )}
 
-              {!loading && !error && orders.length > 0 && (
+              {!loading && orders.length > 0 && (
                 <>
                   <div className="space-y-4 mb-6">
                     {orders.map((order) => (

@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, CheckCircle2, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 
 export default function ReportIssuePage() {
   const router = useRouter();
@@ -15,8 +16,6 @@ export default function ReportIssuePage() {
     productId: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
 
   // Get query params if coming from review page
   useEffect(() => {
@@ -32,8 +31,6 @@ export default function ReportIssuePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setSubmitStatus('idle');
-    setErrorMessage('');
 
     const token = localStorage.getItem('token');
     if (!token) {
@@ -63,7 +60,7 @@ export default function ReportIssuePage() {
         throw new Error(data.error || data.msg || 'Failed to submit issue report');
       }
 
-      setSubmitStatus('success');
+      toast.success('Issue reported successfully! We\'ve received your report and will get back to you soon.');
       setFormData({
         subject: '',
         issueType: '',
@@ -71,14 +68,8 @@ export default function ReportIssuePage() {
         orderId: '',
         productId: formData.productId, // Keep productId if it was set
       });
-
-      // Reset form after 3 seconds
-      setTimeout(() => {
-        setSubmitStatus('idle');
-      }, 3000);
     } catch (error: any) {
-      setSubmitStatus('error');
-      setErrorMessage(error.message || 'Failed to submit issue report. Please try again.');
+      toast.error(error.message || 'Failed to submit issue report. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -96,28 +87,6 @@ export default function ReportIssuePage() {
               We're here to help! Please provide details about the issue you're experiencing.
             </p>
           </div>
-
-          {submitStatus === 'success' && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
-              <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-green-800 font-medium">Issue reported successfully!</p>
-                <p className="text-green-700 text-sm mt-1">
-                  We've received your report and will get back to you soon.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {submitStatus === 'error' && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-red-800 font-medium">Error submitting report</p>
-                <p className="text-red-700 text-sm mt-1">{errorMessage}</p>
-              </div>
-            </div>
-          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
