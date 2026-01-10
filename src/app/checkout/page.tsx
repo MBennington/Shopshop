@@ -223,7 +223,6 @@ export default function CheckoutPage() {
     }
 
     setIsValidatingGiftCard(true);
-    setGiftCardError(null);
 
     try {
       const token = localStorage.getItem('token');
@@ -471,8 +470,8 @@ export default function CheckoutPage() {
             });
           } else {
             // If fetch fails, use platform default
-          setShippingFee(100);
-          setBuyNowSellerInfo(null);
+            setShippingFee(100);
+            setBuyNowSellerInfo(null);
           }
         } catch (error) {
           // console.error('Failed to fetch product details:', error);
@@ -731,8 +730,8 @@ export default function CheckoutPage() {
       return_url:
         window.location.origin + `/order-success?orderId=${data.orderId}`, // success page with order ID
       cancel_url: window.location.origin + '/cart', // temporary cancel page
-      //notify_url: `${BACKEND_URL}/api/payment/webhook`, // placeholder, replace later
-      notify_url: `https://isothiocyano-edmund-isentropic.ngrok-free.dev/api/payment/webhook`,
+      notify_url: `${BACKEND_URL}/api/payment/webhook`,
+      //notify_url: `https://isothiocyano-edmund-isentropic.ngrok-free.dev/api/payment/webhook`, //local testing
       order_id: data.orderId,
       items: 'Order Payment',
       amount: Number(data.amount).toFixed(2),
