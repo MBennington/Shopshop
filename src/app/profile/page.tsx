@@ -22,7 +22,7 @@ interface FormData {
   _id: string;
   name: string;
   email: string;
-  role: 'buyer' | 'seller';
+  role: 'buyer' | 'seller' | 'admin';
   profilePicture?: string;
   savedAddresses: {
     label: string;
