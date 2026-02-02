@@ -13,6 +13,7 @@ interface CartItem {
   product_id: string;
   seller_id: string;
   business_name: string;
+  seller_profile_picture?: string;
   seller_info?: {
     _id: string;
     name: string;
