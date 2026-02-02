@@ -167,16 +167,12 @@ export default function CartPage() {
       // console.log('item.product_id:', item.product_id, 'type:', typeof item.product_id);
       
       // Validate required fields - check for undefined, null, empty string, or whitespace
-      // Handle both string and ObjectId types
+      // Handle both string and ObjectId-like types (API may return either)
       let productId: string | null = null;
-      if (item.product_id) {
-        if (typeof item.product_id === 'string') {
-          productId = item.product_id.trim();
-        } else if (typeof item.product_id === 'object' && item.product_id.toString) {
-          productId = item.product_id.toString().trim();
-        } else {
-          productId = String(item.product_id).trim();
-        }
+      if (item.product_id != null && item.product_id !== '') {
+        productId = typeof item.product_id === 'string'
+          ? item.product_id.trim()
+          : String(item.product_id).trim();
       }
       
       let color: string | null = null;
