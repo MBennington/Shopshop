@@ -4,8 +4,9 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 interface CartApiResponse {
-  msg: string;
-  data: CartResponse;
+  msg?: string;
+  error?: string;
+  data?: CartResponse;
 }
 
 interface CartItem {
@@ -73,13 +74,13 @@ export default function CartPage() {
 
         const json: CartApiResponse = await res.json();
 
-        if (!res.ok) throw new Error(json.msg || 'Failed to fetch cart');
+        if (!res.ok) throw new Error(json.msg || json.error || 'Failed to fetch cart');
 
-        setCart(json.data); // ✅ use json.data
+        setCart(json.data!); // success path: API returns data
 
         // Initialize quantities state with unique keys
         const initialQuantities: { [key: string]: number } = {};
-        Object.values(json.data.sellers).forEach(sellerGroup => {
+        Object.values(json.data!.sellers).forEach(sellerGroup => {
           sellerGroup.products.forEach((item) => {
             const key = getItemKey(item);
             initialQuantities[key] = item.quantity;
@@ -140,11 +141,11 @@ export default function CartPage() {
         return;
       }
 
-      setCart(json.data);
-      
+      setCart(json.data!);
+
       // Update quantities state with new values from cart
       const updatedQuantities: { [key: string]: number } = {};
-      Object.values(json.data.sellers).forEach(sellerGroup => {
+      Object.values(json.data!.sellers).forEach(sellerGroup => {
         sellerGroup.products.forEach((item) => {
           const key = getItemKey(item);
           updatedQuantities[key] = item.quantity;
@@ -237,7 +238,7 @@ export default function CartPage() {
         throw new Error(errorMsg);
       }
 
-      setCart(json.data); // ✅ use updated cart
+      setCart(json.data!);
       toast.success('Item removed from cart successfully!');
     } catch (err: any) {
       // console.error('Remove failed:', err);
