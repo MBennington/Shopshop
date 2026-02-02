@@ -3,9 +3,10 @@ import { BACKEND_URL } from '@/lib/config';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authHeader = request.headers.get('authorization');
     const body = await request.json();
     
@@ -16,7 +17,7 @@ export async function POST(
       );
     }
 
-    const response = await fetch(`${BACKEND_URL}/api/payout/${params.id}/approve`, {
+    const response = await fetch(`${BACKEND_URL}/api/payout/${id}/approve`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

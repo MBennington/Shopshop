@@ -3,9 +3,10 @@ import { BACKEND_URL } from '@/lib/config';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authHeader = request.headers.get('authorization');
     
     if (!authHeader) {
@@ -17,7 +18,7 @@ export async function PUT(
 
     const body = await request.json();
 
-    const response = await fetch(`${BACKEND_URL}/api/users/admin/user/${params.id}/role`, {
+    const response = await fetch(`${BACKEND_URL}/api/users/admin/user/${id}/role`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

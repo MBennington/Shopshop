@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="shopshop.lk — Sri Lanka's marketplace. Marketing launch strategy dashboard.">
+    <title>shopshop.lk | Launch Strategy Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #fcfbf9; color: #1f2937; }
+        html, body { max-width: 100%; overflow-x: hidden; }
+        
+        /* Chart Container Styling - Mandatory */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container { height: 350px; }
+        }
+        @media (max-width: 767px) {
+            .chart-container { height: 240px; }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .nav-item.active {
+            background-color: #e0f2fe;
+            color: #0369a1;
+            border-right: 3px solid #0284c7;
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Phone mockup for ad preview */
+        .phone-mockup {
+            border: 8px solid #333;
+            border-radius: 24px;
+            overflow: hidden;
+            background: white;
+            position: relative;
+        }
+    </style>
+    <!-- Brand: shopshop.lk (use consistently everywhere) -->
+    <!-- Chosen Palette: Warm Professional - Background: #fcfbf9 (Warm White), Primary: #0284c7 (Sky Blue), Secondary: #0f172a (Slate), Accent: #f43f5e (Rose) -->
+    <!-- Application Structure Plan: 
+         1. Sidebar Navigation: Persistent access to 6 key views (Overview, Plan, Strategy, Founder Toolkit, Creative Studio, Roadmap).
+         2. Business Overview: High-level summary of the 2-sided market (Sellers vs Buyers) and target categories.
+         3. Marketing Plan: Objectives, positioning, personas, funnel, budget, KPIs, and measurement.
+         4. Strategy & Channels: Visualizing the channel mix and content pillars using charts and interactive cards.
+         5. Founder Toolkit: Practical playbooks and trackers for early-stage execution.
+         6. Creative Studio: A dedicated interactive tool to preview the marketing copy in a social-media context.
+         7. Roadmap & Next Steps: Timeline of seasonal hooks and checklist for launch.
+         Why: This structure breaks a complete plan into actionable, bite-sized visual chunks while connecting strategy to execution.
+    -->
+    <!-- Visualization & Content Choices:
+         1. Business Overview -> Goal: Inform -> Two-Column Layout with Icons -> Interaction: None -> Comparison of Seller/Buyer Value Props.
+         2. Channel Strategy -> Goal: Compare -> Chart.js Bar Chart -> Interaction: Hover for details -> Visualizing the "Resource Allocation" implied by the report (FB/Meta as primary).
+         3. Ad Content -> Goal: Engage -> Interactive "Phone Mockup" Generator -> Interaction: Dropdowns to switch Audience/Topic -> Allows users to see the raw text transformed into a visual ad format.
+         4. Seasonal Hooks -> Goal: Change/Timeline -> Horizontal Timeline Cards -> Interaction: None -> visualizing the calendar events.
+         NO SVG/Mermaid used.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="min-h-screen flex flex-col md:flex-row md:h-screen md:overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col z-10">
+        <div class="p-6 border-b border-gray-100">
+            <h1 class="text-2xl font-bold text-slate-800 tracking-tight"><span class="text-sky-600">shopshop</span>.lk</h1>
+            <p class="text-xs text-gray-500 mt-1">Marketing Command Center</p>
+        </div>
+        <nav class="flex-1 overflow-y-auto py-4">
+            <ul class="space-y-1">
+                <li>
+                    <button onclick="showSection('overview')" class="nav-item w-full text-left px-6 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors active" id="nav-overview">
+                        📊 Business Overview
+                    </button>
+                </li>
+                <li>
+                    <button onclick="showSection('plan')" class="nav-item w-full text-left px-6 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors" id="nav-plan">
+                        📌 Marketing Plan
+                    </button>
+                </li>
+                <li>
+                    <button onclick="showSection('strategy')" class="nav-item w-full text-left px-6 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors" id="nav-strategy">
+                        🎯 Strategy & Channels
+                    </button>
+                </li>
+                <li>
+                    <button onclick="showSection('founders')" class="nav-item w-full text-left px-6 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors" id="nav-founders">
+                        🧰 Founder Toolkit
+                    </button>
+                </li>
+                <li>
+                    <button onclick="showSection('creative')" class="nav-item w-full text-left px-6 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors" id="nav-creative">
+                        🎨 Creative Studio
+                    </button>
+                </li>
+                <li>
+                    <button onclick="showSection('roadmap')" class="nav-item w-full text-left px-6 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors" id="nav-roadmap">
+                        🚀 Roadmap & Next Steps
+                    </button>
+                </li>
+            </ul>
+        </nav>
+        <div class="p-4 border-t border-gray-100 bg-gray-50">
+            <div class="text-xs text-gray-400 font-mono">Plan: 2026 Launch<br>Region: Sri Lanka</div>
+        </div>
+    </aside>
+
+    <!-- Mobile Header -->
+    <div class="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-20 px-4 py-3 flex justify-between items-center shadow-sm">
+        <span class="font-bold text-lg text-slate-800">shopshop.lk</span>
+        <select onchange="showSection(this.value)" class="text-sm border-gray-300 rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500">
+            <option value="overview">Business Overview</option>
+            <option value="plan">Marketing Plan</option>
+            <option value="strategy">Strategy & Channels</option>
+            <option value="founders">Founder Toolkit</option>
+            <option value="creative">Creative Studio</option>
+            <option value="roadmap">Roadmap & Next Steps</option>
+        </select>
+    </div>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-visible md:overflow-y-auto bg-[#fcfbf9] p-4 md:p-8 pt-20 md:pt-8 scroll-smooth">
+        
+        <!-- SECTION 1: BUSINESS OVERVIEW -->
+        <section id="overview" class="max-w-6xl mx-auto space-y-8 animate-fade-in">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-slate-800">Business Nature Summary</h2>
+                <p class="text-gray-600 mt-2 max-w-3xl">
+                    shopshop.lk is a Sri Lanka–focused online marketplace connecting local small businesses with shoppers. 
+                    This section outlines the core value proposition for our two-sided marketplace model.
+                </p>
+            </div>
+
+            <!-- Value Prop Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Sellers Card -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-orange-100 relative overflow-hidden card-hover transition-all duration-300">
+                    <div class="absolute top-0 right-0 bg-orange-100 text-orange-700 text-xs font-bold px-3 py-1 rounded-bl-lg">SUPPLY SIDE</div>
+                    <div class="text-4xl mb-4">🏪</div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">For Sellers</h3>
+                    <p class="text-sm text-gray-500 mb-4 font-semibold uppercase tracking-wide">Small Businesses & Individuals</p>
+                    <ul class="space-y-3 text-gray-600 text-sm">
+                        <li class="flex items-start"><span class="mr-2 text-green-500">✓</span> List products without building a website.</li>
+                        <li class="flex items-start"><span class="mr-2 text-green-500">✓</span> Manage orders, products, and analytics in one portal.</li>
+                        <li class="flex items-start"><span class="mr-2 text-green-500">✓</span> Secure LKR payouts via PayHere.</li>
+                        <li class="flex items-start"><span class="mr-2 text-green-500">✓</span> Reach buyers across the entire island.</li>
+                    </ul>
+                    <div class="mt-6 p-3 bg-orange-50 rounded-lg border border-orange-100">
+                        <span class="text-xs font-bold text-orange-800 block mb-1">TARGET CATEGORIES</span>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-2 py-1 bg-white text-gray-600 text-xs rounded border border-gray-200">Fashion 👗</span>
+                            <span class="px-2 py-1 bg-white text-gray-600 text-xs rounded border border-gray-200">Electronics 📱</span>
+                            <span class="px-2 py-1 bg-white text-gray-600 text-xs rounded border border-gray-200">Home & Kitchen 🍳</span>
+                            <span class="px-2 py-1 bg-white text-gray-600 text-xs rounded border border-gray-200">Books 📚</span>
+                            <span class="px-2 py-1 bg-white text-gray-600 text-xs rounded border border-gray-200">Beauty 💄</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Buyers Card -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-sky-100 relative overflow-hidden card-hover transition-all duration-300">
+                    <div class="absolute top-0 right-0 bg-sky-100 text-sky-700 text-xs font-bold px-3 py-1 rounded-bl-lg">DEMAND SIDE</div>
+                    <div class="text-4xl mb-4">🛍️</div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">For Buyers</h3>
+                    <p class="text-sm text-gray-500 mb-4 font-semibold uppercase tracking-wide">Online Shoppers in Sri Lanka</p>
+                    <ul class="space-y-3 text-gray-600 text-sm">
+                        <li class="flex items-start"><span class="mr-2 text-green-500">✓</span> Discover products from handpicked local sellers.</li>
+                        <li class="flex items-start"><span class="mr-2 text-green-500">✓</span> Secure payments in LKR (PayHere).</li>
+                        <li class="flex items-start"><span class="mr-2 text-green-500">✓</span> Multi-seller cart & Wishlist features.</li>
+                        <li class="flex items-start"><span class="mr-2 text-green-500">✓</span> Gift Cards (LKR 500 - 50,000).</li>
+                    </ul>
+                    <div class="mt-6 p-3 bg-sky-50 rounded-lg border border-sky-100">
+                        <span class="text-xs font-bold text-sky-800 block mb-1">KEY FEATURES</span>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-2 py-1 bg-white text-gray-600 text-xs rounded border border-gray-200">Deals Section</span>
+                            <span class="px-2 py-1 bg-white text-gray-600 text-xs rounded border border-gray-200">Reviews</span>
+                            <span class="px-2 py-1 bg-white text-gray-600 text-xs rounded border border-gray-200">New Arrivals</span>
+                            <span class="px-2 py-1 bg-white text-gray-600 text-xs rounded border border-gray-200">Free Shipping > 5k</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Positioning Statement -->
+            <div class="bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl p-8 text-white shadow-lg text-center">
+                <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-2">Core Positioning</h3>
+                <p class="text-2xl md:text-3xl font-serif italic">"Sri Lanka’s marketplace for small businesses and local shoppers."</p>
+            </div>
+        </section>
+
+        <!-- SECTION 2: MARKETING PLAN -->
+        <section id="plan" class="max-w-6xl mx-auto space-y-8 hidden animate-fade-in">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-slate-800">Complete Marketing Plan</h2>
+                <p class="text-gray-600 mt-2 max-w-3xl">
+                    A full-funnel plan for shopshop.lk covering objectives, positioning, audiences, offers, channels, budget, KPIs, and measurement.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-3">1. Objectives</h3>
+                    <ul class="space-y-2 text-sm text-gray-600">
+                        <li class="flex items-start"><span class="mr-2 text-green-500">✓</span> Acquire and activate sellers with first sale in 14 days.</li>
+                        <li class="flex items-start"><span class="mr-2 text-green-500">✓</span> Grow trusted buyer base with repeat purchase behavior.</li>
+                        <li class="flex items-start"><span class="mr-2 text-green-500">✓</span> Build local-brand trust and visibility island-wide.</li>
+                    </ul>
+                    <p class="text-xs text-gray-500 mt-3">Primary KPI: seller activation rate (first sale within 14 days).</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-3">2. Positioning & Promise</h3>
+                    <ul class="space-y-2 text-sm text-gray-600">
+                        <li class="flex items-start"><span class="mr-2 text-sky-500">•</span> Sri Lanka’s local-first marketplace for small businesses.</li>
+                        <li class="flex items-start"><span class="mr-2 text-sky-500">•</span> PayHere-secured payments in LKR with trusted checkout.</li>
+                        <li class="flex items-start"><span class="mr-2 text-sky-500">•</span> Multi-seller cart, reviews, and curated discovery.</li>
+                    </ul>
+                    <p class="text-xs text-gray-500 mt-3">Message theme: "Buy local. Sell local. Trust local."</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-3">3. Offer Stack</h3>
+                    <div class="space-y-3 text-sm text-gray-600">
+                        <div class="p-3 bg-orange-50 rounded-lg border border-orange-100">
+                            <p class="font-semibold text-orange-900">For Sellers</p>
+                            <p class="text-xs mt-1">Zero website setup, fast onboarding, analytics, and LKR payouts.</p>
+                        </div>
+                        <div class="p-3 bg-sky-50 rounded-lg border border-sky-100">
+                            <p class="font-semibold text-sky-900">For Buyers</p>
+                            <p class="text-xs mt-1">Local sellers, safe payments, deals, gift cards, and free shipping over LKR 5,000.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">4. Audience Personas</h3>
+                    <div class="space-y-3 text-sm text-gray-600">
+                        <div class="p-3 bg-orange-50 rounded-lg border border-orange-100">
+                            <p class="font-semibold text-orange-900">Micro Sellers</p>
+                            <p class="text-xs mt-1">Home-based and Instagram sellers who need trust and reach.</p>
+                        </div>
+                        <div class="p-3 bg-orange-50 rounded-lg border border-orange-100">
+                            <p class="font-semibold text-orange-900">Growing SMEs</p>
+                            <p class="text-xs mt-1">Small businesses ready to scale without tech complexity.</p>
+                        </div>
+                        <div class="p-3 bg-sky-50 rounded-lg border border-sky-100">
+                            <p class="font-semibold text-sky-900">Value Shoppers</p>
+                            <p class="text-xs mt-1">Deal-hunters looking for local products and safe payment.</p>
+                        </div>
+                        <div class="p-3 bg-sky-50 rounded-lg border border-sky-100">
+                            <p class="font-semibold text-sky-900">Gift Buyers</p>
+                            <p class="text-xs mt-1">Seasonal buyers for festivals and gifting moments.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">5. Funnel Strategy</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-gray-600">
+                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                            <p class="font-semibold text-gray-800">Awareness</p>
+                            <p class="mt-1">Meta video, creator reels, PR stories, seller spotlights.</p>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                            <p class="font-semibold text-gray-800">Consideration</p>
+                            <p class="mt-1">How-to content, product demos, trust and payment proof.</p>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                            <p class="font-semibold text-gray-800">Conversion</p>
+                            <p class="mt-1">Retargeting, offer-led ads, sign-up nudges, cart recovery.</p>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                            <p class="font-semibold text-gray-800">Retention</p>
+                            <p class="mt-1">WhatsApp updates, loyalty perks, repeat buyer campaigns.</p>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-3">Focus: drive fast seller activation and repeat buyers.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">6. Budget Split (Percent)</h3>
+                    <div class="space-y-2 text-sm text-gray-600">
+                        <div class="flex justify-between"><span>Meta (FB/IG) Ads</span><span class="font-mono">45%</span></div>
+                        <div class="flex justify-between"><span>Google Search</span><span class="font-mono">20%</span></div>
+                        <div class="flex justify-between"><span>Creators/Influencers</span><span class="font-mono">10%</span></div>
+                        <div class="flex justify-between"><span>WhatsApp/Community</span><span class="font-mono">10%</span></div>
+                        <div class="flex justify-between"><span>Partnerships/PR</span><span class="font-mono">10%</span></div>
+                        <div class="flex justify-between"><span>Experiments</span><span class="font-mono">5%</span></div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-3">Rebalance monthly based on CAC and ROAS.</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">7. KPI Targets (90 Days)</h3>
+                    <div class="space-y-2 text-sm text-gray-600">
+                        <div class="flex justify-between"><span>Seller signups</span><span class="font-mono">400+</span></div>
+                        <div class="flex justify-between"><span>Seller activation</span><span class="font-mono">60%+</span></div>
+                        <div class="flex justify-between"><span>Buyer signups</span><span class="font-mono">15k+</span></div>
+                        <div class="flex justify-between"><span>Conversion rate</span><span class="font-mono">1.8-2.5%</span></div>
+                        <div class="flex justify-between"><span>AOV</span><span class="font-mono">LKR 3,500+</span></div>
+                        <div class="flex justify-between"><span>Repeat rate</span><span class="font-mono">20%+</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">8. Content Cadence & Measurement</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <p class="font-semibold text-gray-800">Weekly Cadence</p>
+                        <p class="mt-1">3 posts, 2 reels, 5 stories, 1 seller spotlight, 1 buyer testimonial.</p>
+                    </div>
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <p class="font-semibold text-gray-800">Creative Standards</p>
+                        <p class="mt-1">Local faces, product benefits, price clarity, trust badges, and LKR pricing.</p>
+                    </div>
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <p class="font-semibold text-gray-800">Measurement Stack</p>
+                        <p class="mt-1">GA4, Meta Pixel, UTM links, weekly KPI dashboard, cohort retention.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-r from-sky-600 to-slate-900 rounded-xl p-8 text-white shadow-lg">
+                <h3 class="text-lg font-bold mb-3">90-Day Launch Playbook</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div class="bg-white/10 p-4 rounded-lg border border-white/10">
+                        <p class="font-semibold">Phase 1: Pre-Launch (Weeks -6 to -2)</p>
+                        <p class="mt-2">Seller onboarding drive, waitlist, creator seeding, landing page tests.</p>
+                    </div>
+                    <div class="bg-white/10 p-4 rounded-lg border border-white/10">
+                        <p class="font-semibold">Phase 2: Launch (Weeks 0 to 2)</p>
+                        <p class="mt-2">PR announcement, launch offers, paid acquisition ramp, UGC push.</p>
+                    </div>
+                    <div class="bg-white/10 p-4 rounded-lg border border-white/10">
+                        <p class="font-semibold">Phase 3: Scale (Weeks 3 to 12)</p>
+                        <p class="mt-2">Retargeting, referral program, category expansion, lifecycle campaigns.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: STRATEGY & CHANNELS -->
+        <section id="strategy" class="max-w-6xl mx-auto space-y-8 hidden animate-fade-in">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-slate-800">Strategy & Channels</h2>
+                <p class="text-gray-600 mt-2 max-w-3xl">
+                    Channel roles align to the plan: Meta for scale, Search for high intent, WhatsApp for trust and retention.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Channel Mix Chart -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">📢 Channel Priority Mix</h3>
+                    <div class="chart-container">
+                        <canvas id="channelChart"></canvas>
+                    </div>
+                    <div class="mt-4 text-xs text-gray-500 text-center">
+                        *Based on usage stats in Sri Lanka and resource allocation strategy.
+                    </div>
+                </div>
+
+                <!-- Audience Goals Table -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">🎯 Audience Goals</h3>
+                    <div class="flex-1 space-y-4">
+                        <!-- Seller Goal -->
+                        <div class="p-4 bg-orange-50 rounded-lg border-l-4 border-orange-400">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-bold text-orange-900">Sellers</span>
+                                <span class="text-xs bg-white px-2 py-1 rounded shadow-sm text-orange-600 font-mono">GOAL: ACQUISITION</span>
+                            </div>
+                            <p class="text-sm text-gray-700">Sign up, complete onboarding, and reach first sale within 14 days. Remove tech and trust barriers.</p>
+                            <p class="text-xs mt-2 text-gray-500 italic">"Start selling fast, get paid in LKR."</p>
+                        </div>
+                        
+                        <!-- Buyer Goal -->
+                        <div class="p-4 bg-sky-50 rounded-lg border-l-4 border-sky-400">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-bold text-sky-900">Buyers</span>
+                                <span class="text-xs bg-white px-2 py-1 rounded shadow-sm text-sky-600 font-mono">GOAL: CONVERSION</span>
+                            </div>
+                            <p class="text-sm text-gray-700">Visit site, search, cart addition, and checkout. Drive repeat purchase through trust and value.</p>
+                            <p class="text-xs mt-2 text-gray-500 italic">"Local products, safe payment, fast delivery."</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Pillars -->
+            <div>
+                <h3 class="text-lg font-bold text-gray-800 mb-4">🏛️ Content Pillars</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:border-sky-300 transition-colors">
+                        <div class="text-2xl mb-2">🏆</div>
+                        <h4 class="font-bold text-gray-800">Seller Activation</h4>
+                        <p class="text-xs text-gray-500 mt-1">Onboarding steps, first sale stories, payout proof.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:border-sky-300 transition-colors">
+                        <div class="text-2xl mb-2">🛡️</div>
+                        <h4 class="font-bold text-gray-800">Buyer Trust</h4>
+                        <p class="text-xs text-gray-500 mt-1">PayHere security, verified sellers, reviews.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:border-sky-300 transition-colors">
+                        <div class="text-2xl mb-2">🤝</div>
+                        <h4 class="font-bold text-gray-800">Local Discovery</h4>
+                        <p class="text-xs text-gray-500 mt-1">Support local, new arrivals, category highlights.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:border-sky-300 transition-colors">
+                        <div class="text-2xl mb-2">🏷️</div>
+                        <h4 class="font-bold text-gray-800">Offers & Loyalty</h4>
+                        <p class="text-xs text-gray-500 mt-1">Deals, gift cards, free shipping over LKR 5,000.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: FOUNDER TOOLKIT -->
+        <section id="founders" class="max-w-6xl mx-auto space-y-8 hidden animate-fade-in">
+            <div class="mb-4">
+                <h2 class="text-3xl font-bold text-slate-800">Founder Toolkit (Early Stage)</h2>
+                <p class="text-gray-600 mt-2 max-w-3xl">
+                    Practical tools founders can use weekly to build supply, activate demand, and increase trust.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-3">North Star Metrics</h3>
+                    <ul class="space-y-2 text-sm text-gray-600">
+                        <li class="flex justify-between"><span>Seller activation (14 days)</span><span class="font-mono">60%+</span></li>
+                        <li class="flex justify-between"><span>Buyer repeat (30 days)</span><span class="font-mono">20%+</span></li>
+                        <li class="flex justify-between"><span>AOV</span><span class="font-mono">LKR 3,500+</span></li>
+                        <li class="flex justify-between"><span>Paid CAC payback</span><span class="font-mono">&lt; 60 days</span></li>
+                    </ul>
+                    <p class="text-xs text-gray-500 mt-3">Track weekly and review monthly.</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-3">Weekly Founder Rhythm</h3>
+                    <div class="space-y-2 text-xs text-gray-600">
+                        <div class="flex items-center justify-between bg-gray-50 px-3 py-2 rounded border border-gray-100"><span>Mon</span><span>Metrics + funnel review</span></div>
+                        <div class="flex items-center justify-between bg-gray-50 px-3 py-2 rounded border border-gray-100"><span>Tue</span><span>Seller outreach + onboarding</span></div>
+                        <div class="flex items-center justify-between bg-gray-50 px-3 py-2 rounded border border-gray-100"><span>Wed</span><span>Experiment design + build</span></div>
+                        <div class="flex items-center justify-between bg-gray-50 px-3 py-2 rounded border border-gray-100"><span>Thu</span><span>Content + creator ops</span></div>
+                        <div class="flex items-center justify-between bg-gray-50 px-3 py-2 rounded border border-gray-100"><span>Fri</span><span>Retention + support insights</span></div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-3">Early-Stage Moats</h3>
+                    <ul class="space-y-2 text-sm text-gray-600">
+                        <li class="flex items-start"><span class="mr-2 text-sky-500">•</span>Trust: PayHere proof, reviews, verified sellers.</li>
+                        <li class="flex items-start"><span class="mr-2 text-sky-500">•</span>Supply: fast onboarding, first-sale playbook.</li>
+                        <li class="flex items-start"><span class="mr-2 text-sky-500">•</span>Demand: local discovery, deals, gift cards.</li>
+                        <li class="flex items-start"><span class="mr-2 text-sky-500">•</span>Retention: WhatsApp updates, loyalty offers.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">Seller Acquisition Pipeline</h3>
+                    <div class="space-y-3 text-sm text-gray-600">
+                        <div class="flex items-center justify-between">
+                            <span>Leads (weekly target)</span>
+                            <span class="font-mono">150</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span>Qualified sellers</span>
+                            <span class="font-mono">90</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span>Onboarded sellers</span>
+                            <span class="font-mono">60</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span>Activated (first sale)</span>
+                            <span class="font-mono">36</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-3">Use CRM or spreadsheet to track stage conversion.</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">Experiment Backlog</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-gray-600">
+                            <thead>
+                                <tr class="text-left text-gray-500">
+                                    <th class="py-2">Idea</th>
+                                    <th>Metric</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <tr>
+                                    <td class="py-2">Seller onboarding WhatsApp flow</td>
+                                    <td>Activation%</td>
+                                    <td><span class="px-2 py-1 bg-sky-50 text-sky-700 rounded">Testing</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2">Free shipping threshold A/B</td>
+                                    <td>AOV</td>
+                                    <td><span class="px-2 py-1 bg-amber-50 text-amber-700 rounded">Queued</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2">Seller spotlight reels</td>
+                                    <td>CTR</td>
+                                    <td><span class="px-2 py-1 bg-emerald-50 text-emerald-700 rounded">Live</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-3">Keep 3-5 tests active max.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">Partnership Targets</h3>
+                    <div class="flex flex-wrap gap-2 text-xs text-gray-600">
+                        <span class="px-3 py-1 bg-gray-100 rounded">Local creators (10)</span>
+                        <span class="px-3 py-1 bg-gray-100 rounded">Courier/logistics</span>
+                        <span class="px-3 py-1 bg-gray-100 rounded">Bank/Wallet promos</span>
+                        <span class="px-3 py-1 bg-gray-100 rounded">University clubs</span>
+                        <span class="px-3 py-1 bg-gray-100 rounded">Women entrepreneur groups</span>
+                        <span class="px-3 py-1 bg-gray-100 rounded">Local media PR</span>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-3">Goal: 2 partnerships per month.</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">Founder Resource Kit</h3>
+                    <ul class="space-y-2 text-sm text-gray-600">
+                        <li class="flex items-start"><span class="mr-2 text-green-500">✓</span> Seller onboarding kit + first-sale checklist</li>
+                        <li class="flex items-start"><span class="mr-2 text-green-500">✓</span> Pricing/fee calculator sheet</li>
+                        <li class="flex items-start"><span class="mr-2 text-green-500">✓</span> Brand kit + content templates</li>
+                        <li class="flex items-start"><span class="mr-2 text-green-500">✓</span> FAQ + trust badges for ads</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: CREATIVE STUDIO -->
+        <section id="creative" class="max-w-6xl mx-auto space-y-8 hidden animate-fade-in">
+            <div class="mb-4">
+                <h2 class="text-3xl font-bold text-slate-800">Creative Studio</h2>
+                <p class="text-gray-600 mt-2 max-w-3xl">
+                    Interact with our prepared marketing assets. Select an audience and campaign type to preview the ad copy tailored for social media.
+                </p>
+            </div>
+
+            <div class="flex flex-col lg:flex-row gap-8 items-start">
+                
+                <!-- Controls -->
+                <div class="w-full lg:w-1/3 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-gray-800 mb-6 flex items-center">
+                        <span class="bg-sky-100 text-sky-600 p-2 rounded mr-3">⚙️</span> 
+                        Ad Generator
+                    </h3>
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Target Audience</label>
+                            <div class="flex gap-2 p-1 bg-gray-100 rounded-lg">
+                                <button onclick="setAudience('seller')" id="btn-seller" class="flex-1 py-2 px-3 text-sm rounded-md font-medium transition-colors bg-white shadow text-gray-800">Sellers</button>
+                                <button onclick="setAudience('buyer')" id="btn-buyer" class="flex-1 py-2 px-3 text-sm rounded-md font-medium transition-colors text-gray-500 hover:bg-gray-200">Buyers</button>
+                                <button onclick="setAudience('dual')" id="btn-dual" class="flex-1 py-2 px-3 text-sm rounded-md font-medium transition-colors text-gray-500 hover:bg-gray-200">Dual</button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Campaign Hook</label>
+                            <select id="campaign-select" class="w-full border-gray-300 rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 p-2 border">
+                                <!-- Populated by JS -->
+                            </select>
+                        </div>
+
+                        <div class="pt-4 border-t border-gray-100">
+                            <div class="flex items-center justify-between text-sm text-gray-500">
+                                <span>Platform Format:</span>
+                                <span class="font-mono bg-gray-100 px-2 py-1 rounded">Insta/FB Feed</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview Mockup -->
+                <div class="w-full lg:w-1/2 flex justify-center">
+                    <div class="phone-mockup w-full max-w-sm shadow-2xl">
+                        <!-- Phone Header -->
+                        <div class="bg-gray-50 border-b border-gray-100 p-4 flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-8 h-8 bg-sky-600 rounded-full flex items-center justify-center text-white font-bold text-xs">Sh</div>
+                                <div>
+                                    <div class="text-sm font-bold text-gray-900">shopshop.lk</div>
+                                    <div class="text-xs text-gray-500">Sponsored</div>
+                                </div>
+                            </div>
+                            <div class="text-gray-400 text-xl">•••</div>
+                        </div>
+                        
+                        <!-- Image Placeholder -->
+                        <div class="bg-gray-200 aspect-square flex items-center justify-center relative group overflow-hidden">
+                            <div class="text-center p-6 transition-transform duration-500 group-hover:scale-105">
+                                <span class="text-5xl block mb-2" id="ad-emoji">🚀</span>
+                                <p class="text-gray-500 font-medium text-sm">Visual Asset Placeholder</p>
+                                <p class="text-xs text-gray-400 mt-1">(Seller dashboard / Product grid / Lifestyle)</p>
+                            </div>
+                            <!-- Overlay Text (Headline) -->
+                            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 pt-12">
+                                <h3 id="ad-headline" class="text-white font-bold text-xl leading-tight drop-shadow-sm">Start selling online. No website needed.</h3>
+                            </div>
+                        </div>
+
+                        <!-- Action Bar -->
+                        <div class="p-3 flex justify-between items-center border-b border-gray-100">
+                            <div class="flex space-x-4 text-2xl text-gray-700">
+                                <span>❤️</span><span>💬</span><span>✈️</span>
+                            </div>
+                            <div class="text-2xl text-gray-700">🔖</div>
+                        </div>
+
+                        <!-- Caption Body -->
+                        <div class="p-4 bg-white">
+                            <div class="text-sm text-gray-800 space-y-2">
+                                <p class="font-bold text-xs mb-1">245 likes</p>
+                                <p><span class="font-bold mr-1">shopshop.lk</span><span id="ad-body">Turn your products into orders. List on shopshop.lk, reach buyers across Sri Lanka, and get paid in LKR.</span></p>
+                                <p class="text-blue-600 text-sm" id="ad-hashtags">#SellOnlineSriLanka #SmallBusinessLK</p>
+                            </div>
+                            
+                            <!-- CTA Button Simulation -->
+                            <div class="mt-4">
+                                <div class="bg-sky-50 text-sky-700 text-sm font-bold py-3 px-4 rounded text-center border border-sky-100 flex justify-between items-center">
+                                    <span id="ad-cta">Sign up as a seller</span>
+                                    <span>→</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 5: ROADMAP -->
+        <section id="roadmap" class="max-w-6xl mx-auto space-y-8 hidden animate-fade-in">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-slate-800">Roadmap & Next Steps</h2>
+                <p class="text-gray-600 mt-2 max-w-3xl">
+                    Seasonal campaign hooks for the Sri Lankan market and immediate tactical next steps for the project launch.
+                </p>
+            </div>
+
+            <!-- Launch Phases -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">🚦 Launch Phases</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                    <div class="p-4 bg-sky-50 rounded-lg border border-sky-100">
+                        <p class="font-semibold text-sky-900">Pre-Launch</p>
+                        <p class="text-xs mt-2">Seller onboarding sprint, landing page tests, creator seeding.</p>
+                    </div>
+                    <div class="p-4 bg-orange-50 rounded-lg border border-orange-100">
+                        <p class="font-semibold text-orange-900">Launch</p>
+                        <p class="text-xs mt-2">PR + paid media burst, launch offers, daily content cadence.</p>
+                    </div>
+                    <div class="p-4 bg-green-50 rounded-lg border border-green-100">
+                        <p class="font-semibold text-green-900">Scale</p>
+                        <p class="text-xs mt-2">Retargeting, referrals, category expansion, lifecycle campaigns.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Horizontal Scroll Timeline -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <h3 class="text-lg font-bold text-gray-800 mb-6">📅 Seasonal Campaign Hooks</h3>
+                <div class="flex space-x-6 overflow-x-auto pb-4">
+                    <!-- Event 1 -->
+                    <div class="min-w-[250px] bg-yellow-50 p-4 rounded-lg border-t-4 border-yellow-400">
+                        <div class="text-xs font-bold text-yellow-700 uppercase mb-1">April</div>
+                        <h4 class="font-bold text-gray-900">Sinhala & Tamil New Year</h4>
+                        <p class="text-sm text-gray-600 mt-2">"List your festive products" / "New Year deals"</p>
+                    </div>
+                    <!-- Event 2 -->
+                    <div class="min-w-[250px] bg-blue-50 p-4 rounded-lg border-t-4 border-blue-400">
+                        <div class="text-xs font-bold text-blue-700 uppercase mb-1">Jan/May/Sept</div>
+                        <h4 class="font-bold text-gray-900">Back to School</h4>
+                        <p class="text-sm text-gray-600 mt-2">"Notebooks, bags, and more from local sellers."</p>
+                    </div>
+                    <!-- Event 3 -->
+                    <div class="min-w-[250px] bg-purple-50 p-4 rounded-lg border-t-4 border-purple-400">
+                        <div class="text-xs font-bold text-purple-700 uppercase mb-1">Dec/Festivals</div>
+                        <h4 class="font-bold text-gray-900">Holidays & Gifting</h4>
+                        <p class="text-sm text-gray-600 mt-2">"Gift cards LKR 500–50k — give the gift of choice."</p>
+                    </div>
+                     <!-- Ongoing -->
+                     <div class="min-w-[250px] bg-green-50 p-4 rounded-lg border-t-4 border-green-400">
+                        <div class="text-xs font-bold text-green-700 uppercase mb-1">Always On</div>
+                        <h4 class="font-bold text-gray-900">Free Shipping</h4>
+                        <p class="text-sm text-gray-600 mt-2">"Free shipping on orders over LKR 5,000."</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Next Steps Checklist -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">✅ Recommended Next Steps</h3>
+                <div class="space-y-3">
+                    <div class="flex items-start">
+                        <input type="checkbox" checked disabled class="mt-1 mr-3 h-4 w-4 text-sky-600 rounded border-gray-300">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900 line-through text-gray-400">Complete marketing plan (go-to-market + KPIs)</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <input type="checkbox" class="mt-1 mr-3 h-4 w-4 text-sky-600 rounded border-gray-300">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">Brand consistency</p>
+                            <p class="text-xs text-gray-500">Brand name unified as shopshop.lk across all touchpoints.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <input type="checkbox" class="mt-1 mr-3 h-4 w-4 text-sky-600 rounded border-gray-300">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">Setup Tracking Stack</p>
+                            <p class="text-xs text-gray-500">GA4, Meta Pixel, UTM links, and weekly KPI dashboard.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <input type="checkbox" class="mt-1 mr-3 h-4 w-4 text-sky-600 rounded border-gray-300">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">Creator Partnerships</p>
+                            <p class="text-xs text-gray-500">Seed products with local creators and run weekly UGC campaigns.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <input type="checkbox" class="mt-1 mr-3 h-4 w-4 text-sky-600 rounded border-gray-300">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">Seller Onboarding Kit</p>
+                            <p class="text-xs text-gray-500">Templates, product photo guide, and first-sale checklist.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <input type="checkbox" class="mt-1 mr-3 h-4 w-4 text-sky-600 rounded border-gray-300">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">Localization</p>
+                            <p class="text-xs text-gray-500">Translate top posts to Sinhala and Tamil.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Footer -->
+        <footer class="max-w-6xl mx-auto mt-12 py-6 border-t border-gray-200 text-center text-gray-400 text-xs">
+            <p>&copy; 2026 shopshop.lk. Based on provided Marketing Plan.</p>
+        </footer>
+
+    </main>
+
+    <script>
+        // --- Data Store ---
+        const adContent = {
+            seller: [
+                {
+                    id: 's1',
+                    title: 'Start Selling (General)',
+                    headline: 'Start selling online. No website needed.',
+                    body: 'Turn your products into orders. List on shopshop.lk, reach buyers across Sri Lanka, and get paid in LKR. Join hundreds of small businesses already selling here.',
+                    hashtags: '#SellOnlineSriLanka #SmallBusinessLK #shopshopLK',
+                    cta: 'Sign up as a seller',
+                    emoji: '🚀'
+                },
+                {
+                    id: 's2',
+                    title: 'Why Choose Us',
+                    headline: 'Why small businesses sell on shopshop.lk',
+                    body: 'One place to list your products, manage orders, and get payouts. You focus on your products; we handle the platform. PayHere payment so you get paid in LKR.',
+                    hashtags: '#SellOnlineSriLanka #shopshopLK #SriLankaBusiness',
+                    cta: 'Become a seller',
+                    emoji: '💼'
+                },
+                {
+                    id: 's3',
+                    title: 'First Sale Motivation',
+                    headline: 'Your first sale could be a few clicks away.',
+                    body: 'List your products. Buyers find you. You pack and ship. Get paid. No tech hassle — just sign up and start selling.',
+                    hashtags: '#SellOnlineSriLanka #shopshopLK #SriLankanSellers',
+                    cta: 'Join as a seller',
+                    emoji: '📦'
+                },
+                {
+                    id: 's4',
+                    title: 'Video Script (Reel)',
+                    headline: 'Want to sell online in Sri Lanka?',
+                    body: 'Script Hook: "Want to sell online in SL?" Middle: "List on shopshop.lk. Buyers pay with PayHere. You get paid in LKR." End: "Link in bio."',
+                    hashtags: '#VideoContent #shopshopLK',
+                    cta: 'Link in Bio',
+                    emoji: '📹'
+                }
+            ],
+            buyer: [
+                {
+                    id: 'b1',
+                    title: 'Shop Local',
+                    headline: 'Shop from Sri Lanka’s small businesses.',
+                    body: 'Fashion, electronics, home, beauty, and more — from real local sellers. Pay safely with PayHere in LKR. Discover new brands and support small businesses.',
+                    hashtags: '#ShopLocalSriLanka #BuyLocalLK #shopshopLK',
+                    cta: 'Start shopping',
+                    emoji: '🛍️'
+                },
+                {
+                    id: 'b2',
+                    title: 'Deals & New Arrivals',
+                    headline: 'New arrivals and deals every week.',
+                    body: 'Handpicked products from our sellers. Check the Deals section and New Arrivals — and get free shipping on orders over LKR 5,000.',
+                    hashtags: '#DealsSriLanka #OnlineShoppingLK #shopshopLK',
+                    cta: 'See deals',
+                    emoji: '🔥'
+                },
+                {
+                    id: 'b3',
+                    title: 'Payments & Gifts',
+                    headline: 'Pay the way you like. In LKR.',
+                    body: 'PayHere for card and mobile. Or give a shopshop.lk gift card (LKR 500–50,000) — perfect for birthdays and festivals.',
+                    hashtags: '#PayHere #GiftCardSriLanka #shopshopLK',
+                    cta: 'Shop or buy a gift card',
+                    emoji: '💳'
+                }
+            ],
+            dual: [
+                {
+                    id: 'd1',
+                    title: 'Platform Overview',
+                    headline: 'For sellers. For shoppers.',
+                    body: 'Sellers: list your products and reach buyers across Sri Lanka. Buyers: discover and shop from local small businesses. One marketplace, PayHere, all in LKR.',
+                    hashtags: '#shopshopLK #SriLankaMarketplace #ShopLocalSriLanka',
+                    cta: 'Sign Up / Shop Now',
+                    emoji: '🤝'
+                }
+            ]
+        };
+
+        let currentAudience = 'seller';
+
+        // --- Navigation Logic ---
+        function showSection(sectionId) {
+            // Hide all sections
+            document.getElementById('overview').classList.add('hidden');
+            document.getElementById('plan').classList.add('hidden');
+            document.getElementById('strategy').classList.add('hidden');
+            document.getElementById('founders').classList.add('hidden');
+            document.getElementById('creative').classList.add('hidden');
+            document.getElementById('roadmap').classList.add('hidden');
+
+            // Show target section
+            const target = document.getElementById(sectionId);
+            target.classList.remove('hidden');
+
+            // Update Desktop Nav Styles
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('active', 'bg-[#e0f2fe]', 'text-[#0369a1]', 'border-r-4', 'border-[#0284c7]');
+                el.classList.add('text-gray-600');
+            });
+
+            const activeNav = document.getElementById(`nav-${sectionId}`);
+            if (activeNav) {
+                activeNav.classList.add('active');
+            }
+
+            // Trigger Chart Render if Strategy is selected and chart doesn't exist
+            if (sectionId === 'strategy' && !window.channelChartInstance) {
+                renderChart();
+            }
+        }
+
+        // --- Chart Logic ---
+        function renderChart() {
+            const ctx = document.getElementById('channelChart').getContext('2d');
+            window.channelChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Meta (FB/IG)', 'Google Search', 'Creators', 'WhatsApp', 'Partnerships/PR', 'Experiments'],
+                    datasets: [{
+                        label: 'Budget Share (%)',
+                        data: [45, 20, 10, 10, 10, 5],
+                        backgroundColor: [
+                            '#1877F2', // Meta Blue
+                            '#4285F4', // Google Blue
+                            '#F59E0B', // Creators Amber
+                            '#25D366', // WhatsApp Green
+                            '#6366F1', // Partnerships Indigo
+                            '#111827'  // Experiments Slate
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const labels = [
+                                        "Primary paid scale",
+                                        "High intent search",
+                                        "UGC and creator trust",
+                                        "Community and retention",
+                                        "Brand partnerships and PR",
+                                        "Testing and innovation"
+                                    ];
+                                    return labels[context.dataIndex];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 50,
+                            title: { display: true, text: 'Budget Share (%)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- Creative Studio Logic ---
+        function setAudience(audience) {
+            currentAudience = audience;
+            
+            // Update UI buttons
+            ['seller', 'buyer', 'dual'].forEach(t => {
+                const btn = document.getElementById(`btn-${t}`);
+                if (t === audience) {
+                    btn.classList.add('bg-white', 'shadow', 'text-gray-800');
+                    btn.classList.remove('text-gray-500', 'hover:bg-gray-200');
+                } else {
+                    btn.classList.remove('bg-white', 'shadow', 'text-gray-800');
+                    btn.classList.add('text-gray-500', 'hover:bg-gray-200');
+                }
+            });
+
+            // Populate Dropdown
+            const select = document.getElementById('campaign-select');
+            select.innerHTML = '';
+            adContent[audience].forEach((ad, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.text = ad.title;
+                select.appendChild(option);
+            });
+
+            // Trigger update for first item
+            updateAdPreview(0);
+        }
+
+        function updateAdPreview(index) {
+            const data = adContent[currentAudience][index];
+            
+            // Animate transition
+            const mockup = document.querySelector('.phone-mockup');
+            mockup.classList.add('opacity-50');
+            
+            setTimeout(() => {
+                document.getElementById('ad-headline').innerText = data.headline;
+                document.getElementById('ad-body').innerText = data.body;
+                document.getElementById('ad-hashtags').innerText = data.hashtags;
+                document.getElementById('ad-cta').innerText = data.cta;
+                document.getElementById('ad-emoji').innerText = data.emoji;
+                mockup.classList.remove('opacity-50');
+            }, 200);
+        }
+
+        // Event Listeners
+        document.getElementById('campaign-select').addEventListener('change', (e) => {
+            updateAdPreview(e.target.value);
+        });
+
+        // Init
+        setAudience('seller');
+
+    </script>
+</body>
+</html>

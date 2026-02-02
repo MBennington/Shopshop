@@ -3,9 +3,10 @@ import { BACKEND_URL } from '@/lib/config';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authHeader = request.headers.get('authorization');
     
     if (!authHeader) {
@@ -15,7 +16,7 @@ export async function GET(
       );
     }
 
-    const response = await fetch(`${BACKEND_URL}/api/users/admin/user/${params.id}`, {
+    const response = await fetch(`${BACKEND_URL}/api/users/admin/user/${id}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -41,9 +42,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authHeader = request.headers.get('authorization');
     
     if (!authHeader) {
@@ -55,7 +57,7 @@ export async function PUT(
 
     const body = await request.json();
 
-    const response = await fetch(`${BACKEND_URL}/api/users/admin/user/${params.id}`, {
+    const response = await fetch(`${BACKEND_URL}/api/users/admin/user/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -82,9 +84,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authHeader = request.headers.get('authorization');
     
     if (!authHeader) {
@@ -94,7 +97,7 @@ export async function DELETE(
       );
     }
 
-    const response = await fetch(`${BACKEND_URL}/api/users/admin/user/${params.id}`, {
+    const response = await fetch(`${BACKEND_URL}/api/users/admin/user/${id}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
