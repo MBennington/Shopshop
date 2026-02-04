@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -33,7 +33,7 @@ interface Payout {
   admin_note?: string;
 }
 
-export default function AdminPayoutsPage() {
+function AdminPayoutsContent() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -621,4 +621,11 @@ export default function AdminPayoutsPage() {
   );
 }
 
+export default function AdminPayoutsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <AdminPayoutsContent />
+    </Suspense>
+  );
+}
 

@@ -77,11 +77,11 @@ export default function CartPage() {
 
         if (!res.ok) throw new Error(json.msg || json.error || 'Failed to fetch cart');
 
-        setCart(json.data!); // success path: API returns data
+        setCart(json.data ?? null);
 
         // Initialize quantities state with unique keys
         const initialQuantities: { [key: string]: number } = {};
-        Object.values(json.data!.sellers).forEach(sellerGroup => {
+        Object.values(json.data?.sellers ?? {}).forEach(sellerGroup => {
           sellerGroup.products.forEach((item) => {
             const key = getItemKey(item);
             initialQuantities[key] = item.quantity;
@@ -142,11 +142,11 @@ export default function CartPage() {
         return;
       }
 
-      setCart(json.data!);
+      setCart(json.data ?? null);
 
       // Update quantities state with new values from cart
       const updatedQuantities: { [key: string]: number } = {};
-      Object.values(json.data!.sellers).forEach(sellerGroup => {
+      Object.values(json.data?.sellers ?? {}).forEach(sellerGroup => {
         sellerGroup.products.forEach((item) => {
           const key = getItemKey(item);
           updatedQuantities[key] = item.quantity;
@@ -168,9 +168,9 @@ export default function CartPage() {
       // console.log('item.product_id:', item.product_id, 'type:', typeof item.product_id);
       
       // Validate required fields - check for undefined, null, empty string, or whitespace
-      // Handle both string and ObjectId-like types (API may return either)
+      // Handle both string and ObjectId types
       let productId: string | null = null;
-      if (item.product_id != null && item.product_id !== '') {
+      if (item.product_id != null) {
         productId = typeof item.product_id === 'string'
           ? item.product_id.trim()
           : String(item.product_id).trim();
@@ -235,7 +235,7 @@ export default function CartPage() {
         throw new Error(errorMsg);
       }
 
-      setCart(json.data!);
+      setCart(json.data ?? null);
       toast.success('Item removed from cart successfully!');
     } catch (err: any) {
       // console.error('Remove failed:', err);

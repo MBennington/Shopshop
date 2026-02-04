@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Package, Truck, CreditCard, XCircle, AlertCircle, RefreshCw, Gift } from 'lucide-react';
 
-export default function OrderDetailsPage() {
+function OrderDetailsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const orderId = searchParams.get('orderId');
@@ -620,3 +620,10 @@ export default function OrderDetailsPage() {
   );
 }
 
+export default function OrderDetailsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <OrderDetailsContent />
+    </Suspense>
+  );
+}

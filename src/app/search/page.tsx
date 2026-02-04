@@ -1,6 +1,6 @@
 "use client";
 import { useSearchParams } from 'next/navigation';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 
 // Mock shops/products (copy from shops/[id]/page.tsx for demo)
@@ -40,7 +40,7 @@ const shops = [
 
 const allCategories = ['All', 'Fashion', 'Home', 'Tech'];
 
-export default function SearchPage() {
+function SearchContent() {
   const searchParams = useSearchParams();
   const query = searchParams.get('query')?.toLowerCase() || '';
 
@@ -285,5 +285,13 @@ export default function SearchPage() {
         document.body
       )}
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <SearchContent />
+    </Suspense>
   );
 } 

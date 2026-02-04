@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -46,7 +46,7 @@ interface SubOrder {
   seller_marked_as_delivered_at?: string;
 }
 
-export default function ConfirmDeliveryPage() {
+function ConfirmDeliveryContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
@@ -401,3 +401,10 @@ export default function ConfirmDeliveryPage() {
   );
 }
 
+export default function ConfirmDeliveryPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <ConfirmDeliveryContent />
+    </Suspense>
+  );
+}

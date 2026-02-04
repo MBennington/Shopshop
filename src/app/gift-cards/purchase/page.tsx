@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 
 const PRESET_AMOUNTS = [500, 1000, 2000, 5000, 10000, 50000];
 
-export default function PurchaseGiftCardPage() {
+function PurchaseGiftCardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
@@ -448,5 +448,13 @@ export default function PurchaseGiftCardPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function PurchaseGiftCardPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <PurchaseGiftCardContent />
+    </Suspense>
   );
 }
