@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { toast } from 'sonner';
 import {
   Card,
   CardContent,
@@ -17,34 +18,32 @@ function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [token, setToken] = useState<string | null>(null);
+  const [urlChecked, setUrlChecked] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
 
   useEffect(() => {
     const t = searchParams?.get('token');
-    setToken(t);
+    setToken(t ?? null);
+    setUrlChecked(true);
   }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setMessage('');
 
     if (!token) {
-      setError('Reset link is invalid or missing.');
+      toast.error('Reset link is invalid or missing.');
       return;
     }
 
     if (password.length < 8) {
-      setError('Password should be at least 8 characters long.');
+      toast.error('Password should be at least 8 characters long.');
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      toast.error('Passwords do not match.');
       return;
     }
 
@@ -66,11 +65,11 @@ function ResetPasswordContent() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.msg || data.error || 'Unable to reset password');
+        toast.error(data.msg || data.error || 'Unable to reset password');
         return;
       }
 
-      setMessage('Your password has been updated. You can now sign in.');
+      toast.success('Your password has been updated. You can now sign in.');
 
       // Optionally redirect after a short delay
       setTimeout(() => {
@@ -78,7 +77,7 @@ function ResetPasswordContent() {
       }, 2000);
     } catch (err) {
       console.error('Reset password error:', err);
-      setError('Something went wrong. Please try again.');
+      toast.error('Something went wrong. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -123,7 +122,9 @@ function ResetPasswordContent() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {!token ? (
+            {!urlChecked ? (
+              <div className="text-sm text-[#49739c] py-2">Checking reset link...</div>
+            ) : !token ? (
               <div className="text-sm text-red-600 bg-red-100 border border-red-300 p-3 rounded">
                 This reset link is invalid or has expired. Please request a new
                 one from the forgot password page.
@@ -173,17 +174,6 @@ function ResetPasswordContent() {
                   {isSubmitting ? 'Updating password...' : 'Update password'}
                 </Button>
               </form>
-            )}
-
-            {message && (
-              <div className="mt-4 text-sm text-green-600 bg-green-100 border border-green-300 p-2 rounded">
-                {message}
-              </div>
-            )}
-            {error && (
-              <div className="mt-4 text-sm text-red-600 bg-red-100 border border-red-300 p-2 rounded">
-                {error}
-              </div>
             )}
 
             <div className="mt-6 text-center text-sm text-[#49739c]">
