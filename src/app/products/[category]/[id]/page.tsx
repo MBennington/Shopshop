@@ -385,7 +385,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
       } else {
         toast.error(
           data.data.message ||
-            'You must have purchased this product to leave a review.',
+          'You must have purchased this product to leave a review.',
         );
       }
 
@@ -429,16 +429,16 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
       const method = editingReview ? 'PUT' : 'POST';
       const body = editingReview
         ? {
-            rating: reviewFormData.rating,
-            title: reviewFormData.title,
-            content: reviewFormData.content,
-          }
+          rating: reviewFormData.rating,
+          title: reviewFormData.title,
+          content: reviewFormData.content,
+        }
         : {
-            product: id,
-            rating: reviewFormData.rating,
-            title: reviewFormData.title,
-            content: reviewFormData.content,
-          };
+          product: id,
+          rating: reviewFormData.rating,
+          title: reviewFormData.title,
+          content: reviewFormData.content,
+        };
 
       const response = await fetch(url, {
         method,
@@ -775,11 +775,10 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                     {productImages.map((img, idx) => (
                       <button
                         key={`${img}-${idx}`}
-                        className={`w-16 h-16 rounded-sm border-2 ${
-                          selectedImage === idx
+                        className={`w-16 h-16 rounded-sm border-2 ${selectedImage === idx
                             ? 'border-[#528bc5]'
                             : 'border-[#dde0e3]'
-                        } overflow-hidden focus:outline-none`}
+                          } overflow-hidden focus:outline-none`}
                         onClick={() => setSelectedImage(idx)}
                         aria-label={`Show image ${idx + 1}`}
                       >
@@ -823,11 +822,10 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                 <button
                   onClick={handleAddToWishlist}
                   disabled={addingToWishlist || isSelectedColorInWishlist()}
-                  className={`flex items-center justify-center w-10 h-10 rounded-full border transition-colors ${
-                    isSelectedColorInWishlist()
+                  className={`flex items-center justify-center w-10 h-10 rounded-full border transition-colors ${isSelectedColorInWishlist()
                       ? 'bg-red-50 border-red-300 text-red-600'
                       : 'bg-white border-[#dde0e3] text-[#121416] hover:bg-gray-50'
-                  } ${addingToWishlist ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    } ${addingToWishlist ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                   title={
                     isSelectedColorInWishlist()
                       ? 'Already in wishlist'
@@ -857,11 +855,10 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                 {product.colors.map((color, index) => (
                   <label
                     key={color.colorCode}
-                    className={`size-10 rounded-full border ring-[color-mix(in_srgb,#121416_50%,_transparent)] cursor-pointer ${
-                      selectedColor === index
+                    className={`size-10 rounded-full border ring-[color-mix(in_srgb,#121416_50%,_transparent)] cursor-pointer ${selectedColor === index
                         ? 'border-[3px] border-white ring'
                         : 'border-[#dde0e3]'
-                    }`}
+                      }`}
                     style={{ backgroundColor: color.colorCode }}
                   >
                     <input
@@ -894,15 +891,13 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                       return (
                         <label
                           key={sizeData.size}
-                          className={`text-sm font-medium leading-normal flex items-center justify-center rounded-xl border px-4 h-11 text-[#121416] relative ${
-                            selectedSize === sizeData.size
+                          className={`text-sm font-medium leading-normal flex items-center justify-center rounded-xl border px-4 h-11 text-[#121416] relative ${selectedSize === sizeData.size
                               ? 'border-[3px] px-3.5 border-[#528bc5]'
                               : 'border-[#dde0e3]'
-                          } ${
-                            sizeAvailableQty === 0
+                            } ${sizeAvailableQty === 0
                               ? 'opacity-50 cursor-not-allowed'
                               : 'cursor-pointer'
-                          }`}
+                            }`}
                         >
                           {sizeData.size}
                           <input
@@ -931,11 +926,10 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                   disabled={
                     (product.hasSizes && selectedSize === null) || quantity <= 1
                   }
-                  className={`w-10 h-10 rounded-lg border border-[#dde0e3] flex items-center justify-center ${
-                    (product.hasSizes && selectedSize === null) || quantity <= 1
+                  className={`w-10 h-10 rounded-lg border border-[#dde0e3] flex items-center justify-center ${(product.hasSizes && selectedSize === null) || quantity <= 1
                       ? 'text-gray-400 cursor-not-allowed'
                       : 'text-[#121416] hover:bg-gray-50 cursor-pointer'
-                  }`}
+                    }`}
                 >
                   -
                 </button>
@@ -957,11 +951,10 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                     setStockError(null);
                   }}
                   disabled={product.hasSizes && selectedSize === null}
-                  className={`w-16 h-10 text-center border border-[#dde0e3] rounded-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
-                    product.hasSizes && selectedSize === null
+                  className={`w-16 h-10 text-center border border-[#dde0e3] rounded-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${product.hasSizes && selectedSize === null
                       ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
                       : 'text-[#121416]'
-                  }`}
+                    }`}
                 />
                 <button
                   onClick={() => {
@@ -976,12 +969,11 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                     (product.hasSizes && selectedSize === null) ||
                     quantity >= availableQuantity
                   }
-                  className={`w-10 h-10 rounded-lg border border-[#dde0e3] flex items-center justify-center ${
-                    (product.hasSizes && selectedSize === null) ||
-                    quantity >= availableQuantity
+                  className={`w-10 h-10 rounded-lg border border-[#dde0e3] flex items-center justify-center ${(product.hasSizes && selectedSize === null) ||
+                      quantity >= availableQuantity
                       ? 'text-gray-400 cursor-not-allowed'
                       : 'text-[#121416] hover:bg-gray-50 cursor-pointer'
-                  }`}
+                    }`}
                 >
                   +
                 </button>
@@ -1004,12 +996,11 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                       (product.hasSizes && selectedSize === null) ||
                       quantity > availableQuantity
                     }
-                    className={`flex min-w-[84px] max-w-[480px] items-center justify-center overflow-hidden rounded-full h-10 px-4 text-sm font-bold leading-normal tracking-[0.015em] ${
-                      (product.hasSizes && selectedSize === null) ||
-                      quantity > availableQuantity
+                    className={`flex min-w-[84px] max-w-[480px] items-center justify-center overflow-hidden rounded-full h-10 px-4 text-sm font-bold leading-normal tracking-[0.015em] ${(product.hasSizes && selectedSize === null) ||
+                        quantity > availableQuantity
                         ? 'cursor-not-allowed bg-gray-300 text-gray-500'
                         : 'cursor-pointer bg-[#528bc5] text-white hover:bg-[#4a7bb3]'
-                    }`}
+                      }`}
                   >
                     <span className="truncate">Buy Now</span>
                   </button>
@@ -1019,12 +1010,11 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                       (product.hasSizes && selectedSize === null) ||
                       quantity > availableQuantity
                     }
-                    className={`flex min-w-[84px] max-w-[480px] items-center justify-center overflow-hidden rounded-full h-10 px-4 text-sm font-bold leading-normal tracking-[0.015em] ${
-                      (product.hasSizes && selectedSize === null) ||
-                      quantity > availableQuantity
+                    className={`flex min-w-[84px] max-w-[480px] items-center justify-center overflow-hidden rounded-full h-10 px-4 text-sm font-bold leading-normal tracking-[0.015em] ${(product.hasSizes && selectedSize === null) ||
+                        quantity > availableQuantity
                         ? 'cursor-not-allowed bg-gray-300 text-gray-500'
                         : 'cursor-pointer bg-[#f1f2f4] text-[#121416] hover:bg-[#e5e7eb]'
-                    }`}
+                      }`}
                   >
                     <span className="truncate">Add to Cart</span>
                   </button>
@@ -1237,11 +1227,10 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                       {[...Array(5)].map((_, i) => (
                         <Star
                           key={i}
-                          className={`w-5 h-5 ${
-                            i < review.rating
+                          className={`w-5 h-5 ${i < review.rating
                               ? 'text-[#121416] fill-[#121416]'
                               : 'text-[#bec4cb]'
-                          }`}
+                            }`}
                         />
                       ))}
                     </div>
@@ -1275,11 +1264,10 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className={`px-4 py-2 rounded-lg border ${
-                  currentPage === 1
+                className={`px-4 py-2 rounded-lg border ${currentPage === 1
                     ? 'border-gray-300 text-gray-400 cursor-not-allowed'
                     : 'border-[#dde0e3] text-[#121416] hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 Previous
               </button>
@@ -1291,11 +1279,10 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                   setCurrentPage((p) => Math.min(totalPages, p + 1))
                 }
                 disabled={currentPage === totalPages}
-                className={`px-4 py-2 rounded-lg border ${
-                  currentPage === totalPages
+                className={`px-4 py-2 rounded-lg border ${currentPage === totalPages
                     ? 'border-gray-300 text-gray-400 cursor-not-allowed'
                     : 'border-[#dde0e3] text-[#121416] hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 Next
               </button>
@@ -1368,11 +1355,10 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                             }
                           >
                             <Star
-                              className={`w-8 h-8 ${
-                                rating <= reviewFormData.rating
+                              className={`w-8 h-8 ${rating <= reviewFormData.rating
                                   ? 'text-[#121416] fill-[#121416]'
                                   : 'text-[#bec4cb]'
-                              }`}
+                                }`}
                             />
                           </button>
                         ))}
@@ -1449,14 +1435,13 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                           (reviewEligibility && !reviewEligibility.eligible) ||
                           checkingEligibility
                         }
-                        className={`px-6 py-2 rounded-lg font-medium ${
-                          isSubmittingReview ||
-                          !reviewFormData.content.trim() ||
-                          (reviewEligibility && !reviewEligibility.eligible) ||
-                          checkingEligibility
+                        className={`px-6 py-2 rounded-lg font-medium ${isSubmittingReview ||
+                            !reviewFormData.content.trim() ||
+                            (reviewEligibility && !reviewEligibility.eligible) ||
+                            checkingEligibility
                             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                             : 'bg-[#528bc5] text-white hover:bg-[#4a7bb3]'
-                        }`}
+                          }`}
                       >
                         {isSubmittingReview
                           ? 'Submitting...'

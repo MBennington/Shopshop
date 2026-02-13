@@ -5,6 +5,10 @@ module.exports.permissions = {
     path: '/main-order/:mainOrderId',
     grantedUserRoles: [roles.admin, roles.seller, roles.buyer],
   },
+  getSellerCustomers: {
+    path: '/seller/:sellerId/customers',
+    grantedUserRoles: [roles.seller],
+  },
   getSubOrdersBySeller: {
     path: '/seller/:sellerId',
     grantedUserRoles: [roles.admin, roles.seller],

@@ -16,13 +16,13 @@ export async function GET(request: NextRequest) {
     const page = searchParams.get('page') || '1';
     const limit = searchParams.get('limit') || '10';
     const status = searchParams.get('status') || '';
-    const userId = searchParams.get('userId') || '';
+    const search = searchParams.get('search') || searchParams.get('userId') || '';
 
     const queryParams = new URLSearchParams({
       page,
       limit,
       ...(status && { status }),
-      ...(userId && { userId }),
+      ...(search.trim() && { search: search.trim() }),
     });
 
     const response = await fetch(`${BACKEND_URL}/api/order/admin/all-orders?${queryParams}`, {

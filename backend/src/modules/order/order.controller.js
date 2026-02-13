@@ -78,7 +78,7 @@ module.exports.getAllOrders = async (req, res) => {
       page: req.query.page,
       limit: req.query.limit,
       status: req.query.status,
-      userId: req.query.userId,
+      search: req.query.search || req.query.userId,
     };
 
     const data = await orderService.getAllOrders(queryParams);

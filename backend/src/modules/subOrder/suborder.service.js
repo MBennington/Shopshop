@@ -241,11 +241,33 @@ module.exports.getSubOrdersByMainOrder = async (mainOrderId) => {
  * @returns {Promise<Array>}
  */
 module.exports.getSubOrdersBySeller = async (sellerId, queryParams) => {
-  const { page = 1, limit = 10, status } = queryParams;
+  const { page = 1, limit = 10, status, search } = queryParams;
 
   const filter = { seller_id: new mongoose.Types.ObjectId(sellerId) };
   if (status) {
     filter.orderStatus = status;
+  }
+
+  if (search && search.trim()) {
+    const q = search.trim();
+    const orConditions = [];
+    if (mongoose.Types.ObjectId.isValid(q) && String(new mongoose.Types.ObjectId(q)) === q) {
+      orConditions.push({ _id: new mongoose.Types.ObjectId(q) });
+      orConditions.push({ main_order_id: new mongoose.Types.ObjectId(q) });
+    }
+    const searchRegex = { $regex: q, $options: 'i' };
+    const buyers = await UserModel.find({
+      $or: [{ name: searchRegex }, { email: searchRegex }],
+    })
+      .select('_id')
+      .lean();
+    const buyerIds = buyers.map((b) => b._id);
+    if (buyerIds.length > 0) {
+      orConditions.push({ buyer_id: { $in: buyerIds } });
+    }
+    if (orConditions.length > 0) {
+      filter.$or = orConditions;
+    }
   }
 
   const skip = (page - 1) * limit;
@@ -321,6 +343,64 @@ module.exports.getSubOrdersBySeller = async (sellerId, queryParams) => {
   });
 
   return transformedSubOrders;
+};
+
+/**
+ * Get distinct customers (buyers) for a seller from sub-orders, with optional search
+ * @param {String} sellerId
+ * @param {Object} queryParams - { search }
+ * @returns {Promise<Array<{ _id, name, email, orderCount, lastOrderAt }>>}
+ */
+module.exports.getSellerCustomers = async (sellerId, queryParams = {}) => {
+  const { search } = queryParams;
+  const matchStage = { seller_id: new mongoose.Types.ObjectId(sellerId) };
+  if (search && search.trim()) {
+    const searchRegex = { $regex: search.trim(), $options: 'i' };
+    const buyers = await UserModel.find({
+      $or: [{ name: searchRegex }, { email: searchRegex }],
+    })
+      .select('_id')
+      .lean();
+    const buyerIds = buyers.map((b) => b._id);
+    if (buyerIds.length === 0) return [];
+    matchStage.buyer_id = { $in: buyerIds };
+  }
+  const aggregated = await SubOrderModel.aggregate([
+    { $match: matchStage },
+    {
+      $group: {
+        _id: '$buyer_id',
+        orderCount: { $sum: 1 },
+        lastOrderAt: { $max: '$created_at' },
+      },
+    },
+    { $sort: { lastOrderAt: -1 } },
+    {
+      $lookup: {
+        from: 'users',
+        localField: '_id',
+        foreignField: '_id',
+        as: 'user',
+      },
+    },
+    { $unwind: '$user' },
+    {
+      $project: {
+        _id: '$_id',
+        name: '$user.name',
+        email: '$user.email',
+        orderCount: 1,
+        lastOrderAt: 1,
+      },
+    },
+  ]);
+  return aggregated.map((row) => ({
+    _id: row._id?.toString(),
+    name: row.name || '—',
+    email: row.email || '—',
+    orderCount: row.orderCount || 0,
+    lastOrderAt: row.lastOrderAt,
+  }));
 };
 
 /**

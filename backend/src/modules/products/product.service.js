@@ -12,6 +12,21 @@ const mongoose = require('mongoose');
 const extractPublicIdFromUrl = require('../../utils/extractPublicIdFromUrl.util');
 
 /**
+ * Build a regex pattern that matches text ignoring case and treating spaces/hyphens as equivalent.
+ * E.g. "t shirt" matches "T-Shirt", "T SHIRT", "tshirt", etc.
+ * @param {string} search - Raw search string
+ * @returns {string} MongoDB $regex pattern
+ */
+function buildFlexibleSearchPattern(search) {
+  if (!search || typeof search !== 'string') return '';
+  const normalized = search.trim().toLowerCase().replace(/[\s\-]+/g, '');
+  if (!normalized) return '';
+  const escapeRegex = (c) => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = normalized.split('').map(escapeRegex).join('[\\s\\-]*');
+  return pattern;
+}
+
+/**
  * Process product data with image uploads
  * @param body
  * @param files
@@ -636,18 +651,21 @@ module.exports.getProducts = async (body) => {
 
   pipeline.push(...inventoryFilters);
 
-  // Search handling
+  // Search handling: case-insensitive, spaces and hyphens treated as equivalent
   if (search) {
-    const searchRegex = { $regex: search, $options: 'i' };
-    pipeline.push({
-      $match: {
-        $or: [
-          { name: searchRegex },
-          { category: searchRegex },
-          { description: searchRegex },
-        ],
-      },
-    });
+    const pattern = buildFlexibleSearchPattern(search);
+    if (pattern) {
+      const searchRegex = { $regex: pattern, $options: 'i' };
+      pipeline.push({
+        $match: {
+          $or: [
+            { name: searchRegex },
+            { category: searchRegex },
+            { description: searchRegex },
+          ],
+        },
+      });
+    }
   }
 
   // Count and paginate using $facet
