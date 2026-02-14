@@ -3,6 +3,7 @@ import { useSearchParams } from 'next/navigation';
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
+import { OutOfStockBadge } from '@/components/OutOfStockBadge';
 
 interface ProductRecord {
   _id: string;
@@ -16,6 +17,7 @@ interface ProductRecord {
     images: string[];
   }>;
   seller?: string;
+  totalInventory?: number;
 }
 
 interface ProductsResponse {
@@ -193,6 +195,7 @@ function SearchContent() {
                       alt={product.name}
                       className="object-cover w-full h-full rounded-xl transition-transform duration-300 group-hover:scale-110"
                     />
+                    <OutOfStockBadge show={(product.totalInventory ?? 0) === 0} overlayClassName="rounded-xl" />
                   </div>
                   <div className="w-full mb-2">
                     <p className="text-[#131416] text-xl font-bold leading-tight mb-1 text-left tracking-tight">{product.name}</p>

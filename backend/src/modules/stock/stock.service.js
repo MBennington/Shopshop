@@ -513,6 +513,31 @@ module.exports.restockProduct = async (
 };
 
 /**
+ * Get total available stock across all variants for a product (single source of truth for listing counts).
+ * @param {String|ObjectId} product_id - Product ID
+ * @returns {Promise<Number>}
+ */
+module.exports.getTotalAvailableStock = async (product_id) => {
+  let stock = await repository.findOne(StockModel, { product_id });
+  if (!stock) {
+    const product = await repository.findOne(ProductModel, { _id: product_id });
+    if (!product) return 0;
+    stock = await module.exports.createOrGetStock(product_id, product.seller);
+    stock = await repository.findOne(StockModel, { product_id });
+  }
+  if (!stock || !stock.available_stock_by_color) return 0;
+  let total = 0;
+  for (const color of stock.available_stock_by_color) {
+    if (color.sizes && color.sizes.length > 0) {
+      total += color.sizes.reduce((sum, s) => sum + (s.availableStock || 0), 0);
+    } else {
+      total += color.availableStock || 0;
+    }
+  }
+  return total;
+};
+
+/**
  * Get available stock for a product variant from stock module
  * @param {String} product_id - Product ID
  * @param {String} colorCode - Color code

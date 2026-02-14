@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { OutOfStockBadge } from '@/components/OutOfStockBadge';
 
 interface ProductRecord {
   _id: string;
@@ -14,6 +15,7 @@ interface ProductRecord {
   onSale?: boolean;
   discountPercentage?: number;
   salePrice?: number;
+  totalInventory?: number;
 }
 
 interface ProductsResponse {
@@ -106,6 +108,7 @@ export default function DealsPage() {
                       alt={product.name}
                       className="object-cover w-full h-full"
                     />
+                    <OutOfStockBadge show={(product.totalInventory ?? 0) === 0} badgePosition="right" />
                     <span className="absolute top-3 left-3 bg-[#397fc5] text-white text-xs font-bold px-3 py-1 rounded-full">
                       {discount}
                     </span>

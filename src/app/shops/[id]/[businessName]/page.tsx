@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { OutOfStockBadge } from '@/components/OutOfStockBadge';
 
 interface Product {
   _id: string;
@@ -476,6 +477,7 @@ export default function ShopDetailsPage({
                                         alt={product.name}
                                         className="object-cover w-full h-full rounded-xl transition-transform duration-300 group-hover:scale-105"
                                       />
+                                      <OutOfStockBadge show={product.totalInventory === 0} overlayClassName="rounded-xl" />
                                       <div
                                         className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#1976d2] text-white rounded-full px-4 py-2 shadow-lg text-xs font-semibold tracking-wide"
                                         style={{
@@ -493,10 +495,12 @@ export default function ShopDetailsPage({
                                       <p className="text-[#6c757f] text-base font-medium leading-normal text-left">
                                         LKR {product.price.toFixed(2)}
                                       </p>
-                                      {product.totalInventory > 0 && (
+                                      {product.totalInventory > 0 ? (
                                         <p className="text-[#6c757f] text-sm font-normal leading-normal text-left mt-1">
                                           {product.totalInventory} in stock
                                         </p>
+                                      ) : (
+                                        <p className="text-red-600 text-sm font-medium text-left mt-1">Out of stock</p>
                                       )}
                                     </div>
                                   </div>
@@ -537,6 +541,7 @@ export default function ShopDetailsPage({
                               alt={product.name}
                               className="object-cover w-full h-full rounded-xl transition-transform duration-300 group-hover:scale-105"
                             />
+                            <OutOfStockBadge show={product.totalInventory === 0} overlayClassName="rounded-xl" />
                             <div
                               className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#1976d2] text-white rounded-full px-4 py-2 shadow-lg text-xs font-semibold tracking-wide"
                               style={{
@@ -553,10 +558,12 @@ export default function ShopDetailsPage({
                             <p className="text-[#6c757f] text-base font-medium leading-normal text-left">
                               LKR {product.price.toFixed(2)}
                             </p>
-                            {product.totalInventory > 0 && (
+                            {product.totalInventory > 0 ? (
                               <p className="text-[#6c757f] text-sm font-normal leading-normal text-left mt-1">
                                 {product.totalInventory} in stock
                               </p>
+                            ) : (
+                              <p className="text-red-600 text-sm font-medium text-left mt-1">Out of stock</p>
                             )}
                           </div>
                         </div>

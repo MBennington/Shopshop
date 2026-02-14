@@ -193,30 +193,6 @@ module.exports.createProduct = async (body, files, user_id) => {
 };
 
 /**
- * Calculate total inventory for a product
- * @param product
- * @returns {number}
- */
-module.exports.calculateTotalInventory = (product) => {
-  if (!product.colors || product.colors.length === 0) {
-    return 0;
-  }
-
-  return product.colors.reduce((total, color) => {
-    if (product.hasSizes) {
-      // Sum quantities from all sizes
-      return (
-        total +
-        color.sizes.reduce((colorTotal, size) => colorTotal + size.quantity, 0)
-      );
-    } else {
-      // Use simple quantity
-      return total + (color.quantity || 0);
-    }
-  }, 0);
-};
-
-/**
  * Get products with inventory information
  * @param filter
  * @returns {Promise<*>}
@@ -224,12 +200,13 @@ module.exports.calculateTotalInventory = (product) => {
 module.exports.getProductsWithInventory = async (filter = {}) => {
   const products = await repository.find(ProductModel, filter);
 
-  return products.map((product) => {
+  const result = [];
+  for (const product of products) {
     const productObj = product.toObject();
-    productObj.totalInventory =
-      module.exports.calculateTotalInventory(productObj);
-    return productObj;
-  });
+    productObj.totalInventory = await stockService.getTotalAvailableStock(product._id);
+    result.push(productObj);
+  }
+  return result;
 };
 
 /**
@@ -243,12 +220,13 @@ module.exports.getProductsBySeller = async (seller_id) => {
   });
   console.log('products ', products);
 
-  return products.map((product) => {
+  const result = [];
+  for (const product of products) {
     const productObj = product.toObject();
-    productObj.totalInventory =
-      module.exports.calculateTotalInventory(productObj);
-    return productObj;
-  });
+    productObj.totalInventory = await stockService.getTotalAvailableStock(product._id);
+    result.push(productObj);
+  }
+  return result;
 };
 
 /**
@@ -263,12 +241,13 @@ module.exports.getActiveProductsBySeller = async (seller_id) => {
   });
   console.log('active products ', products);
 
-  return products.map((product) => {
+  const result = [];
+  for (const product of products) {
     const productObj = product.toObject();
-    productObj.totalInventory =
-      module.exports.calculateTotalInventory(productObj);
-    return productObj;
-  });
+    productObj.totalInventory = await stockService.getTotalAvailableStock(product._id);
+    result.push(productObj);
+  }
+  return result;
 };
 
 /**
@@ -577,40 +556,63 @@ module.exports.getProducts = async (body) => {
   const pageLimit = Math.max(1, Math.min(parseInt(limit) || 10, 100));
   const pageNumber = Math.max(1, parseInt(page) || 1);
 
-  // Build pipeline stages
+  // Build pipeline stages - totalInventory from stock collection (single source of truth)
   const pipeline = [
     // Initial match query
     { $match: matchQuery },
 
-    // Calculate totalInventory
+    // Lookup stock record for this product
+    {
+      $lookup: {
+        from: 'stocks',
+        localField: '_id',
+        foreignField: 'product_id',
+        as: '_stockDoc',
+      },
+    },
+
+    // Compute totalInventory from stock.available_stock_by_color (not from product.colors)
     {
       $addFields: {
         totalInventory: {
-          $cond: {
-            if: { $eq: ['$hasSizes', true] },
-            then: {
-              $sum: {
-                $map: {
-                  input: '$colors',
-                  as: 'color',
-                  in: {
-                    $sum: {
-                      $map: {
-                        input: { $ifNull: ['$$color.sizes', []] },
-                        as: 'size',
-                        in: { $ifNull: ['$$size.quantity', 0] },
-                      },
+          $let: {
+            vars: {
+              s: { $arrayElemAt: ['$_stockDoc', 0] },
+            },
+            in: {
+              $cond: {
+                if: { $not: '$$s' },
+                then: 0,
+                else: {
+                  $reduce: {
+                    input: { $ifNull: ['$$s.available_stock_by_color', []] },
+                    initialValue: 0,
+                    in: {
+                      $add: [
+                        '$$value',
+                        {
+                          $cond: {
+                            if: {
+                              $gt: [
+                                { $size: { $ifNull: ['$$this.sizes', []] } },
+                                0,
+                              ],
+                            },
+                            then: {
+                              $sum: {
+                                $map: {
+                                  input: '$$this.sizes',
+                                  as: 'sz',
+                                  in: { $ifNull: ['$$sz.availableStock', 0] },
+                                },
+                              },
+                            },
+                            else: { $ifNull: ['$$this.availableStock', 0] },
+                          },
+                        },
+                      ],
                     },
                   },
-                },
-              },
-            },
-            else: {
-              $sum: {
-                $map: {
-                  input: '$colors',
-                  as: 'color',
-                  in: { $ifNull: ['$$color.quantity', 0] },
                 },
               },
             },
@@ -618,6 +620,9 @@ module.exports.getProducts = async (body) => {
         },
       },
     },
+
+    // Drop the temporary lookup field so it's not in the response
+    { $project: { _stockDoc: 0 } },
   ];
 
   // Apply inventory-based filters after calculation
@@ -686,13 +691,11 @@ module.exports.getProducts = async (body) => {
   const records = result?.[0]?.records || [];
   const recordsTotal = result?.[0]?.recordsTotal?.[0]?.count || 0;
 
-  // Calculate totalInventory for each product (already done in pipeline, but ensure it's in the result)
+  // totalInventory is from stock collection in pipeline; ensure number for each record
   const recordsWithInventory = records.map((product) => {
     const productObj = product.toObject ? product.toObject() : product;
-    // totalInventory is already calculated in pipeline
-    if (!productObj.totalInventory) {
-      productObj.totalInventory =
-        module.exports.calculateTotalInventory(productObj);
+    if (productObj.totalInventory === undefined || productObj.totalInventory === null) {
+      productObj.totalInventory = 0;
     }
     return productObj;
   });
@@ -720,8 +723,7 @@ module.exports.getProductDetails = async (productId) => {
   }
 
   const productObj = product.toObject();
-  productObj.totalInventory =
-    module.exports.calculateTotalInventory(productObj);
+  productObj.totalInventory = await stockService.getTotalAvailableStock(productId);
 
   // Calculate available stock for each color/size variant
   if (productObj.colors && productObj.colors.length > 0) {
