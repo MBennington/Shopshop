@@ -4,6 +4,7 @@ const {
   successWithMessage,
   customError,
 } = require('../../services/response.service');
+const { matchesGlob } = require('path/win32');
 
 /**
  * Add a product
@@ -18,7 +19,7 @@ module.exports.createProduct = async (req, res) => {
     const data = await productService.createProduct(
       req.body,
       req.files,
-      user_id
+      user_id,
     );
 
     return successWithData(data, res);
@@ -84,12 +85,12 @@ module.exports.updateProduct = async (req, res) => {
     const processedData = await productService.processProductData(
       req.body,
       req.files,
-      existingProduct
+      existingProduct,
     );
     const data = await productService.updateProduct(
       processedData,
       product_id,
-      user_id
+      user_id,
     );
 
     return successWithData(data, res);
@@ -100,17 +101,17 @@ module.exports.updateProduct = async (req, res) => {
 };
 
 /**
- * Soft delete product (change status to inactive)
+ * Toggle product active status (activate/deactivate)
  * @param req
  * @param res
  * @returns {Promise<*>}
  */
-module.exports.deleteProduct = async (req, res) => {
+module.exports.toggleProductStatus = async (req, res) => {
   try {
     const product_id = req.params.id;
     const user_id = res.locals.user.id;
-    await productService.deleteProduct(product_id, user_id);
-    return successWithMessage('Product deactivated successfully', res);
+    const message = await productService.toggleProductStatus(product_id, user_id);
+    return successWithMessage(message, res);
   } catch (error) {
     return customError(`${error.message}`, res);
   }

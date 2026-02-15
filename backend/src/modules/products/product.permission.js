@@ -23,7 +23,7 @@ module.exports.permissions = {
     path: '/:id',
     grantedUserRoles: [roles.admin, roles.seller],
   },
-  deleteProduct: {
+  toggleProductStatus: {
     path: '/:id',
     grantedUserRoles: [roles.admin, roles.seller],
   },

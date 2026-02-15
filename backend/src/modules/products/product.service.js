@@ -19,7 +19,10 @@ const extractPublicIdFromUrl = require('../../utils/extractPublicIdFromUrl.util'
  */
 function buildFlexibleSearchPattern(search) {
   if (!search || typeof search !== 'string') return '';
-  const normalized = search.trim().toLowerCase().replace(/[\s\-]+/g, '');
+  const normalized = search
+    .trim()
+    .toLowerCase()
+    .replace(/[\s\-]+/g, '');
   if (!normalized) return '';
   const escapeRegex = (c) => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const pattern = normalized.split('').map(escapeRegex).join('[\\s\\-]*');
@@ -36,7 +39,7 @@ function buildFlexibleSearchPattern(search) {
 module.exports.processProductData = async (
   body,
   files,
-  existingProduct = null
+  existingProduct = null,
 ) => {
   const processedData = {
     name: body.name,
@@ -64,7 +67,7 @@ module.exports.processProductData = async (
         existingProduct?.colors?.[colorIndex]?.images || [];
       console.log(
         `Color ${colorIndex} - Existing images:`,
-        existingImages.length
+        existingImages.length,
       );
 
       // Check if keepImages is provided (images to keep from existing)
@@ -76,12 +79,12 @@ module.exports.processProductData = async (
         ? files.filter(
             (file) =>
               file.fieldname === `colors[${colorIndex}][images]` ||
-              file.fieldname.startsWith(`colors[${colorIndex}][images][`)
+              file.fieldname.startsWith(`colors[${colorIndex}][images][`),
           )
         : [];
 
       console.log(
-        `Color ${colorIndex} - Found ${colorImages.length} new images, keeping ${imagesToKeep.length} existing images`
+        `Color ${colorIndex} - Found ${colorImages.length} new images, keeping ${imagesToKeep.length} existing images`,
       );
 
       // Upload new images if any
@@ -92,14 +95,14 @@ module.exports.processProductData = async (
             const uploadResult = await uploadBufferToCloudinary(
               file.buffer,
               file.originalname,
-              'products'
+              'products',
             );
             uploadedImages.push(uploadResult.url);
             console.log(`Uploaded image: ${uploadResult.url}`);
           } catch (error) {
             console.error(
               `Failed to upload image for color ${colorIndex}:`,
-              error
+              error,
             );
             throw new Error(`Failed to upload image: ${error.message}`);
           }
@@ -108,13 +111,13 @@ module.exports.processProductData = async (
 
       // Determine which existing images to delete
       const imagesToDelete = existingImages.filter(
-        (img) => !imagesToKeep.includes(img)
+        (img) => !imagesToKeep.includes(img),
       );
 
       // Delete removed images from Cloudinary
       if (existingProduct && imagesToDelete.length > 0) {
         console.log(
-          `Deleting ${imagesToDelete.length} removed images for color ${colorIndex}`
+          `Deleting ${imagesToDelete.length} removed images for color ${colorIndex}`,
         );
         for (const oldImageUrl of imagesToDelete) {
           try {
@@ -133,7 +136,7 @@ module.exports.processProductData = async (
       // Combine kept existing images with new uploaded images
       color.images = [...imagesToKeep, ...uploadedImages];
       console.log(
-        `Color ${colorIndex} - Final images: ${imagesToKeep.length} kept + ${uploadedImages.length} new = ${color.images.length} total`
+        `Color ${colorIndex} - Final images: ${imagesToKeep.length} kept + ${uploadedImages.length} new = ${color.images.length} total`,
       );
 
       if (processedData.hasSizes) {
@@ -156,7 +159,7 @@ module.exports.processProductData = async (
     processedData.colors.map((c) => ({
       name: c.colorName,
       imageCount: c.images.length,
-    }))
+    })),
   );
   return processedData;
 };
@@ -174,7 +177,7 @@ module.exports.createProduct = async (body, files, user_id) => {
   }
   if (user.role !== roles.seller) {
     throw new Error(
-      'Only sellers are allowed to add products. Please log in with a seller account.'
+      'Only sellers are allowed to add products. Please log in with a seller account.',
     );
   }
 
@@ -203,7 +206,9 @@ module.exports.getProductsWithInventory = async (filter = {}) => {
   const result = [];
   for (const product of products) {
     const productObj = product.toObject();
-    productObj.totalInventory = await stockService.getTotalAvailableStock(product._id);
+    productObj.totalInventory = await stockService.getTotalAvailableStock(
+      product._id,
+    );
     result.push(productObj);
   }
   return result;
@@ -223,7 +228,9 @@ module.exports.getProductsBySeller = async (seller_id) => {
   const result = [];
   for (const product of products) {
     const productObj = product.toObject();
-    productObj.totalInventory = await stockService.getTotalAvailableStock(product._id);
+    productObj.totalInventory = await stockService.getTotalAvailableStock(
+      product._id,
+    );
     result.push(productObj);
   }
   return result;
@@ -244,7 +251,9 @@ module.exports.getActiveProductsBySeller = async (seller_id) => {
   const result = [];
   for (const product of products) {
     const productObj = product.toObject();
-    productObj.totalInventory = await stockService.getTotalAvailableStock(product._id);
+    productObj.totalInventory = await stockService.getTotalAvailableStock(
+      product._id,
+    );
     result.push(productObj);
   }
   return result;
@@ -265,7 +274,7 @@ module.exports.updateProduct = async (body, product_id, user_id) => {
   }
   if (user.role !== roles.seller) {
     throw new Error(
-      'Only sellers are allowed to update products. Please log in with a seller account.'
+      'Only sellers are allowed to update products. Please log in with a seller account.',
     );
   }
 
@@ -298,7 +307,7 @@ module.exports.updateProduct = async (body, product_id, user_id) => {
     processedData,
     {
       new: true,
-    }
+    },
   );
 
   return updatedProduct;
@@ -316,12 +325,12 @@ module.exports.getProductById = async (product_id) => {
 };
 
 /**
- * Soft delete a product (change status to inactive)
+ * Toggle product active status (activate/deactivate)
  * @param product_id
  * @param user_id
  * @returns {Promise<*>}
  */
-module.exports.deleteProduct = async (product_id, user_id) => {
+module.exports.toggleProductStatus = async (product_id, user_id) => {
   const user = await userService.getUserById(user_id);
 
   if (!user) {
@@ -329,7 +338,7 @@ module.exports.deleteProduct = async (product_id, user_id) => {
   }
   if (user.role !== roles.seller) {
     throw new Error(
-      'Only sellers are allowed to deactivate products. Please log in with a seller account.'
+      'Only sellers are allowed to deactivate products. Please log in with a seller account.',
     );
   }
 
@@ -352,10 +361,12 @@ module.exports.deleteProduct = async (product_id, user_id) => {
     { isActive: !existingProduct.isActive },
     {
       new: true,
-    }
+    },
   );
 
-  return updatedProduct;
+  return updatedProduct.isActive
+    ? 'Product activated successfully'
+    : 'Product deactivated successfully';
 };
 
 /**
@@ -420,14 +431,17 @@ module.exports.getProducts = async (body) => {
   let matchQuery = {};
 
   // 1. STATUS FILTERS
-  if (includeInactive === false || isActive === 'true') {
-    // Only active products (default for public)
-    matchQuery.isActive = { $ne: false };
+  // Inactive products only visible on seller/products and admin/products; all other listings show active only.
+  const includeInactiveOnly = includeInactive === true || includeInactive === 'true';
+  if (includeInactiveOnly) {
+    // Seller dashboard / admin: show all (no filter)
   } else if (isActive === 'false') {
-    // Only inactive products
+    // Explicit request for inactive only
     matchQuery.isActive = false;
+  } else {
+    // Default for public listings (home, category, deals, search, shop): active only
+    matchQuery.isActive = { $ne: false };
   }
-  // If isActive is undefined or 'all', include both (no filter)
 
   // 2. SELLER/SHOP FILTER (single)
   if (seller) {
@@ -541,10 +555,10 @@ module.exports.getProducts = async (body) => {
       columnNum === 0
         ? 'name'
         : columnNum === 1
-        ? 'price'
-        : columnNum === 2
-        ? 'category'
-        : 'created_at';
+          ? 'price'
+          : columnNum === 2
+            ? 'category'
+            : 'created_at';
 
     sortQuery = {
       [sortingColumn]: sortingOrder,
@@ -694,7 +708,10 @@ module.exports.getProducts = async (body) => {
   // totalInventory is from stock collection in pipeline; ensure number for each record
   const recordsWithInventory = records.map((product) => {
     const productObj = product.toObject ? product.toObject() : product;
-    if (productObj.totalInventory === undefined || productObj.totalInventory === null) {
+    if (
+      productObj.totalInventory === undefined ||
+      productObj.totalInventory === null
+    ) {
       productObj.totalInventory = 0;
     }
     return productObj;
@@ -723,7 +740,8 @@ module.exports.getProductDetails = async (productId) => {
   }
 
   const productObj = product.toObject();
-  productObj.totalInventory = await stockService.getTotalAvailableStock(productId);
+  productObj.totalInventory =
+    await stockService.getTotalAvailableStock(productId);
 
   // Calculate available stock for each color/size variant
   if (productObj.colors && productObj.colors.length > 0) {
@@ -741,7 +759,7 @@ module.exports.getProductDetails = async (productId) => {
           const availableStock = await stockService.getAvailableStock(
             product._id,
             color.colorCode,
-            size.size
+            size.size,
           );
           productObj.colors[colorIndex].sizes[sizeIndex].availableQuantity =
             availableStock;
@@ -751,7 +769,7 @@ module.exports.getProductDetails = async (productId) => {
         const availableStock = await stockService.getAvailableStock(
           product._id,
           color.colorCode,
-          null
+          null,
         );
         productObj.colors[colorIndex].availableQuantity = availableStock;
       }
