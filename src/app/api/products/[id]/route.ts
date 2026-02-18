@@ -81,7 +81,7 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
+export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -97,7 +97,7 @@ export async function DELETE(
     }
 
     const response = await fetch(`${BACKEND_URL}/api/products/${id}`, {
-      method: 'DELETE',
+      method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
         Authorization: token,
@@ -112,9 +112,9 @@ export async function DELETE(
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Product delete error:', error);
+    console.error('Product toggle status error:', error);
     return NextResponse.json(
-      { error: 'Failed to delete product' },
+      { error: 'Failed to toggle product status' },
       { status: 500 }
     );
   }

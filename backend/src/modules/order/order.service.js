@@ -401,21 +401,38 @@ module.exports.getOrdersByUser = async (user_id, queryParams = {}) => {
 
 /**
  * Get all orders (for admin)
- * @param {Object} queryParams - Query parameters (page, limit, status, userId)
+ * @param {Object} queryParams - Query parameters (page, limit, status, search)
+ *   search: match by user ID (exact) or by user name/email (case-insensitive)
  * @returns {Promise<Object>}
  */
 module.exports.getAllOrders = async (queryParams = {}) => {
-  const { page = 1, limit = 10, status, userId } = queryParams;
+  const { page = 1, limit = 10, status, search, userId } = queryParams;
   const skip = (page - 1) * limit;
 
   const filter = {};
-  
+
   if (status) {
     filter.orderStatus = status;
   }
 
-  if (userId) {
-    filter.user_id = new mongoose.Types.ObjectId(userId);
+  const searchTerm = (search || userId || '').trim();
+  if (searchTerm) {
+    if (mongoose.Types.ObjectId.isValid(searchTerm) && String(new mongoose.Types.ObjectId(searchTerm)) === searchTerm) {
+      filter.user_id = new mongoose.Types.ObjectId(searchTerm);
+    } else {
+      const searchRegex = { $regex: searchTerm, $options: 'i' };
+      const users = await UserModel.find({
+        $or: [{ name: searchRegex }, { email: searchRegex }],
+      })
+        .select('_id')
+        .lean();
+      const userIds = users.map((u) => u._id);
+      if (userIds.length === 0) {
+        filter.user_id = { $in: [] };
+      } else {
+        filter.user_id = { $in: userIds };
+      }
+    }
   }
 
   // Find orders with pagination

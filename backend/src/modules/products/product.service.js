@@ -12,6 +12,24 @@ const mongoose = require('mongoose');
 const extractPublicIdFromUrl = require('../../utils/extractPublicIdFromUrl.util');
 
 /**
+ * Build a regex pattern that matches text ignoring case and treating spaces/hyphens as equivalent.
+ * E.g. "t shirt" matches "T-Shirt", "T SHIRT", "tshirt", etc.
+ * @param {string} search - Raw search string
+ * @returns {string} MongoDB $regex pattern
+ */
+function buildFlexibleSearchPattern(search) {
+  if (!search || typeof search !== 'string') return '';
+  const normalized = search
+    .trim()
+    .toLowerCase()
+    .replace(/[\s\-]+/g, '');
+  if (!normalized) return '';
+  const escapeRegex = (c) => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = normalized.split('').map(escapeRegex).join('[\\s\\-]*');
+  return pattern;
+}
+
+/**
  * Process product data with image uploads
  * @param body
  * @param files
@@ -21,7 +39,7 @@ const extractPublicIdFromUrl = require('../../utils/extractPublicIdFromUrl.util'
 module.exports.processProductData = async (
   body,
   files,
-  existingProduct = null
+  existingProduct = null,
 ) => {
   const processedData = {
     name: body.name,
@@ -49,7 +67,7 @@ module.exports.processProductData = async (
         existingProduct?.colors?.[colorIndex]?.images || [];
       console.log(
         `Color ${colorIndex} - Existing images:`,
-        existingImages.length
+        existingImages.length,
       );
 
       // Check if keepImages is provided (images to keep from existing)
@@ -61,12 +79,12 @@ module.exports.processProductData = async (
         ? files.filter(
             (file) =>
               file.fieldname === `colors[${colorIndex}][images]` ||
-              file.fieldname.startsWith(`colors[${colorIndex}][images][`)
+              file.fieldname.startsWith(`colors[${colorIndex}][images][`),
           )
         : [];
 
       console.log(
-        `Color ${colorIndex} - Found ${colorImages.length} new images, keeping ${imagesToKeep.length} existing images`
+        `Color ${colorIndex} - Found ${colorImages.length} new images, keeping ${imagesToKeep.length} existing images`,
       );
 
       // Upload new images if any
@@ -77,14 +95,14 @@ module.exports.processProductData = async (
             const uploadResult = await uploadBufferToCloudinary(
               file.buffer,
               file.originalname,
-              'products'
+              'products',
             );
             uploadedImages.push(uploadResult.url);
             console.log(`Uploaded image: ${uploadResult.url}`);
           } catch (error) {
             console.error(
               `Failed to upload image for color ${colorIndex}:`,
-              error
+              error,
             );
             throw new Error(`Failed to upload image: ${error.message}`);
           }
@@ -93,13 +111,13 @@ module.exports.processProductData = async (
 
       // Determine which existing images to delete
       const imagesToDelete = existingImages.filter(
-        (img) => !imagesToKeep.includes(img)
+        (img) => !imagesToKeep.includes(img),
       );
 
       // Delete removed images from Cloudinary
       if (existingProduct && imagesToDelete.length > 0) {
         console.log(
-          `Deleting ${imagesToDelete.length} removed images for color ${colorIndex}`
+          `Deleting ${imagesToDelete.length} removed images for color ${colorIndex}`,
         );
         for (const oldImageUrl of imagesToDelete) {
           try {
@@ -118,7 +136,7 @@ module.exports.processProductData = async (
       // Combine kept existing images with new uploaded images
       color.images = [...imagesToKeep, ...uploadedImages];
       console.log(
-        `Color ${colorIndex} - Final images: ${imagesToKeep.length} kept + ${uploadedImages.length} new = ${color.images.length} total`
+        `Color ${colorIndex} - Final images: ${imagesToKeep.length} kept + ${uploadedImages.length} new = ${color.images.length} total`,
       );
 
       if (processedData.hasSizes) {
@@ -141,7 +159,7 @@ module.exports.processProductData = async (
     processedData.colors.map((c) => ({
       name: c.colorName,
       imageCount: c.images.length,
-    }))
+    })),
   );
   return processedData;
 };
@@ -159,7 +177,7 @@ module.exports.createProduct = async (body, files, user_id) => {
   }
   if (user.role !== roles.seller) {
     throw new Error(
-      'Only sellers are allowed to add products. Please log in with a seller account.'
+      'Only sellers are allowed to add products. Please log in with a seller account.',
     );
   }
 
@@ -178,30 +196,6 @@ module.exports.createProduct = async (body, files, user_id) => {
 };
 
 /**
- * Calculate total inventory for a product
- * @param product
- * @returns {number}
- */
-module.exports.calculateTotalInventory = (product) => {
-  if (!product.colors || product.colors.length === 0) {
-    return 0;
-  }
-
-  return product.colors.reduce((total, color) => {
-    if (product.hasSizes) {
-      // Sum quantities from all sizes
-      return (
-        total +
-        color.sizes.reduce((colorTotal, size) => colorTotal + size.quantity, 0)
-      );
-    } else {
-      // Use simple quantity
-      return total + (color.quantity || 0);
-    }
-  }, 0);
-};
-
-/**
  * Get products with inventory information
  * @param filter
  * @returns {Promise<*>}
@@ -209,12 +203,15 @@ module.exports.calculateTotalInventory = (product) => {
 module.exports.getProductsWithInventory = async (filter = {}) => {
   const products = await repository.find(ProductModel, filter);
 
-  return products.map((product) => {
+  const result = [];
+  for (const product of products) {
     const productObj = product.toObject();
-    productObj.totalInventory =
-      module.exports.calculateTotalInventory(productObj);
-    return productObj;
-  });
+    productObj.totalInventory = await stockService.getTotalAvailableStock(
+      product._id,
+    );
+    result.push(productObj);
+  }
+  return result;
 };
 
 /**
@@ -228,12 +225,15 @@ module.exports.getProductsBySeller = async (seller_id) => {
   });
   console.log('products ', products);
 
-  return products.map((product) => {
+  const result = [];
+  for (const product of products) {
     const productObj = product.toObject();
-    productObj.totalInventory =
-      module.exports.calculateTotalInventory(productObj);
-    return productObj;
-  });
+    productObj.totalInventory = await stockService.getTotalAvailableStock(
+      product._id,
+    );
+    result.push(productObj);
+  }
+  return result;
 };
 
 /**
@@ -248,12 +248,15 @@ module.exports.getActiveProductsBySeller = async (seller_id) => {
   });
   console.log('active products ', products);
 
-  return products.map((product) => {
+  const result = [];
+  for (const product of products) {
     const productObj = product.toObject();
-    productObj.totalInventory =
-      module.exports.calculateTotalInventory(productObj);
-    return productObj;
-  });
+    productObj.totalInventory = await stockService.getTotalAvailableStock(
+      product._id,
+    );
+    result.push(productObj);
+  }
+  return result;
 };
 
 /**
@@ -271,7 +274,7 @@ module.exports.updateProduct = async (body, product_id, user_id) => {
   }
   if (user.role !== roles.seller) {
     throw new Error(
-      'Only sellers are allowed to update products. Please log in with a seller account.'
+      'Only sellers are allowed to update products. Please log in with a seller account.',
     );
   }
 
@@ -304,7 +307,7 @@ module.exports.updateProduct = async (body, product_id, user_id) => {
     processedData,
     {
       new: true,
-    }
+    },
   );
 
   return updatedProduct;
@@ -322,12 +325,12 @@ module.exports.getProductById = async (product_id) => {
 };
 
 /**
- * Soft delete a product (change status to inactive)
+ * Toggle product active status (activate/deactivate)
  * @param product_id
  * @param user_id
  * @returns {Promise<*>}
  */
-module.exports.deleteProduct = async (product_id, user_id) => {
+module.exports.toggleProductStatus = async (product_id, user_id) => {
   const user = await userService.getUserById(user_id);
 
   if (!user) {
@@ -335,7 +338,7 @@ module.exports.deleteProduct = async (product_id, user_id) => {
   }
   if (user.role !== roles.seller) {
     throw new Error(
-      'Only sellers are allowed to deactivate products. Please log in with a seller account.'
+      'Only sellers are allowed to deactivate products. Please log in with a seller account.',
     );
   }
 
@@ -358,10 +361,12 @@ module.exports.deleteProduct = async (product_id, user_id) => {
     { isActive: !existingProduct.isActive },
     {
       new: true,
-    }
+    },
   );
 
-  return updatedProduct;
+  return updatedProduct.isActive
+    ? 'Product activated successfully'
+    : 'Product deactivated successfully';
 };
 
 /**
@@ -426,14 +431,17 @@ module.exports.getProducts = async (body) => {
   let matchQuery = {};
 
   // 1. STATUS FILTERS
-  if (includeInactive === false || isActive === 'true') {
-    // Only active products (default for public)
-    matchQuery.isActive = { $ne: false };
+  // Inactive products only visible on seller/products and admin/products; all other listings show active only.
+  const includeInactiveOnly = includeInactive === true || includeInactive === 'true';
+  if (includeInactiveOnly) {
+    // Seller dashboard / admin: show all (no filter)
   } else if (isActive === 'false') {
-    // Only inactive products
+    // Explicit request for inactive only
     matchQuery.isActive = false;
+  } else {
+    // Default for public listings (home, category, deals, search, shop): active only
+    matchQuery.isActive = { $ne: false };
   }
-  // If isActive is undefined or 'all', include both (no filter)
 
   // 2. SELLER/SHOP FILTER (single)
   if (seller) {
@@ -547,10 +555,10 @@ module.exports.getProducts = async (body) => {
       columnNum === 0
         ? 'name'
         : columnNum === 1
-        ? 'price'
-        : columnNum === 2
-        ? 'category'
-        : 'created_at';
+          ? 'price'
+          : columnNum === 2
+            ? 'category'
+            : 'created_at';
 
     sortQuery = {
       [sortingColumn]: sortingOrder,
@@ -562,40 +570,63 @@ module.exports.getProducts = async (body) => {
   const pageLimit = Math.max(1, Math.min(parseInt(limit) || 10, 100));
   const pageNumber = Math.max(1, parseInt(page) || 1);
 
-  // Build pipeline stages
+  // Build pipeline stages - totalInventory from stock collection (single source of truth)
   const pipeline = [
     // Initial match query
     { $match: matchQuery },
 
-    // Calculate totalInventory
+    // Lookup stock record for this product
+    {
+      $lookup: {
+        from: 'stocks',
+        localField: '_id',
+        foreignField: 'product_id',
+        as: '_stockDoc',
+      },
+    },
+
+    // Compute totalInventory from stock.available_stock_by_color (not from product.colors)
     {
       $addFields: {
         totalInventory: {
-          $cond: {
-            if: { $eq: ['$hasSizes', true] },
-            then: {
-              $sum: {
-                $map: {
-                  input: '$colors',
-                  as: 'color',
-                  in: {
-                    $sum: {
-                      $map: {
-                        input: { $ifNull: ['$$color.sizes', []] },
-                        as: 'size',
-                        in: { $ifNull: ['$$size.quantity', 0] },
-                      },
+          $let: {
+            vars: {
+              s: { $arrayElemAt: ['$_stockDoc', 0] },
+            },
+            in: {
+              $cond: {
+                if: { $not: '$$s' },
+                then: 0,
+                else: {
+                  $reduce: {
+                    input: { $ifNull: ['$$s.available_stock_by_color', []] },
+                    initialValue: 0,
+                    in: {
+                      $add: [
+                        '$$value',
+                        {
+                          $cond: {
+                            if: {
+                              $gt: [
+                                { $size: { $ifNull: ['$$this.sizes', []] } },
+                                0,
+                              ],
+                            },
+                            then: {
+                              $sum: {
+                                $map: {
+                                  input: '$$this.sizes',
+                                  as: 'sz',
+                                  in: { $ifNull: ['$$sz.availableStock', 0] },
+                                },
+                              },
+                            },
+                            else: { $ifNull: ['$$this.availableStock', 0] },
+                          },
+                        },
+                      ],
                     },
                   },
-                },
-              },
-            },
-            else: {
-              $sum: {
-                $map: {
-                  input: '$colors',
-                  as: 'color',
-                  in: { $ifNull: ['$$color.quantity', 0] },
                 },
               },
             },
@@ -603,6 +634,9 @@ module.exports.getProducts = async (body) => {
         },
       },
     },
+
+    // Drop the temporary lookup field so it's not in the response
+    { $project: { _stockDoc: 0 } },
   ];
 
   // Apply inventory-based filters after calculation
@@ -636,18 +670,21 @@ module.exports.getProducts = async (body) => {
 
   pipeline.push(...inventoryFilters);
 
-  // Search handling
+  // Search handling: case-insensitive, spaces and hyphens treated as equivalent
   if (search) {
-    const searchRegex = { $regex: search, $options: 'i' };
-    pipeline.push({
-      $match: {
-        $or: [
-          { name: searchRegex },
-          { category: searchRegex },
-          { description: searchRegex },
-        ],
-      },
-    });
+    const pattern = buildFlexibleSearchPattern(search);
+    if (pattern) {
+      const searchRegex = { $regex: pattern, $options: 'i' };
+      pipeline.push({
+        $match: {
+          $or: [
+            { name: searchRegex },
+            { category: searchRegex },
+            { description: searchRegex },
+          ],
+        },
+      });
+    }
   }
 
   // Count and paginate using $facet
@@ -668,13 +705,14 @@ module.exports.getProducts = async (body) => {
   const records = result?.[0]?.records || [];
   const recordsTotal = result?.[0]?.recordsTotal?.[0]?.count || 0;
 
-  // Calculate totalInventory for each product (already done in pipeline, but ensure it's in the result)
+  // totalInventory is from stock collection in pipeline; ensure number for each record
   const recordsWithInventory = records.map((product) => {
     const productObj = product.toObject ? product.toObject() : product;
-    // totalInventory is already calculated in pipeline
-    if (!productObj.totalInventory) {
-      productObj.totalInventory =
-        module.exports.calculateTotalInventory(productObj);
+    if (
+      productObj.totalInventory === undefined ||
+      productObj.totalInventory === null
+    ) {
+      productObj.totalInventory = 0;
     }
     return productObj;
   });
@@ -703,7 +741,7 @@ module.exports.getProductDetails = async (productId) => {
 
   const productObj = product.toObject();
   productObj.totalInventory =
-    module.exports.calculateTotalInventory(productObj);
+    await stockService.getTotalAvailableStock(productId);
 
   // Calculate available stock for each color/size variant
   if (productObj.colors && productObj.colors.length > 0) {
@@ -721,7 +759,7 @@ module.exports.getProductDetails = async (productId) => {
           const availableStock = await stockService.getAvailableStock(
             product._id,
             color.colorCode,
-            size.size
+            size.size,
           );
           productObj.colors[colorIndex].sizes[sizeIndex].availableQuantity =
             availableStock;
@@ -731,7 +769,7 @@ module.exports.getProductDetails = async (productId) => {
         const availableStock = await stockService.getAvailableStock(
           product._id,
           color.colorCode,
-          null
+          null,
         );
         productObj.colors[colorIndex].availableQuantity = availableStock;
       }

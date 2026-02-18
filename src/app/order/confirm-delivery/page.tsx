@@ -44,6 +44,7 @@ interface SubOrder {
   orderStatus: string;
   seller_marked_as_delivered?: boolean;
   seller_marked_as_delivered_at?: string;
+  delivery_confirmed?: boolean;
 }
 
 function ConfirmDeliveryContent() {
@@ -57,14 +58,6 @@ function ConfirmDeliveryContent() {
   const [confirmedStatus, setConfirmedStatus] = useState<boolean | null>(null);
 
   const subOrderId = searchParams.get('subOrderId');
-  const confirmedParam = searchParams.get('confirmed');
-
-  useEffect(() => {
-    // Only handle confirmed=true, ignore confirmed=false
-    if (confirmedParam === 'true') {
-      setConfirmedStatus(true);
-    }
-  }, [confirmedParam]);
 
   // Check authentication
   useEffect(() => {
@@ -106,7 +99,12 @@ function ConfirmDeliveryContent() {
 
       if (response.ok) {
         const data = await response.json();
-        setSubOrder(data.data || data);
+        const orderData = data.data || data;
+        setSubOrder(orderData);
+        // Only show "already confirmed" state from server data, not from URL param
+        if (orderData.delivery_confirmed) {
+          setConfirmedStatus(true);
+        }
       } else {
         const result = await response.json();
         

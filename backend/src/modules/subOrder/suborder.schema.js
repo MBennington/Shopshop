@@ -6,6 +6,11 @@ module.exports.getSubOrdersBySeller = joi.object({
   page: joi.number().integer().min(1).default(1),
   limit: joi.number().integer().min(1).max(100).default(10),
   status: joi.string().valid(...Object.values(subOrderStatus)).optional(),
+  search: joi.string().trim().allow('').optional(),
+});
+
+module.exports.getSellerCustomers = joi.object({
+  search: joi.string().trim().allow('').optional(),
 });
 
 // For PUT /api/suborder/:id/status - validates req.body

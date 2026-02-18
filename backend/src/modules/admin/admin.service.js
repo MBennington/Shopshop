@@ -188,12 +188,11 @@ module.exports.getAllProductsForAdmin = async (filters = {}) => {
     // Get total count
     const total = await ProductModel.countDocuments(query);
 
-    // Calculate inventory and stock data for each product
+    // Calculate inventory and stock data for each product (totalInventory from stock collection)
     const productsWithStock = await Promise.all(
       products.map(async (product) => {
         const productObj = { ...product };
-        productObj.totalInventory =
-          productService.calculateTotalInventory(productObj);
+        productObj.totalInventory = await stockService.getTotalAvailableStock(product._id);
 
         // Calculate available stock for each color/size variant
         if (productObj.colors && productObj.colors.length > 0) {
@@ -318,7 +317,7 @@ module.exports.getProductStockData = async (productId) => {
     }
 
     const productDoc = await ProductModel.findById(productId);
-    const totalInventory = productService.calculateTotalInventory(product);
+    const totalInventory = await stockService.getTotalAvailableStock(productId);
 
     // Calculate stock breakdown
     const stockBreakdown = {

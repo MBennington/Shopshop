@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 
 interface Seller {
@@ -18,12 +18,17 @@ export default function ShopsPage() {
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const isInitialLoad = useRef(true);
 
   useEffect(() => {
     const fetchSellers = async () => {
       try {
-        setLoading(true);
-        const response = await fetch('/api/get-all-sellers');
+        if (isInitialLoad.current) {
+          setLoading(true);
+        }
+        const params = new URLSearchParams();
+        if (search.trim()) params.set('search', search.trim());
+        const response = await fetch(`/api/get-all-sellers?${params}`);
 
         if (!response.ok) {
           throw new Error('Failed to fetch sellers');
@@ -31,25 +36,22 @@ export default function ShopsPage() {
 
         const data = await response.json();
         setSellers(data.data || []);
+        setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
         console.error('Error fetching sellers:', err);
       } finally {
         setLoading(false);
+        isInitialLoad.current = false;
       }
     };
 
     fetchSellers();
-  }, []);
+  }, [search]);
 
-  const filteredShops = sellers.filter((seller) => {
-    const businessName = seller.sellerInfo?.businessName || seller.name;
-    return (
-      businessName.toLowerCase().includes(search.toLowerCase()) ||
-      seller.name.toLowerCase().includes(search.toLowerCase())
-    );
-  });
-  if (loading) {
+  const filteredShops = sellers;
+
+  if (loading && isInitialLoad.current) {
     return (
       <div className="min-h-screen bg-[#f7f8fa] py-10 px-4">
         <div className="max-w-5xl mx-auto">
@@ -62,7 +64,7 @@ export default function ShopsPage() {
     );
   }
 
-  if (error) {
+  if (error && sellers.length === 0) {
     return (
       <div className="min-h-screen bg-[#f7f8fa] py-10 px-4">
         <div className="max-w-5xl mx-auto">
@@ -88,6 +90,9 @@ export default function ShopsPage() {
             className="w-full max-w-xs px-4 py-2 border border-[#dde0e3] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#397fc5] focus:border-transparent bg-white text-[#121416] placeholder:text-[#6a7581]"
           />
         </div>
+        {error && sellers.length > 0 && (
+          <div className="mb-4 text-amber-600 text-sm">{error}</div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
           {filteredShops.map((seller) => {
             const businessName = seller.sellerInfo?.businessName || seller.name;

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { use } from 'react';
 import { ChevronDown, Search, ArrowLeft } from 'lucide-react';
+import { OutOfStockBadge } from '@/components/OutOfStockBadge';
 
 interface Product {
   _id: string;
@@ -349,6 +350,7 @@ export default function ProductCatalogue({
                             <span className="text-gray-400">No image</span>
                           </div>
                         )}
+                        <OutOfStockBadge show={(product.totalInventory ?? 0) === 0} />
 
                         {/* Color indicators */}
                         {product.colors && product.colors.length > 0 && (
@@ -384,9 +386,9 @@ export default function ProductCatalogue({
                             LKR {product.price}
                           </span>
                           <span className="text-sm text-gray-500">
-                            {product.totalInventory
+                            {(product.totalInventory ?? 0) > 0
                               ? `${product.totalInventory} in stock`
-                              : 'Available'}
+                              : 'Out of stock'}
                           </span>
                         </div>
                       </div>

@@ -86,7 +86,7 @@ interface CheckoutData {
 export default function ProductDetails({ params }: ProductDetailsProps) {
   const { category, id } = use(params);
   const [productData, setProductData] = useState<ProductDetailsResponse | null>(
-    null
+    null,
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +95,9 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [stockError, setStockError] = useState<string | null>(null);
-  const [wishlistColorIds, setWishlistColorIds] = useState<Set<string>>(new Set());
+  const [wishlistColorIds, setWishlistColorIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [addingToWishlist, setAddingToWishlist] = useState(false);
   const router = useRouter();
 
@@ -121,6 +123,8 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
     message?: string;
   } | null>(null);
   const [checkingEligibility, setCheckingEligibility] = useState(false);
+  const [reviewToDelete, setReviewToDelete] = useState<string | null>(null);
+  const [isDeletingReview, setIsDeletingReview] = useState(false);
 
   // Get current user ID
   useEffect(() => {
@@ -143,9 +147,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(
-          `/api/products/details/${id}`
-        );
+        const response = await fetch(`/api/products/details/${id}`);
 
         if (!response.ok) {
           throw new Error('Failed to fetch product details');
@@ -170,7 +172,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
 
       try {
         const response = await fetch(
-          `/api/reviews?product=${id}&page=${currentPage}&limit=10&sort=${sortBy}`
+          `/api/reviews?product=${id}&page=${currentPage}&limit=10&sort=${sortBy}`,
         );
 
         if (response.ok) {
@@ -212,7 +214,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
         if (response.ok) {
           const data = await response.json();
           const wishlistData = data.data;
-          
+
           // Find products for this product_id and collect color_ids
           const colorIds = new Set<string>();
           if (wishlistData?.shops) {
@@ -247,7 +249,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
         if (selectedSize !== null) {
           const availableSizes = product.colors[selectedColor]?.sizes || [];
           const sizeData = availableSizes.find(
-            (size: any) => size.size === selectedSize
+            (size: any) => size.size === selectedSize,
           );
           // Use availableQuantity if provided by backend, otherwise fallback to quantity
           currentAvailableQuantity = sizeData
@@ -310,7 +312,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
     if (product.hasSizes) {
       if (selectedSize === null) return 0;
       const sizeData = availableSizes.find(
-        (size: any) => size.size === selectedSize
+        (size: any) => size.size === selectedSize,
       );
       // Use availableQuantity if provided by backend, otherwise fallback to quantity
       return sizeData
@@ -335,7 +337,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
   const getRatingPercentage = (rating: number) => {
     if (reviews.totalReviews === 0) return 0;
     return Math.round(
-      (reviews.ratingDistribution[rating] / reviews.totalReviews) * 100
+      (reviews.ratingDistribution[rating] / reviews.totalReviews) * 100,
     );
   };
 
@@ -355,35 +357,44 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         // console.error('Eligibility check failed:', response.status, errorData);
         throw new Error(
-          errorData.msg || errorData.message || 'Failed to check eligibility'
+          errorData.msg || errorData.message || 'Failed to check eligibility',
         );
       }
 
       const data = await response.json();
       setReviewEligibility(data.data);
-      
+
       // Show toast messages based on eligibility
       if (data.data.eligible) {
         if (data.data.allDelivered) {
-          toast.success('You have purchased this product. Your review will be marked as verified.');
+          toast.success(
+            'You have purchased this product. Your review will be marked as verified.',
+          );
         } else {
-          toast.info('Note: Your order(s) will be marked as delivered after you submit this review.');
+          toast.info(
+            'Note: Your order(s) will be marked as delivered after you submit this review.',
+          );
         }
       } else {
-        toast.error(data.data.message || 'You must have purchased this product to leave a review.');
+        toast.error(
+          data.data.message ||
+          'You must have purchased this product to leave a review.',
+        );
       }
-      
+
       return data.data;
     } catch (error: any) {
       // console.error('Error checking eligibility:', error);
-      const errorMessage = error.message || 'It looks like you haven\'t purchased this item yet. Reviews are available after purchase.';
+      const errorMessage =
+        error.message ||
+        "It looks like you haven't purchased this item yet. Reviews are available after purchase.";
       setReviewEligibility({
         eligible: false,
         hasSubOrders: false,
@@ -418,16 +429,16 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
       const method = editingReview ? 'PUT' : 'POST';
       const body = editingReview
         ? {
-            rating: reviewFormData.rating,
-            title: reviewFormData.title,
-            content: reviewFormData.content,
-          }
+          rating: reviewFormData.rating,
+          title: reviewFormData.title,
+          content: reviewFormData.content,
+        }
         : {
-            product: id,
-            rating: reviewFormData.rating,
-            title: reviewFormData.title,
-            content: reviewFormData.content,
-          };
+          product: id,
+          rating: reviewFormData.rating,
+          title: reviewFormData.title,
+          content: reviewFormData.content,
+        };
 
       const response = await fetch(url, {
         method,
@@ -441,7 +452,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
       if (!response.ok) {
         const error = await response.json();
         throw new Error(
-          error.msg || error.message || 'Failed to submit review'
+          error.msg || error.message || 'Failed to submit review',
         );
       }
 
@@ -453,7 +464,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
       if (hasUpdatedOrders) {
         const action = editingReview ? 'updated' : 'submitted';
         toast.success(
-          `Review ${action} successfully! ${updatedCount} order(s) have been marked as delivered.`
+          `Review ${action} successfully! ${updatedCount} order(s) have been marked as delivered.`,
         );
       } else {
         const action = editingReview ? 'updated' : 'submitted';
@@ -467,9 +478,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
       setReviewEligibility(null);
 
       // Refresh product details and reviews
-      const productResponse = await fetch(
-        `/api/products/details/${id}`
-      );
+      const productResponse = await fetch(`/api/products/details/${id}`);
       if (productResponse.ok) {
         const productData = await productResponse.json();
         setProductData(productData.data);
@@ -477,7 +486,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
 
       // Refresh reviews list
       const reviewsResponse = await fetch(
-        `/api/reviews?product=${id}&page=${currentPage}&limit=10&sort=${sortBy}`
+        `/api/reviews?product=${id}&page=${currentPage}&limit=10&sort=${sortBy}`,
       );
       if (reviewsResponse.ok) {
         const reviewsData = await reviewsResponse.json();
@@ -493,32 +502,26 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
 
   // Handle delete review
   const handleDeleteReview = async (reviewId: string) => {
-
     const token = localStorage.getItem('token');
     if (!token) {
       router.push('/auth');
       return;
     }
-
+    setIsDeletingReview(true);
     try {
-      const response = await fetch(
-        `/api/reviews/${reviewId}`,
-        {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(`/api/reviews/${reviewId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (!response.ok) {
         throw new Error('Failed to delete review');
       }
 
       // Refresh product details and reviews
-      const productResponse = await fetch(
-        `/api/products/details/${id}`
-      );
+      const productResponse = await fetch(`/api/products/details/${id}`);
       if (productResponse.ok) {
         const productData = await productResponse.json();
         setProductData(productData.data);
@@ -526,15 +529,17 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
 
       // Refresh reviews list
       const reviewsResponse = await fetch(
-        `/api/reviews?product=${id}&page=${currentPage}&limit=10&sort=${sortBy}`
+        `/api/reviews?product=${id}&page=${currentPage}&limit=10&sort=${sortBy}`,
       );
       if (reviewsResponse.ok) {
         const reviewsData = await reviewsResponse.json();
         setAllReviews(reviewsData.data.reviews || []);
         setTotalPages(reviewsData.data.pagination?.pages || 1);
       }
-      
+
       toast.success('Review deleted successfully');
+      setReviewToDelete(null); // Close dialog after successful deletion
+      setIsDeletingReview(false);
     } catch (error: any) {
       toast.error(error.message || 'Failed to delete review');
     }
@@ -638,9 +643,9 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           product_id: id,
-          color_id: colorId 
+          color_id: colorId,
         }),
       });
 
@@ -665,7 +670,9 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
         // Update wishlist state in case it was added
         const selectedColorData = productData?.product.colors[selectedColor];
         if (selectedColorData?._id) {
-          setWishlistColorIds(new Set([...wishlistColorIds, selectedColorData._id]));
+          setWishlistColorIds(
+            new Set([...wishlistColorIds, selectedColorData._id]),
+          );
         }
       }
     } finally {
@@ -700,7 +707,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
         checkoutData.size = selectedSize.trim();
       }
       window.location.href = `/checkout?product=${encodeURIComponent(
-        JSON.stringify(checkoutData)
+        JSON.stringify(checkoutData),
       )}`;
     } else {
       // Add to cart logic here
@@ -768,11 +775,10 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                     {productImages.map((img, idx) => (
                       <button
                         key={`${img}-${idx}`}
-                        className={`w-16 h-16 rounded-sm border-2 ${
-                          selectedImage === idx
+                        className={`w-16 h-16 rounded-sm border-2 ${selectedImage === idx
                             ? 'border-[#528bc5]'
                             : 'border-[#dde0e3]'
-                        } overflow-hidden focus:outline-none`}
+                          } overflow-hidden focus:outline-none`}
                         onClick={() => setSelectedImage(idx)}
                         aria-label={`Show image ${idx + 1}`}
                       >
@@ -816,12 +822,15 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                 <button
                   onClick={handleAddToWishlist}
                   disabled={addingToWishlist || isSelectedColorInWishlist()}
-                  className={`flex items-center justify-center w-10 h-10 rounded-full border transition-colors ${
-                    isSelectedColorInWishlist()
+                  className={`flex items-center justify-center w-10 h-10 rounded-full border transition-colors ${isSelectedColorInWishlist()
                       ? 'bg-red-50 border-red-300 text-red-600'
                       : 'bg-white border-[#dde0e3] text-[#121416] hover:bg-gray-50'
-                  } ${addingToWishlist ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                  title={isSelectedColorInWishlist() ? 'Already in wishlist' : 'Add to wishlist'}
+                    } ${addingToWishlist ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  title={
+                    isSelectedColorInWishlist()
+                      ? 'Already in wishlist'
+                      : 'Add to wishlist'
+                  }
                 >
                   <Heart
                     className={`w-5 h-5 ${isSelectedColorInWishlist() ? 'fill-current' : ''}`}
@@ -846,11 +855,10 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                 {product.colors.map((color, index) => (
                   <label
                     key={color.colorCode}
-                    className={`size-10 rounded-full border ring-[color-mix(in_srgb,#121416_50%,_transparent)] cursor-pointer ${
-                      selectedColor === index
+                    className={`size-10 rounded-full border ring-[color-mix(in_srgb,#121416_50%,_transparent)] cursor-pointer ${selectedColor === index
                         ? 'border-[3px] border-white ring'
                         : 'border-[#dde0e3]'
-                    }`}
+                      }`}
                     style={{ backgroundColor: color.colorCode }}
                   >
                     <input
@@ -883,15 +891,13 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                       return (
                         <label
                           key={sizeData.size}
-                          className={`text-sm font-medium leading-normal flex items-center justify-center rounded-xl border px-4 h-11 text-[#121416] relative ${
-                            selectedSize === sizeData.size
+                          className={`text-sm font-medium leading-normal flex items-center justify-center rounded-xl border px-4 h-11 text-[#121416] relative ${selectedSize === sizeData.size
                               ? 'border-[3px] px-3.5 border-[#528bc5]'
                               : 'border-[#dde0e3]'
-                          } ${
-                            sizeAvailableQty === 0
+                            } ${sizeAvailableQty === 0
                               ? 'opacity-50 cursor-not-allowed'
                               : 'cursor-pointer'
-                          }`}
+                            }`}
                         >
                           {sizeData.size}
                           <input
@@ -920,11 +926,10 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                   disabled={
                     (product.hasSizes && selectedSize === null) || quantity <= 1
                   }
-                  className={`w-10 h-10 rounded-lg border border-[#dde0e3] flex items-center justify-center ${
-                    (product.hasSizes && selectedSize === null) || quantity <= 1
+                  className={`w-10 h-10 rounded-lg border border-[#dde0e3] flex items-center justify-center ${(product.hasSizes && selectedSize === null) || quantity <= 1
                       ? 'text-gray-400 cursor-not-allowed'
                       : 'text-[#121416] hover:bg-gray-50 cursor-pointer'
-                  }`}
+                    }`}
                 >
                   -
                 </button>
@@ -936,27 +941,26 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                   onChange={(e) => {
                     const newQuantity = Math.max(
                       1,
-                      parseInt(e.target.value) || 1
+                      parseInt(e.target.value) || 1,
                     );
                     const maxQuantity = Math.min(
                       newQuantity,
-                      availableQuantity
+                      availableQuantity,
                     );
                     setQuantity(maxQuantity);
                     setStockError(null);
                   }}
                   disabled={product.hasSizes && selectedSize === null}
-                  className={`w-16 h-10 text-center border border-[#dde0e3] rounded-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
-                    product.hasSizes && selectedSize === null
+                  className={`w-16 h-10 text-center border border-[#dde0e3] rounded-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${product.hasSizes && selectedSize === null
                       ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
                       : 'text-[#121416]'
-                  }`}
+                    }`}
                 />
                 <button
                   onClick={() => {
                     const newQuantity = Math.min(
                       quantity + 1,
-                      availableQuantity
+                      availableQuantity,
                     );
                     setQuantity(newQuantity);
                     setStockError(null);
@@ -965,12 +969,11 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                     (product.hasSizes && selectedSize === null) ||
                     quantity >= availableQuantity
                   }
-                  className={`w-10 h-10 rounded-lg border border-[#dde0e3] flex items-center justify-center ${
-                    (product.hasSizes && selectedSize === null) ||
-                    quantity >= availableQuantity
+                  className={`w-10 h-10 rounded-lg border border-[#dde0e3] flex items-center justify-center ${(product.hasSizes && selectedSize === null) ||
+                      quantity >= availableQuantity
                       ? 'text-gray-400 cursor-not-allowed'
                       : 'text-[#121416] hover:bg-gray-50 cursor-pointer'
-                  }`}
+                    }`}
                 >
                   +
                 </button>
@@ -993,12 +996,11 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                       (product.hasSizes && selectedSize === null) ||
                       quantity > availableQuantity
                     }
-                    className={`flex min-w-[84px] max-w-[480px] items-center justify-center overflow-hidden rounded-full h-10 px-4 text-sm font-bold leading-normal tracking-[0.015em] ${
-                      (product.hasSizes && selectedSize === null) ||
-                      quantity > availableQuantity
+                    className={`flex min-w-[84px] max-w-[480px] items-center justify-center overflow-hidden rounded-full h-10 px-4 text-sm font-bold leading-normal tracking-[0.015em] ${(product.hasSizes && selectedSize === null) ||
+                        quantity > availableQuantity
                         ? 'cursor-not-allowed bg-gray-300 text-gray-500'
                         : 'cursor-pointer bg-[#528bc5] text-white hover:bg-[#4a7bb3]'
-                    }`}
+                      }`}
                   >
                     <span className="truncate">Buy Now</span>
                   </button>
@@ -1008,12 +1010,11 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                       (product.hasSizes && selectedSize === null) ||
                       quantity > availableQuantity
                     }
-                    className={`flex min-w-[84px] max-w-[480px] items-center justify-center overflow-hidden rounded-full h-10 px-4 text-sm font-bold leading-normal tracking-[0.015em] ${
-                      (product.hasSizes && selectedSize === null) ||
-                      quantity > availableQuantity
+                    className={`flex min-w-[84px] max-w-[480px] items-center justify-center overflow-hidden rounded-full h-10 px-4 text-sm font-bold leading-normal tracking-[0.015em] ${(product.hasSizes && selectedSize === null) ||
+                        quantity > availableQuantity
                         ? 'cursor-not-allowed bg-gray-300 text-gray-500'
                         : 'cursor-pointer bg-[#f1f2f4] text-[#121416] hover:bg-[#e5e7eb]'
-                    }`}
+                      }`}
                   >
                     <span className="truncate">Add to Cart</span>
                   </button>
@@ -1198,7 +1199,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                                 year: 'numeric',
                                 month: 'long',
                                 day: 'numeric',
-                              }
+                              },
                             )}
                           </p>
                         </div>
@@ -1213,7 +1214,7 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleDeleteReview(review._id)}
+                            onClick={() => setReviewToDelete(review._id)}
                             className="p-2 text-[#6a7581] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Delete review"
                           >
@@ -1226,11 +1227,10 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                       {[...Array(5)].map((_, i) => (
                         <Star
                           key={i}
-                          className={`w-5 h-5 ${
-                            i < review.rating
+                          className={`w-5 h-5 ${i < review.rating
                               ? 'text-[#121416] fill-[#121416]'
                               : 'text-[#bec4cb]'
-                          }`}
+                            }`}
                         />
                       ))}
                     </div>
@@ -1264,11 +1264,10 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className={`px-4 py-2 rounded-lg border ${
-                  currentPage === 1
+                className={`px-4 py-2 rounded-lg border ${currentPage === 1
                     ? 'border-gray-300 text-gray-400 cursor-not-allowed'
                     : 'border-[#dde0e3] text-[#121416] hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 Previous
               </button>
@@ -1280,11 +1279,10 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                   setCurrentPage((p) => Math.min(totalPages, p + 1))
                 }
                 disabled={currentPage === totalPages}
-                className={`px-4 py-2 rounded-lg border ${
-                  currentPage === totalPages
+                className={`px-4 py-2 rounded-lg border ${currentPage === totalPages
                     ? 'border-gray-300 text-gray-400 cursor-not-allowed'
                     : 'border-[#dde0e3] text-[#121416] hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 Next
               </button>
@@ -1351,15 +1349,16 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                             }
                             className="focus:outline-none"
                             disabled={
-                              reviewEligibility ? !reviewEligibility.eligible : false
+                              reviewEligibility
+                                ? !reviewEligibility.eligible
+                                : false
                             }
                           >
                             <Star
-                              className={`w-8 h-8 ${
-                                rating <= reviewFormData.rating
+                              className={`w-8 h-8 ${rating <= reviewFormData.rating
                                   ? 'text-[#121416] fill-[#121416]'
                                   : 'text-[#bec4cb]'
-                              }`}
+                                }`}
                             />
                           </button>
                         ))}
@@ -1436,22 +1435,68 @@ export default function ProductDetails({ params }: ProductDetailsProps) {
                           (reviewEligibility && !reviewEligibility.eligible) ||
                           checkingEligibility
                         }
-                        className={`px-6 py-2 rounded-lg font-medium ${
-                          isSubmittingReview ||
-                          !reviewFormData.content.trim() ||
-                          (reviewEligibility && !reviewEligibility.eligible) ||
-                          checkingEligibility
+                        className={`px-6 py-2 rounded-lg font-medium ${isSubmittingReview ||
+                            !reviewFormData.content.trim() ||
+                            (reviewEligibility && !reviewEligibility.eligible) ||
+                            checkingEligibility
                             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                             : 'bg-[#528bc5] text-white hover:bg-[#4a7bb3]'
-                        }`}
+                          }`}
                       >
                         {isSubmittingReview
                           ? 'Submitting...'
                           : editingReview
-                          ? 'Update Review'
-                          : 'Submit Review'}
+                            ? 'Update Review'
+                            : 'Submit Review'}
                       </button>
                     </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Delete Confirmation Dialog */}
+          {reviewToDelete && (
+            <>
+              <div
+                className="fixed inset-0 bg-white/10 backdrop-blur-sm z-[9998]"
+                onClick={() => setReviewToDelete(null)}
+              />
+              <div className="fixed inset-0 flex items-center justify-center z-[9999] pointer-events-none">
+                <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl border border-gray-200 pointer-events-auto">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold text-[#121416]">
+                      Delete Review
+                    </h3>
+                    <button
+                      onClick={() => setReviewToDelete(null)}
+                      className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <p className="text-[#121416] text-base mb-6">
+                    Are you sure you want to delete this review? This action
+                    cannot be undone.
+                  </p>
+
+                  <div className="flex gap-3 justify-end">
+                    <button
+                      onClick={() => setReviewToDelete(null)}
+                      className="px-4 py-2 border border-[#dde0e3] rounded-lg text-[#121416] hover:bg-gray-50"
+                      disabled={isDeletingReview}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleDeleteReview(reviewToDelete)}
+                      className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+                      disabled={isDeletingReview}
+                    >
+                      {isDeletingReview ? 'Deleting...' : 'Delete'}
+                    </button>
                   </div>
                 </div>
               </div>

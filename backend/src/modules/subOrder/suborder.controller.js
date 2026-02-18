@@ -21,6 +21,26 @@ module.exports.getSubOrdersByMainOrder = async (req, res) => {
 };
 
 /**
+ * Get distinct customers (buyers) for a seller
+ * @param req
+ * @param res
+ * @returns {Promise<*>}
+ */
+module.exports.getSellerCustomers = async (req, res) => {
+  try {
+    const { sellerId } = req.params;
+    const userId = res.locals.user?.id;
+    if (userId !== sellerId && res.locals.user?.role !== 'admin') {
+      return res.status(403).json({ status: false, msg: 'Forbidden' });
+    }
+    const data = await subOrderService.getSellerCustomers(sellerId, req.query);
+    return successWithData(data, res);
+  } catch (error) {
+    return customError(`${error.message}`, res);
+  }
+};
+
+/**
  * Get sub-orders by seller ID
  * @param req
  * @param res

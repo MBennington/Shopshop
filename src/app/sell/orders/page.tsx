@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
@@ -90,59 +90,57 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
+  const isInitialLoad = useRef(true);
 
-  useEffect(() => {
-    if (user?._id) {
-      fetchSubOrders();
-    }
-  }, [user]);
-
-  const fetchSubOrders = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/suborder?sellerId=${user?._id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setSubOrders(data.data || []);
-      }
-    } catch (error) {
-      // console.error('Failed to fetch sub-orders:', error);
-    } finally {
-      setLoading(false);
-    }
+  const statusMap: { [key: string]: string } = {
+    'Pending': 'pending',
+    'Processing': 'processing',
+    'Packed': 'packed',
+    'Dispatched': 'dispatched',
+    'Delivered': 'delivered',
   };
 
+  useEffect(() => {
+    if (!user?._id) return;
+    let cancelled = false;
+    const fetchSubOrders = async () => {
+      try {
+        if (isInitialLoad.current) {
+          setLoading(true);
+        }
+        const token = localStorage.getItem('token');
+        const params = new URLSearchParams();
+        params.set('sellerId', user._id!);
+        params.set('limit', '100');
+        if (searchQuery.trim()) params.set('search', searchQuery.trim());
+        if (activeFilter !== 'All' && statusMap[activeFilter]) {
+          params.set('status', statusMap[activeFilter]);
+        }
+        const response = await fetch(`/api/suborder?${params}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
 
+        if (cancelled) return;
+        if (response.ok) {
+          const data = await response.json();
+          setSubOrders(data.data || []);
+        }
+      } catch (error) {
+        if (!cancelled) setSubOrders([]);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          isInitialLoad.current = false;
+        }
+      }
+    };
+    fetchSubOrders();
+    return () => { cancelled = true; };
+  }, [user?._id, searchQuery, activeFilter]);
 
-  const filteredOrders = subOrders.filter(order => {
-    const buyerName = typeof order.buyer_id === 'object' 
-      ? order.buyer_id?.name || order.buyer_info?.name || ''
-      : '';
-    const matchesSearch = order._id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (typeof order.main_order_id === 'string' 
-                           ? order.main_order_id.toLowerCase().includes(searchQuery.toLowerCase())
-                           : order.main_order_id?._id?.toString().toLowerCase().includes(searchQuery.toLowerCase())) ||
-                         buyerName.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    let statusMatch = true;
-    if (activeFilter !== 'All') {
-      const statusMap: { [key: string]: string } = {
-        'Pending': 'pending',
-        'Processing': 'processing',
-        'Packed': 'packed',
-        'Dispatched': 'dispatched',
-        'Delivered': 'delivered'
-      };
-      statusMatch = order.orderStatus === statusMap[activeFilter];
-    }
-    
-    return matchesSearch && statusMatch;
-  });
+  const filteredOrders = subOrders;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -301,7 +299,7 @@ export default function OrdersPage() {
     return timeline;
   };
 
-  if (loading) {
+  if (loading && isInitialLoad.current) {
     return (
       <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden">
         <div className="layout-container flex h-full grow flex-col">

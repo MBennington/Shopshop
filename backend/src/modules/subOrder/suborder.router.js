@@ -15,6 +15,15 @@ router
     controller.getSubOrdersByMainOrder
   );
 
+// GET endpoint - seller customers (must be before /seller/:sellerId)
+router
+  .route(permissions.getSellerCustomers.path)
+  .get(
+    validator.validateHeader(permissions.getSellerCustomers.grantedUserRoles),
+    validator.validateQueryParameters(schema.getSellerCustomers),
+    controller.getSellerCustomers
+  );
+
 // GET endpoint - validates query parameters
 router
   .route(permissions.getSubOrdersBySeller.path)

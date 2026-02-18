@@ -57,5 +57,6 @@ module.exports.getAllOrders = joi.object({
   page: joi.number().integer().min(1).optional(),
   limit: joi.number().integer().min(1).max(100).optional(),
   status: joi.string().optional(),
+  search: joi.string().trim().allow('').optional(),
   userId: joi.string().optional(),
 });

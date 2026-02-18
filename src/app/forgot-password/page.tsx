@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import {
   Card,
   CardContent,
@@ -16,14 +17,10 @@ import { Input } from '@/components/ui/input';
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setMessage('');
     setIsSubmitting(true);
 
     try {
@@ -41,17 +38,14 @@ export default function ForgotPasswordPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.msg || data.error || 'Unable to send reset link');
+        toast.error(data.msg || data.error || 'Unable to send reset link');
         return;
       }
 
-      // Do not reveal whether the email exists
-      setMessage(
-        'A password reset link has been sent. Please check your email.'
-      );
+      toast.success('A password reset link has been sent. Please check your email.');
     } catch (err) {
       console.error('Forgot password error:', err);
-      setError('Something went wrong. Please try again.');
+      toast.error('Something went wrong. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -123,17 +117,6 @@ export default function ForgotPasswordPage() {
                 {isSubmitting ? 'Sending link...' : 'Send reset link'}
               </Button>
             </form>
-
-            {message && (
-              <div className="mt-4 text-sm text-green-600 bg-green-100 border border-green-300 p-2 rounded">
-                {message}
-              </div>
-            )}
-            {error && (
-              <div className="mt-4 text-sm text-red-600 bg-red-100 border border-red-300 p-2 rounded">
-                {error}
-              </div>
-            )}
 
             <div className="mt-6 text-center text-sm text-[#49739c]">
               <button

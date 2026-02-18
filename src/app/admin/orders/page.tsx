@@ -58,7 +58,7 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchUserId, setSearchUserId] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (user && user.role !== 'admin') {
@@ -88,7 +88,7 @@ export default function AdminOrdersPage() {
         page: currentPage.toString(),
         limit: '20',
         ...(status && { status }),
-        ...(searchUserId && { userId: searchUserId }),
+        ...(searchQuery.trim() && { search: searchQuery.trim() }),
       });
 
       const response = await fetch(`/api/admin/orders?${params}`, {
@@ -188,15 +188,15 @@ export default function AdminOrdersPage() {
             </div>
 
             <div className="px-4 py-3">
-              {/* Search by User ID */}
+              {/* Search by User ID or name */}
               <Card className="mb-6">
                 <CardContent className="p-4">
                   <div className="flex gap-3">
                     <div className="flex-1">
                       <Input
-                        placeholder="Search by User ID..."
-                        value={searchUserId}
-                        onChange={(e) => setSearchUserId(e.target.value)}
+                        placeholder="Search by User ID or name..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyPress={(e) => {
                           if (e.key === 'Enter') {
                             handleSearch();
@@ -209,11 +209,11 @@ export default function AdminOrdersPage() {
                       <Search className="h-4 w-4" />
                       Search
                     </Button>
-                    {searchUserId && (
+                    {searchQuery && (
                       <Button
                         variant="outline"
                         onClick={() => {
-                          setSearchUserId('');
+                          setSearchQuery('');
                           setCurrentPage(1);
                           fetchOrders();
                         }}
@@ -268,7 +268,7 @@ export default function AdminOrdersPage() {
                     <p className="text-gray-600 mb-6">
                       {activeFilter !== 'All'
                         ? `No ${activeFilter.toLowerCase()} orders found.`
-                        : searchUserId
+                        : searchQuery
                         ? 'No orders found for this user.'
                         : 'No orders have been placed yet.'}
                     </p>

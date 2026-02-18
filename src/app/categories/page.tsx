@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -62,6 +63,13 @@ const featuredCategories = [
 ];
 
 export default function CategoriesPage() {
+  const [search, setSearch] = useState('');
+  const filteredCategories = useMemo(() => {
+    if (!search.trim()) return categories;
+    const q = search.trim().toLowerCase();
+    return categories.filter((c) => c.name.toLowerCase().includes(q));
+  }, [search]);
+
   return (
     <div className="relative flex size-full min-h-screen flex-col bg-slate-50 group/design-root overflow-x-hidden">
       <div className="px-40 flex flex-1 justify-center py-5">
@@ -76,6 +84,8 @@ export default function CategoriesPage() {
                 </div>
                 <input
                   placeholder="Search for categories"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
                   className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#0d141c] focus:outline-0 focus:ring-0 border-none bg-[#e7edf4] focus:border-none h-full placeholder:text-[#49739c] px-4 rounded-l-none border-l-0 pl-2 text-base font-normal leading-normal"
                 />
               </div>
@@ -84,7 +94,7 @@ export default function CategoriesPage() {
 
           <h2 className="text-[#0d141c] text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">Categories</h2>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(158px,1fr))] gap-3 p-4">
-            {categories.map((category) => (
+            {filteredCategories.map((category) => (
               <Link
                 key={category.name}
                 href={`/products/${encodeURIComponent(category.name.toLowerCase().replace(/\s+/g, '-'))}`}
@@ -102,6 +112,9 @@ export default function CategoriesPage() {
                 <h2 className="text-[#0d141c] text-base font-bold leading-tight">{category.name}</h2>
               </Link>
             ))}
+            {filteredCategories.length === 0 && (
+              <div className="col-span-full text-center text-[#49739c] py-6">No categories match your search.</div>
+            )}
           </div>
 
           <h2 className="text-[#0d141c] text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">Featured Categories</h2>

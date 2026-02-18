@@ -3,6 +3,7 @@ const repository = require('../../services/repository.service');
 const sellerWalletService = require('../sellerWallet/seller-wallet.service');
 const userService = require('../users/user.service');
 const { roles } = require('../../config/role.config');
+const { payoutConfig } = require('../../config/payout.config');
 
 /**
  * Create payout request
@@ -14,7 +15,7 @@ const { roles } = require('../../config/role.config');
 module.exports.createPayoutRequest = async (
   seller_id,
   amount_requested,
-  method = 'BANK_TRANSFER'
+  method = 'BANK_TRANSFER',
 ) => {
   // Get seller wallet to check available balance
   const wallet = await sellerWalletService.getWallet(seller_id);
@@ -25,6 +26,44 @@ module.exports.createPayoutRequest = async (
 
   if (amount_requested <= 0) {
     throw new Error('Payout amount must be greater than 0');
+  }
+
+  if (amount_requested < payoutConfig.MIN_PAYOUT_AMOUNT) {
+    throw new Error(
+      `Minimum payout amount is ${payoutConfig.MIN_PAYOUT_AMOUNT} ${wallet.currency || 'LKR'}`,
+    );
+  }
+
+  if (amount_requested > payoutConfig.MAX_DAILY_PAYOUT_AMOUNT) {
+    throw new Error(
+      `Your payout request exceeds the daily limit of ${payoutConfig.MAX_DAILY_PAYOUT_AMOUNT} ${wallet.currency || 'LKR'}`,
+    );
+  }
+
+  // Check daily limit: sum of PENDING + APPROVED requested today (UTC)
+  const now = new Date();
+  const startOfToday = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+  const endOfToday = new Date(startOfToday);
+  endOfToday.setUTCDate(endOfToday.getUTCDate() + 1);
+
+  const dailyAgg = await PayoutModel.aggregate([
+    {
+      $match: {
+        seller_id: wallet.seller_id,
+        status: { $in: ['PENDING', 'APPROVED'] },
+        requested_at: { $gte: startOfToday, $lt: endOfToday },
+      },
+    },
+    { $group: { _id: null, total: { $sum: '$amount_requested' } } },
+  ]);
+  const requestedToday = dailyAgg[0]?.total ?? 0;
+  const totalAfterRequest = requestedToday + amount_requested;
+  if (totalAfterRequest > payoutConfig.MAX_DAILY_PAYOUT_AMOUNT) {
+    throw new Error(
+      `Daily payout limit exceeded. Maximum allowed is ${payoutConfig.MAX_DAILY_PAYOUT_AMOUNT} ${wallet.currency || 'LKR'} per day. You have already requested ${requestedToday} ${wallet.currency || 'LKR'} today.`,
+    );
   }
 
   // Get seller info for bank details
@@ -45,7 +84,7 @@ module.exports.createPayoutRequest = async (
 
   if (!hasBankDetails) {
     throw new Error(
-      'Bank details not found. Please fill in your bank details in Settings > Payout before making a payout request.'
+      'Bank details not found. Please fill in your bank details in Settings > Payout before making a payout request.',
     );
   }
 
@@ -69,7 +108,7 @@ module.exports.createPayoutRequest = async (
   // Reserve the amount from available balance
   await sellerWalletService.reserveFromAvailableBalance(
     seller_id,
-    amount_requested
+    amount_requested,
   );
 
   return newPayout.toObject();
@@ -84,7 +123,7 @@ module.exports.getPayoutById = async (payout_id, role, user_id) => {
   const payout = await PayoutModel.findOne({ _id: payout_id })
     .populate(
       'seller_id',
-      '_id name email sellerInfo.businessName sellerInfo.payouts'
+      '_id name email sellerInfo.businessName sellerInfo.payouts',
     )
     .lean();
 
@@ -98,8 +137,8 @@ module.exports.getPayoutById = async (payout_id, role, user_id) => {
   const sellerIdValue = payout.seller_id?._id
     ? payout.seller_id._id.toString()
     : payout.seller_id
-    ? payout.seller_id.toString()
-    : null;
+      ? payout.seller_id.toString()
+      : null;
 
   if (!sellerIdValue) {
     throw new Error('Payout seller information is missing');
@@ -205,7 +244,7 @@ module.exports.approvePayout = async (payout_id, admin_note = null) => {
       approved_at: new Date(),
       admin_note: admin_note || payout.admin_note,
     },
-    { new: true }
+    { new: true },
   );
 
   return updatedPayout;
@@ -229,12 +268,12 @@ module.exports.rejectPayout = async (payout_id, admin_note) => {
   const sellerIdValue = payout.seller_id?._id
     ? payout.seller_id._id.toString()
     : payout.seller_id
-    ? payout.seller_id.toString()
-    : null;
+      ? payout.seller_id.toString()
+      : null;
 
   await sellerWalletService.returnToAvailableBalance(
     sellerIdValue,
-    payout.amount_requested
+    payout.amount_requested,
   );
 
   const updatedPayout = await repository.updateOne(
@@ -244,7 +283,7 @@ module.exports.rejectPayout = async (payout_id, admin_note) => {
       status: 'REJECTED',
       admin_note: admin_note,
     },
-    { new: true }
+    { new: true },
   );
 
   return updatedPayout;
@@ -262,13 +301,13 @@ module.exports.markPayoutAsPaid = async (
   payout_id,
   amount_paid,
   receipt_urls = [],
-  admin_note = null
+  admin_note = null,
 ) => {
   const payout = await this.getPayoutById(payout_id, roles.admin, null);
 
   if (payout.status !== 'APPROVED') {
     throw new Error(
-      `Cannot mark payout as paid. Current status: ${payout.status}`
+      `Cannot mark payout as paid. Current status: ${payout.status}`,
     );
   }
 
@@ -277,12 +316,12 @@ module.exports.markPayoutAsPaid = async (
   const sellerIdValue = payout.seller_id?._id
     ? payout.seller_id._id.toString()
     : payout.seller_id
-    ? payout.seller_id.toString()
-    : null;
+      ? payout.seller_id.toString()
+      : null;
 
   await sellerWalletService.completePayout(
     sellerIdValue,
-    amount_paid || payout.amount_requested
+    amount_paid || payout.amount_requested,
   );
 
   const updatedPayout = await repository.updateOne(
@@ -295,7 +334,7 @@ module.exports.markPayoutAsPaid = async (
       paid_at: new Date(),
       admin_note: admin_note || payout.admin_note,
     },
-    { new: true }
+    { new: true },
   );
 
   return updatedPayout;
@@ -321,8 +360,8 @@ module.exports.cancelPayout = async (payout_id, role, seller_id) => {
   const sellerIdValue = payout.seller_id?._id
     ? payout.seller_id._id.toString()
     : payout.seller_id
-    ? payout.seller_id.toString()
-    : null;
+      ? payout.seller_id.toString()
+      : null;
 
   if (sellerIdValue !== seller_id) {
     throw new Error('You can only cancel your own payout requests');
@@ -335,7 +374,7 @@ module.exports.cancelPayout = async (payout_id, role, seller_id) => {
   // Return the amount to available balance
   await sellerWalletService.returnToAvailableBalance(
     seller_id,
-    payout.amount_requested
+    payout.amount_requested,
   );
 
   const updatedPayout = await repository.updateOne(
@@ -345,7 +384,7 @@ module.exports.cancelPayout = async (payout_id, role, seller_id) => {
       status: 'CANCELLED',
       admin_note: 'Cancelled by seller',
     },
-    { new: true }
+    { new: true },
   );
 
   return updatedPayout;

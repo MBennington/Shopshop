@@ -521,12 +521,21 @@ module.exports.resetPasswordWithToken = async (token, newPassword) => {
 
 /**
  * Get all sellers
+ * @param {string} [search] - Optional search string to filter by name or businessName
  * @returns {Promise<*>}
  */
-module.exports.getAllSellers = async () => {
+module.exports.getAllSellers = async (search = '') => {
+  const filter = { role: roles.seller };
+  if (search && search.trim()) {
+    const searchRegex = { $regex: search.trim(), $options: 'i' };
+    filter.$or = [
+      { name: searchRegex },
+      { 'sellerInfo.businessName': searchRegex },
+    ];
+  }
   const sellers = await repository.findMany(
     UserModel,
-    { role: roles.seller },
+    filter,
     '_id name profilePicture sellerInfo.businessName'
   );
 

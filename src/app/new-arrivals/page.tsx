@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { OutOfStockBadge } from '@/components/OutOfStockBadge';
 
 interface Product {
   _id: string;
@@ -15,6 +16,7 @@ interface Product {
     colorName: string;
     images: string[];
   }>;
+  totalInventory?: number;
 }
 
 interface ProductsResponse {
@@ -176,6 +178,7 @@ export default function NewArrivalsPage() {
                         </span>
                       </div>
                     )}
+                    <OutOfStockBadge show={(product.totalInventory ?? 0) === 0} badgePosition="right" />
                     {/* New Badge */}
                     <div className="absolute top-2 left-2">
                       <span className="px-2 py-1 bg-[#22c55e] text-white text-[10px] font-bold uppercase tracking-wide rounded-full">

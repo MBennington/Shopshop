@@ -36,10 +36,10 @@ router
   );
 
 router
-  .route(permissions.deleteProduct.path)
-  .delete(
-    validator.validateHeader(permissions.deleteProduct.grantedUserRoles),
-    controller.deleteProduct
+  .route(permissions.toggleProductStatus.path)
+  .patch(
+    validator.validateHeader(permissions.toggleProductStatus.grantedUserRoles),
+    controller.toggleProductStatus
   );
 
 router

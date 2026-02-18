@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
     if (searchParams.get('page')) queryParams.append('page', searchParams.get('page')!);
     if (searchParams.get('limit')) queryParams.append('limit', searchParams.get('limit')!);
     if (searchParams.get('status')) queryParams.append('status', searchParams.get('status')!);
+    if (searchParams.get('search')) queryParams.append('search', searchParams.get('search')!);
     
     if (queryParams.toString()) {
       url += `?${queryParams.toString()}`;

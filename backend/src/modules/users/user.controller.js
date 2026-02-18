@@ -230,7 +230,8 @@ module.exports.getUserById = async (req, res) => {
  */
 module.exports.getAllSellers = async (req, res) => {
   try {
-    const data = await userService.getAllSellers();
+    const search = (req.query.search || '').trim();
+    const data = await userService.getAllSellers(search);
 
     return successWithData(data, res);
   } catch (error) {
